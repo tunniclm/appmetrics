@@ -13,7 +13,7 @@
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/Monitoring.h"
-#include "ibmras/monitoring/plugins/omr/OmrTraceDataProvider.h"
+#include "ibmras/monitoring/plugins/omr/TraceDataProvider.h"
 #include "ibmras/monitoring/plugins/omr/MemoryCountersDataProvider.h"
 #include "ibmras/monitoring/plugins/omr/CpuDataProvider.h"
 #include "ibmras/monitoring/plugins/omr/NativeMemoryDataProvider.h"
@@ -68,7 +68,7 @@ void launchAgent(char const *options) {
 	}
 
 	agent->addPlugin(
-			(ibmras::monitoring::Plugin*) new plugins::omr::trace::OmrTraceDataProvider(omrParams));
+			(ibmras::monitoring::Plugin*) new plugins::omr::trace::TraceDataProvider(omrParams));
 	agent->addPlugin(
 			(ibmras::monitoring::Plugin*) new plugins::omr::memorycounters::MemoryCountersDataProvider(omrParams));
 	agent->addPlugin(

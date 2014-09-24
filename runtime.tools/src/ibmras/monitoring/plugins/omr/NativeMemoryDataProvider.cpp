@@ -74,6 +74,7 @@ pullsource* NativeMemoryDataProvider::registerPullSource(uint32 provID) {
 	IBMRAS_DEBUG(info, "Registering pull sources");
 	pullsource *src = new pullsource();
 	src->header.name = "nativememory";
+	src->header.config = "nativememory_subsystem=on";
 	src->header.description = ("This returns the Native Memory data");
 	src->header.sourceID = srcid;
 	src->header.capacity = (DEFAULT_CAPACITY);
@@ -196,8 +197,7 @@ char* NativeMemoryDataProvider::getNativeMemoryData()
     cleanup:
     IBMRAS_DEBUG(debug, "in cleanup block\n");
 	if (OMR_ERROR_NONE == err) {
-		// TODO - add this call back in when omr have fixed the unbind problem
-//    	err = vmData.omrti->UnbindCurrentThread(vmThread);
+    	err = vmData.omrti->UnbindCurrentThread(vmThread);
 	}
 
 	if (OMR_ERROR_NONE != err) {

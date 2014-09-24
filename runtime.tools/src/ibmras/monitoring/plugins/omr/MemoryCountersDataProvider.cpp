@@ -79,6 +79,7 @@ pullsource* MemoryCountersDataProvider::registerPullSource(uint32 provID) {
 	IBMRAS_DEBUG(info, "Registering pull sources");
 	pullsource *src = new pullsource();
 	src->header.name = "memorycounters";
+	src->header.config = "memorycounters_subsystem=on";
 	src->header.description = ("This returns the native memory counters breakdown");
 	src->header.sourceID = srcid;
 	src->header.capacity = (DEFAULT_CAPACITY);
@@ -257,11 +258,8 @@ char* MemoryCountersDataProvider::getMemoryCounters()
     hc_dealloc((char*)memcounterarray);
 
 	if (OMR_ERROR_NONE == rc) {
-		//rc = vmData.omrti->UnbindCurrentThread(vmThread);
+		rc = vmData.omrti->UnbindCurrentThread(vmThread);
 	}
-
-	// smc + newline + time + newline + memcounters + emc + newline
-
 
 	int length = strlen("smc")+1+24+1+strlen(finalReport)+strlen("emc")+1;
 	report = new char[length];

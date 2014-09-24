@@ -47,10 +47,10 @@ monitordata* CpuDataProvider::pullCallback() {
 	 * in this case the mock data is produced from the "generateData" method.
 	 */
 	IBMRAS_DEBUG(debug, "pullCallback start\n");
-	plugins::omr::cpu::lock->acquire();
+	//plugins::omr::cpu::lock->acquire();
 	IBMRAS_DEBUG(debug, "Generating data for pull from agent");
 	monitordata* data = generateData(srcid);
-	plugins::omr::cpu::lock->release();
+	//plugins::omr::cpu::lock->release();
 	return data;
 }
 
@@ -74,6 +74,7 @@ pullsource* CpuDataProvider::registerPullSource(uint32 provID) {
 	IBMRAS_DEBUG(info, "Registering pull sources");
 	pullsource *src = new pullsource();
 	src->header.name = "cpu";
+	src->header.config = "cpu_subsystem=on";
 	src->header.description = ("This returns the CPU data");
 	src->header.sourceID = srcid;
 	src->header.capacity = (DEFAULT_CAPACITY);
@@ -133,14 +134,12 @@ char* CpuDataProvider::getCpuData()
     char * report;
 	report = new char[100];
 	int rc;
-	OMR_VMThread thrSlot;
-	OMR_VMThread *vmThread = &thrSlot;
+	OMR_VMThread *vmThread = NULL;
 	// format is startcpu@#timestamp@#processcpu@#systemcpu
 	char* cpuFormatString = "startCPU@#%llu@#%f@#%f\n";
 	unsigned long long millisecondsSinceEpoch;
 
     IBMRAS_DEBUG(debug, "getCpuData start\n");
-
     err = vmData.omrti->BindCurrentThread(vmData.theVm, "getCpuData", &vmThread);
 
 	if (OMR_ERROR_NONE != err) {
@@ -181,8 +180,7 @@ char* CpuDataProvider::getCpuData()
     cleanup:
     IBMRAS_DEBUG(debug, "in cleanup block\n");
 	if (OMR_ERROR_NONE == err) {
-		// TODO - add this call back in when omr have fixed the unbind problem
-//    	err = vmData.omrti->UnbindCurrentThread(vmThread);
+    	err = vmData.omrti->UnbindCurrentThread(vmThread);
 	}
 
 	if (OMR_ERROR_NONE != err) {
