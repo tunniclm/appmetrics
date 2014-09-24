@@ -12,6 +12,7 @@
 #define BUILDING_NODE_EXTENSION
 #endif
 
+#include "node.h"
 #include "ibmras/monitoring/connector/Connector.h"
 #include "v8.h"
 #include "ibmras/monitoring/agent/BucketList.h"
