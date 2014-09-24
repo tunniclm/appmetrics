@@ -1,0 +1,22 @@
+#include makefile for z/OS
+PLATFORM=_ZOS
+PORTDIR=zos
+CC=c++
+GCC=c++
+LINK=c++
+LINK_OPT= -Wl,dll,xplink,lp64
+LD_OPT=
+OBJOPT=-o"$@"
+ARCHIVE=ar -r 
+ARC_EXT=a
+CFLAGS= -D__BIG_ENDIAN -c -g -Wc,expo,dll,lp64 -Wc,"LANG(EXTENDED)"
+LIB_EXT=o
+EXE_EXT=
+LIBFLAGS= 
+LIB_OBJOPT=-o"$@"
+LIBPATH=
+EXEFLAGS=
+EXELIBS=
+JAVA_PLAT_INCLUDE=${JAVA_SDK_INCLUDE}
+LIB_PREFIX=lib
+
