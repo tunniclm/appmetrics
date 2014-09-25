@@ -42,7 +42,8 @@
 
   "targets": [
     {
-      "target_name": "healthcenter",
+      # Hardcode the "lib" prefix so this target doesn't clash with the "healthcenter" target on Windows
+      "target_name": "libhealthcenter",
       "type": "shared_library",
       "sources": [ 
         "<(srcdir)/common/Logger.cpp",
@@ -76,15 +77,39 @@
       "sources": [
         "<(srcdir)/vm/node/nodeconnector.cpp",
       ],
-      "dependencies": [ "healthcenter" ],
+      "dependencies": [ "libhealthcenter" ],
     },
     {
-      "target_name": "nodegcplugin",
+      "target_name": "<(SHARED_LIB_PREFIX)nodeenvplugin",
+      "type": "shared_library",
+      "sources": [
+        "<(srcdir)/monitoring/plugins/nodeenv/nodeenvplugin.cpp",
+      ],
+      "dependencies": [ "libhealthcenter" ],
+    },
+    {
+      "target_name": "<(SHARED_LIB_PREFIX)nodegcplugin",
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/nodegc/nodegcplugin.cpp",
       ],
-      "dependencies": [ "healthcenter" ],
+      "dependencies": [ "libhealthcenter" ],
+    },
+    {
+      "target_name": "<(SHARED_LIB_PREFIX)osplugin",
+      "type": "shared_library",
+      "sources": [
+        "<(srcdir)/monitoring/plugins/os/Plugin.cpp",
+      ],
+      "dependencies": [ "libhealthcenter" ],
+      "conditions": [
+        ['OS=="linux"', {
+          "sources": [ "<(srcdir)/monitoring/plugins/os/Linux.cpp" ],
+        }],
+        ['OS=="win"', {
+          "sources": [ "<(srcdir)/monitoring/plugins/os/Windows.cpp" ],
+        }],
+      ],
     },
     {
       "target_name": "ostream",
@@ -92,18 +117,47 @@
       "sources": [
         "<(srcdir)/monitoring/connector/ostream/OStreamConnector.cpp",
       ],
-      "dependencies": [ "healthcenter" ],
+      "dependencies": [ "libhealthcenter" ],
     },
 
     {
-      "target_name": "node-healthcenter",
+      "target_name": "healthcenter",
       
       "include_dirs": [ "<(srcdir)/vm/node" ],
       "sources": [ 
         "<(srcdir)/vm/node/nodeagent.cpp", 
         "<(srcdir)/vm/node/wrapper.cpp"
       ],
-      "dependencies": [ "healthcenter", "nodecon" ],
+      "dependencies": [ "libhealthcenter", "nodecon" ],
+    },
+    {
+      "target_name": "install",
+      "type": "none",
+      "dependencies": [
+        "libhealthcenter",
+        "healthcenter",
+        "<(SHARED_LIB_PREFIX)osplugin",
+        "<(SHARED_LIB_PREFIX)nodeenvplugin",
+        "<(SHARED_LIB_PREFIX)nodegcplugin",
+     ],
+      "copies": [
+        {
+          "destination": "<(PRODUCT_DIR)/deploy",
+          "files": [
+            "<(PRODUCT_DIR)/healthcenter.node",
+            "<(PRODUCT_DIR)/libhealthcenter<(SHARED_LIB_SUFFIX)",
+            "<(srcdir)/monitoring/monitoringagent.properties",
+          ],
+        },
+        {
+          "destination": "<(PRODUCT_DIR)/deploy/plugins",
+          "files": [
+            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)osplugin<(SHARED_LIB_SUFFIX)",
+            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodeenvplugin<(SHARED_LIB_SUFFIX)",
+            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodegcplugin<(SHARED_LIB_SUFFIX)",
+          ],
+        },
+      ],
     },
   ],
 }
