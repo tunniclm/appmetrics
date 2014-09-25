@@ -20,6 +20,11 @@
   "target_defaults": {
     "defines": [ "EXPORT", "IBMRAS_DEBUG_LOGGING" ],
     "include_dirs": [ "src", "<(pahosrcdir)" ],
+    "target_conditions": [
+      ['_type=="shared_library"', {
+        'product_prefix': '<(SHARED_LIB_PREFIX)',
+      }],
+    ],
     "conditions": [
       ['OS=="linux"', {
         "defines": [ "_LINUX", "LINUX" ],
