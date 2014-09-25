@@ -3,6 +3,7 @@
     "srcdir%": "./src/ibmras",
     "pahodir%": "../Paho/org.eclipse.paho.mqtt.c",
     "pahosrcdir%": "../Paho/org.eclipse.paho.mqtt.c/src",
+    "deploydir%": "<(PRODUCT_DIR)/deploy/healthcenter-<(OS)-<(target_arch)",
   },
   "conditions": [
     ['OS=="linux"', {
@@ -37,7 +38,6 @@
           "VCCLCompilerTool": {
             "AdditionalOptions": [
               "/EHsc",
-              "/MD",
             ]
           },
         },
@@ -85,7 +85,7 @@
       "dependencies": [ "libhealthcenter" ],
     },
     {
-      "target_name": "<(SHARED_LIB_PREFIX)nodeenvplugin",
+      "target_name": "nodeenvplugin",
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/nodeenv/nodeenvplugin.cpp",
@@ -93,7 +93,7 @@
       "dependencies": [ "libhealthcenter" ],
     },
     {
-      "target_name": "<(SHARED_LIB_PREFIX)nodegcplugin",
+      "target_name": "nodegcplugin",
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/nodegc/nodegcplugin.cpp",
@@ -101,7 +101,7 @@
       "dependencies": [ "libhealthcenter" ],
     },
     {
-      "target_name": "<(SHARED_LIB_PREFIX)osplugin",
+      "target_name": "osplugin",
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/os/Plugin.cpp",
@@ -141,13 +141,13 @@
       "dependencies": [
         "libhealthcenter",
         "healthcenter",
-        "<(SHARED_LIB_PREFIX)osplugin",
-        "<(SHARED_LIB_PREFIX)nodeenvplugin",
-        "<(SHARED_LIB_PREFIX)nodegcplugin",
+        "osplugin",
+        "nodeenvplugin",
+        "nodegcplugin",
      ],
       "copies": [
         {
-          "destination": "<(PRODUCT_DIR)/deploy",
+          "destination": "<(deploydir)",
           "files": [
             "<(PRODUCT_DIR)/healthcenter.node",
             "<(PRODUCT_DIR)/libhealthcenter<(SHARED_LIB_SUFFIX)",
@@ -155,7 +155,7 @@
           ],
         },
         {
-          "destination": "<(PRODUCT_DIR)/deploy/plugins",
+          "destination": "<(deploydir)/plugins",
           "files": [
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)osplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodeenvplugin<(SHARED_LIB_SUFFIX)",
