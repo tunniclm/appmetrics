@@ -53,6 +53,7 @@ monitordata* OnRequestData() {
 			content += "\nsdk.vendor=";
 			content += plugin::nodeVendor;
 		}
+		content += "\n";
 		data->size = content.length();
 		data->data = strdup(content.c_str());
 	}		
@@ -72,6 +73,7 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	desc.append(name);
 	src->header.description = desc.c_str();
 	src->header.sourceID = srcid;
+	src->header.config = "";
 	src->next = NULL;
 	src->header.capacity = DEFAULT_CAPACITY;
 	src->callback = OnRequestData;

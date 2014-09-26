@@ -131,6 +131,7 @@ pushsource* createPushSource(uint32 srcid, const char* name) {
         desc.append(name);
         src->header.description = desc.c_str();
         src->header.sourceID = srcid;
+        src->header.config = "";
         src->next = NULL;
         src->header.capacity = (DEFAULT_CAPACITY / (srcid+1));
         return src;

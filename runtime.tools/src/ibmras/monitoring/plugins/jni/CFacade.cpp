@@ -182,14 +182,14 @@ std::string getString(JNIEnv* env, const char* cname, const char* mname, const c
 	jclass clazz = env->FindClass(cname);
 	if(!clazz) {
 		IBMRAS_DEBUG_1(warning,  "Failed to find %s class", cname);
-		return NULL;
+		return "";
 	}
 	IBMRAS_DEBUG_1(debug,  "Found %s class", cname);
 
 	jmethodID method = env->GetStaticMethodID(clazz, mname, signature);
 	if(!method) {
 		IBMRAS_DEBUG_1(warning,  "Failed to get %s method ID", mname);
-		return NULL;
+		return "";
 	}
 	IBMRAS_DEBUG_1(debug,  "%s method loaded, calling thru JNI", mname);
 

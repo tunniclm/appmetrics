@@ -14,10 +14,10 @@ namespace jmx {
 
 
 JMXConnectorPlugin* instance = NULL;
-JMXConnectorPlugin* JMXConnectorPlugin::getInstance(JavaVM *theVM, const std::string &options) {
+JMXConnectorPlugin* JMXConnectorPlugin::getInstance(JavaVM *theVM) {
 	if (!instance) {
 		if (theVM) {
-			instance = new JMXConnectorPlugin(theVM, options);
+			instance = new JMXConnectorPlugin(theVM);
 		}
 	}
 	return instance;
@@ -35,17 +35,17 @@ void* JMXConnectorPlugin::getConnector(const char* properties) {
 	if (instance == NULL) {
 		return NULL;
 	}
-	return instance->getJMXConnector(properties);
+	return instance->getJMXConnector();
 }
 
-JMXConnector* JMXConnectorPlugin::getJMXConnector(const char* properties) {
+JMXConnector* JMXConnectorPlugin::getJMXConnector() {
 	if (!jmxConnector) {
-		jmxConnector = new JMXConnector(vm, agentOptions, properties);
+		jmxConnector = new JMXConnector(vm);
 	}
 	return jmxConnector;
 }
 
-JMXConnectorPlugin::JMXConnectorPlugin(JavaVM *theVM,  const std::string &options) : jmxConnector(NULL), vm(theVM), agentOptions(options) {
+JMXConnectorPlugin::JMXConnectorPlugin(JavaVM *theVM) : jmxConnector(NULL), vm(theVM) {
 	name = "JMX Connector";
 	type = ibmras::monitoring::plugin::connector;
 	start = startPlugin;

@@ -61,7 +61,7 @@ void launchAgent(char const *options) {
 	agent->setLogLevels();
 	IBMRAS_DEBUG(debug, "launchAgent enter");
 
-	agent->setSearchPath(options);
+	agent->setAgentProperty("plugin.path", options);
 
 	if (omrParams.omrti == NULL) {
 		IBMRAS_DEBUG(warning,  "omrParams.omrti is null");

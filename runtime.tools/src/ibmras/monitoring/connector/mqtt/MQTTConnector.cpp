@@ -43,6 +43,8 @@ MQTTConnector::MQTTConnector(const std::string &host, const std::string &port,
 		brokerHost(host), brokerPort(port), brokerUser(user), brokerPass(pass), mqttClient(
 				NULL) {
 
+	enabled = false;
+
 	int processId = ibmras::common::port::getProcessId();
 	unsigned long long time = ibmras::common::util::getMilliseconds();
 	srand((unsigned int) time);
@@ -96,21 +98,14 @@ void MQTTConnector::createClient(const std::string &clientId) {
 		address += ":";
 		address += brokerPort;
 
-		char *addStr = new char[address.length() + 1];
-		strcpy(addStr, address.c_str());
-
-		int rc = MQTTAsync_create(&mqttClient, addStr, clientId.c_str(),
-				MQTTCLIENT_PERSISTENCE_NONE, NULL);
-
-		if (addStr != NULL) {
-			delete[] addStr;
-		}
+		int rc = MQTTAsync_create(&mqttClient, address.c_str(),
+				clientId.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
 
 		if (rc != MQTTASYNC_SUCCESS) {
 			IBMRAS_DEBUG_1(fine, "MQTTConnector: client create failed: %d", rc);
 		} else {
-			rc = MQTTAsync_setCallbacks(mqttClient, this, NULL, messageReceived,
-					NULL);
+			rc = MQTTAsync_setCallbacks(mqttClient, this, connectionLost,
+					messageReceived, NULL);
 			if (rc != MQTTASYNC_SUCCESS) {
 				IBMRAS_DEBUG_1(fine, "MQTTConnector: setCallbacks failed: %d", rc);
 			}
@@ -159,9 +154,15 @@ void MQTTConnector::onConnect(void* context, MQTTAsync_successData* response) {
 }
 
 void MQTTConnector::onFailure(void* context, MQTTAsync_failureData* response) {
-	IBMRAS_DEBUG_2(warning, "MQTTAsync_connect failed. rc: %d reason: %s", response->code, response->message);
+	if (response == NULL) {
+		IBMRAS_DEBUG(warning, "MQTTAsync_connect failed");
+	} else {
+		IBMRAS_DEBUG_1(warning, "MQTTAsync_connect failed. rc: %d", response->code);
+		if (response->message != NULL) {
+			IBMRAS_DEBUG_1(warning, "MQTTAsync_connect failure reason: %s", response->message);
+		}
+	}
 }
-
 
 void MQTTConnector::handleOnConnect(MQTTAsync_successData* response) {
 	char *topic = new char[agentTopic.length() + 2];
@@ -180,18 +181,36 @@ void MQTTConnector::handleOnConnect(MQTTAsync_successData* response) {
 	rc = MQTTAsync_subscribe(mqttClient, identifyTopic, 1, &opts);
 	if (rc != MQTTASYNC_SUCCESS) {
 		IBMRAS_DEBUG_2(warning, "MQTTAsync_subscribe to %s failed. rc=%d", CLIENT_IDENTIFY_TOPIC, rc);
+	} else {
+		sendIdentityMessage();
 	}
+}
 
-	sendIdentityMessage();
+void MQTTConnector::connectionLost(void *context, char *cause) {
+	IBMRAS_DEBUG(warning, "MQTTConnection lost");
 }
 
 int MQTTConnector::sendMessage(const std::string &sourceId, uint32 size,
 		void *data) {
-	IBMRAS_DEBUG_3(fine, "Sending message : topic %s : data %p : length %d", sourceId.c_str(), data, size);
 
-	if (mqttClient == NULL || !MQTTAsync_isConnected(mqttClient)) {
+	if (!enabled) {
+		return 0;
+	}
+
+	if (mqttClient == NULL) {
 		return -1;
 	}
+
+	if (!MQTTAsync_isConnected(mqttClient)) {
+		if (sourceId == "heartbeat") {
+			connect();
+			return 0;
+		} else {
+			return -1;
+		}
+	}
+
+	IBMRAS_DEBUG_3(fine, "Sending message : topic %s : data %p : length %d", sourceId.c_str(), data, size);
 
 	/* topic = <clientId>/sourceId */
 	char *topic = new char[rootTopic.length() + 1 + sourceId.length() + 1];
@@ -245,20 +264,29 @@ ibmras::monitoring::connector::Receiver* MQTTConnector::returnReceiver() {
 
 int MQTTConnector::start() {
 	IBMRAS_DEBUG(debug, "start");
-	return connect();
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string enabledProp = agent->getAgentProperty("mqtt");
+	if (enabledProp == "on") {
+		enabled = true;
+		return connect();
+	}
 }
 
 int MQTTConnector::stop() {
 	IBMRAS_DEBUG(debug, "stop");
 
-	// Send will message before our clean termination
-	char* message = new char[willMessage.length() + 1];
-	strcpy(message, willMessage.c_str());
-	MQTTAsync_send(mqttClient, willTopic.c_str(), strlen(message), message, 1, 0, NULL);
-	delete[] message;
-
 	if (mqttClient != NULL) {
-		return MQTTAsync_disconnect(mqttClient, NULL);
+		if (MQTTAsync_isConnected(mqttClient)) {
+			// Send will message before our clean termination
+			char* message = new char[willMessage.length() + 1];
+			strcpy(message, willMessage.c_str());
+			MQTTAsync_send(mqttClient, willTopic.c_str(), strlen(message),
+					message, 1, 0, NULL);
+			delete[] message;
+
+			return MQTTAsync_disconnect(mqttClient, NULL);
+		}
 	}
 	return -1;
 }
@@ -269,7 +297,7 @@ void MQTTConnector::sendIdentityMessage() {
 	char* idMessage = new char[agentIdMessage.length() + 1];
 	strcpy(idMessage, agentIdMessage.c_str());
 	MQTTAsync_send(mqttClient, topic, strlen(idMessage), idMessage, 1, 0, NULL);
-	delete [] idMessage;
+	delete[] idMessage;
 }
 
 }

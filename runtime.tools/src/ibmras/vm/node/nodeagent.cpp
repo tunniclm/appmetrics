@@ -6,6 +6,7 @@
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/Monitoring.h"
+#include "ibmras/common/PropertiesFile.h"
 #include "node.h"
 #include "uv.h"
 #include "ibmras/vm/node/nodeconnector.h"
@@ -29,6 +30,10 @@ Handle<Value> Start(const Arguments& args) {
   HandleScope scope;
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
 	agent->init();
+
+	// Force MQTT on for now
+	agent->setAgentProperty("mqtt", "on");
+
 	agent->start();
 	connector = reinterpret_cast<nodecon::NodeConnector*>(agent->getConnector("NodeConnector"));
 	if(!connector) {
@@ -59,7 +64,7 @@ Handle<Value> spath(const Arguments& args) {
 	path->WriteAscii(buffer,0 , path->Length());
 	buffer[path->Length()] = '\0';
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->setSearchPath(buffer);
+	agent->setAgentProperty("plugin.path", buffer);
 return scope.Close(Undefined());
 }
 
@@ -151,7 +156,13 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 
 	// Defaults
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->setSearchPath(strdup("./plugins"));
+	agent->setAgentProperty("plugin.path", "./plugins");
+	
+	// Load healthcenter.properties
+	ibmras::common::PropertiesFile props;
+	props.load("healthcenter.properties");
+	agent->setProperties(props);
+	agent->setLogLevels();
 }
 
 NODE_MODULE(healthcenter, Init)

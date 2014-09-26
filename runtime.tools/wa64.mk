@@ -41,7 +41,6 @@ install: all
 	cp ${AGENT_OUT}/${LIB_PREFIX}monagent.${LIB_EXT} ${INSTALL_DIR}
 	cp ${PLUGIN_OUT}/*.dll ${INSTALL_DIR}/plugins
 	cp ${CONNECTOR_OUT}/*.dll ${INSTALL_DIR}/plugins
-	copy src/ibmras/monitoring/monitoringagent.properties ${INSTALL_DIR}
 	@echo cd "${INSTALL_DIR}" >> ${INSTALL_DIR}/${SCRIPT_NAME}
 	@echo test${EXE_EXT} "${INSTALL_DIR}/plugins" >> ${INSTALL_DIR}/${SCRIPT_NAME}
 	@echo "-----------------------------------------------------------------------------------------------------------------------"

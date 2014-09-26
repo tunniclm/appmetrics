@@ -21,6 +21,12 @@ NODE_OUT=${OUTPUT}/node
 PAHO_OUT=${OUTPUT}/paho
 HC_OUT=${JAVA_OUT}
 
+#-------------------------------------------------------------------------------------------
+# conditional include of connector directory
+#-------------------------------------------------------------------------------------------
+COPY_CONNECTOR=cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
+
+
 
 #-------------------------------------------------------------------------------------------
 #Objects files which make up various components
@@ -46,6 +52,7 @@ NODEGC_OBJS=${PLUGIN_OUT}/nodegcplugin.o
 NODEPROF_OBJS=${PLUGIN_OUT}/nodeprofplugin.o
 NODEENV_OBJS=${PLUGIN_OUT}/nodeenvplugin.o
 ENVPLUGIN_OBJS=${PLUGIN_OUT}/envplugin.o
+CPUPLUGIN_OBJS=${PLUGIN_OUT}/cpuplugin.o ${PLUGIN_OUT}/cputime.o
 TEST_OBJS=${TEST_OUT}/test.o
 
 #-------------------------------------------------------------------------------------------
@@ -79,7 +86,7 @@ CONNECTORS=${CONNECTOR_OUT}/libhcmqtt.${LIB_EXT} #${CONNECTOR_OUT}/libostream.${
 AGENT=${AGENT_OUT}/${LIB_PREFIX}monagent.${LIB_EXT}
 #PLUGINS=${PLUGIN_OUT}/libplugin.${LIB_EXT} ${PLUGIN_OUT}/libosplugin.${LIB_EXT}
 PLUGINS=${PLUGIN_OUT}/libplugin.${LIB_EXT}
-COMMON_PLUGINS=${PLUGIN_OUT}/libosplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}envplugin.${LIB_EXT}
+COMMON_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}envplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}cpuplugin.${LIB_EXT} #${PLUGIN_OUT}/libosplugin.${LIB_EXT} 
 NODE_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}nodegcplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}nodeenvplugin.${LIB_EXT}
 #NODE_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}nodeprofplugin.${LIB_EXT}
 PYPLUG=${PLUGIN_OUT}/libpyplugin.so
@@ -139,6 +146,10 @@ ${PLUGIN_OUT}/libplugin.${LIB_EXT}: ${TESTPLUGIN_OBJS}
 ${PLUGIN_OUT}/libosplugin.${LIB_EXT}: ${OSPLUGIN_OBJS}
 	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} ${OSPLUGIN_OBJS} ${COMMON_OBJS} ${EXELIBS}
 	@echo "OSPlugin lib built"
+
+${PLUGIN_OUT}/${LIB_PREFIX}cpuplugin.${LIB_EXT}: ${CPUPLUGIN_OBJS}
+	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} $^ ${COMMON_OBJS} ${EXELIBS}
+	@echo "CPU lib built"
 	
 ${PLUGIN_OUT}/${LIB_PREFIX}nodegcplugin.${LIB_EXT}: ${NODEGC_OBJS}
 	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} "$<" ${LIBPATH}"${HC_OUT}" ${HC_LIB_USE} ${EXELIBS} ${NODEEXELIBS}
@@ -325,17 +336,23 @@ ${PLUGIN_OUT}/RTJMXPullSource.o:
 ${PLUGIN_OUT}/pyplugin.o: 
 	${CC} ${INCS} -I${OMR_SRC_INCLUDE} ${PYTHON_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/pytest/pyplugin.cpp
 
-${PLUGIN_OUT}/nodegcplugin.o: 
+${PLUGIN_OUT}/nodegcplugin.o: ${SRC}/monitoring/plugins/nodegc/nodegcplugin.cpp
 	${CC} ${INCS} -I${NODE_SDK_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/nodegc/nodegcplugin.cpp
 
-${PLUGIN_OUT}/nodeprofplugin.o: 
+${PLUGIN_OUT}/nodeprofplugin.o: ${SRC}/monitoring/plugins/nodeprof/nodeprofplugin.cpp 
 	${CC} ${INCS} -I${NODE_SDK_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/nodeprof/nodeprofplugin.cpp
 
-${PLUGIN_OUT}/nodeenvplugin.o: 
+${PLUGIN_OUT}/nodeenvplugin.o: ${SRC}/monitoring/plugins/nodeenv/nodeenvplugin.cpp
 	${CC} ${INCS} -I${NODE_SDK_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/nodeenv/nodeenvplugin.cpp
 	
-${PLUGIN_OUT}/envplugin.o: 
+${PLUGIN_OUT}/envplugin.o: ${SRC}/monitoring/plugins/environment/envplugin.cpp
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/environment/envplugin.cpp
+	
+${PLUGIN_OUT}/cputime.o: ${SRC}/monitoring/plugins/cpu/cputime.cpp ${SRC}/monitoring/plugins/cpu/cputime.h
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/cpu/cputime.cpp
+	
+${PLUGIN_OUT}/cpuplugin.o: ${SRC}/monitoring/plugins/cpu/cpuplugin.cpp ${SRC}/monitoring/plugins/cpu/cputime.h
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/cpu/cpuplugin.cpp	
 	
 #-------------------------------------------------------------------------------------------
 #JAVA vm files which make up various JAVA shim levels
@@ -492,8 +509,7 @@ javainstall: java
 	@echo "installing to  ${INSTALL_DIR}"
 	mkdir -p ${INSTALL_DIR}/plugins
 	mkdir -p ${INSTALL_DIR}/libs
-	cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
-	cp src/ibmras/monitoring/monitoringagent.properties ${INSTALL_DIR}
+	${COPY_CONNECTOR}
 	cp src/properties/java/healthcenter.properties ${INSTALL_DIR}
 	cp ${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT} ${INSTALL_DIR}
 	@echo "-----------------------------------------------------------------------------------------------------------------------"
@@ -502,17 +518,15 @@ omrinstall: omr
 	@echo "installing to  ${INSTALL_DIR}"
 	mkdir -p ${INSTALL_DIR}/plugins
 	mkdir -p ${INSTALL_DIR}/libs
-	cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
-	cp src/ibmras/monitoring/monitoringagent.properties ${INSTALL_DIR}
-	cp src/properties/java/healthcenter.properties ${INSTALL_DIR}
+	${COPY_CONNECTOR}
+	cp src/properties/omr/healthcenter.properties ${INSTALL_DIR}
 	cp ${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT} ${INSTALL_DIR}
 	@echo "-----------------------------------------------------------------------------------------------------------------------"
              
 nodeinstall: node
 	@echo "installing to  ${INSTALL_DIR}"
 	mkdir -p ${INSTALL_DIR}/plugins
-	cp src/ibmras/monitoring/monitoringagent.properties ${INSTALL_DIR}
-	cp src/properties/java/healthcenter.properties ${INSTALL_DIR}
+	cp src/properties/node/healthcenter.properties ${INSTALL_DIR}
 	cp ${NODE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT} ${INSTALL_DIR}
 	cp ${NODE_OUT}/build/Release/healthcenter.node ${INSTALL_DIR}
 	cp ${NODE_OUT}/${LIB_PREFIX}nodecon.${LIB_EXT} ${INSTALL_DIR}/plugins

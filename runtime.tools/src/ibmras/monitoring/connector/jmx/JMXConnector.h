@@ -24,7 +24,7 @@ class JMXConnector: public ibmras::monitoring::connector::Connector {
 public:
 	virtual std::string getID() { return "JMX Connector"; }
 
-	JMXConnector(JavaVM *theVM, const std::string &options, const char* properties);
+	JMXConnector(JavaVM *theVM);
 	virtual ~JMXConnector();
 
 	virtual int start();
@@ -36,9 +36,6 @@ private:
 	int launchMBean();
 
 	JavaVM *vm;
-	std::string agentOptions;
-
-
 };
 
 } /* namespace jmx */

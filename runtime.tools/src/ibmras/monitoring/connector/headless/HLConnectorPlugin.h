@@ -19,19 +19,18 @@ namespace headless {
 
 class HLConnectorPlugin: public ibmras::monitoring::Plugin {
 public:
-	static HLConnectorPlugin* getInstance(JavaVM* theVM, const std::string &options);
+	static HLConnectorPlugin* getInstance(JavaVM* theVM);
 	virtual ~HLConnectorPlugin();
+
+protected:
+	HLConnectorPlugin(JavaVM* theVM);
+
+private:
 
 	static void* getConnector(const char* properties);
 
-protected:
-	HLConnectorPlugin(JavaVM* theVM, const std::string &options);
-
-private:
-	//static HLConnector* hlConnector;
-	HLConnector* getHLConnector(const char* properties);
+	HLConnector* getHLConnector();
 	JavaVM* vm;
-	std::string agentOptions;
 
 };
 

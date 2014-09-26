@@ -19,7 +19,7 @@
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/common/Logger.h"
 #include "ibmras/common/LogManager.h"
-#include "ibmras/common/PropertiesFile.h"
+#include "ibmras/common/Properties.h"
 
 #include <string>
 /*
@@ -35,6 +35,7 @@ namespace agent {
 class DECL Agent {
 public:
 	static Agent* getInstance();					/* return the singleton instance of the agent */
+	static std::string getBuildDate();
 	void init();							/* invoke to start the agent initialisation lifecycle event */
 	void start();						/* invoke to start the agent start lifecycle event */
 	void stop();							/* invoke to start the agent stop lifecycle event */
@@ -52,7 +53,7 @@ public:
 	ibmras::monitoring::connector::Connector* getConnector(const std::string &id);
 	ibmras::monitoring::connector::ConnectorManager* getConnectionManager();
 	bool addData(monitordata* data);
-	void setSearchPath(const std::string &path);
+
 	void publish();							/* publish messages to connectors */
 	void republish(const std::string &prefix); /* republish history */
 	void drain();							/* drain any plugin data into the buckets */
@@ -69,6 +70,7 @@ public:
 
 	std::string getAgentPropertyPrefix();
 	std::string getAgentProperty(const std::string &agentProp);
+	void setAgentProperty(const std::string &agentProp, const std::string &value);
 
 private:
 	Agent();					/* private constructor */
@@ -82,7 +84,7 @@ private:
 	void startConnectors(); 		/* initialise the connectors */
 	void startReceivers(); 		/* initialise any receivers */
 	BucketList bucketList;
-	std::string searchPath;					/* search path for plugins */
+
 	ibmras::monitoring::connector::ConnectorManager connectionManager;
 	DataSourceList<pushsource> pushSourceList;
 	DataSourceList<pullsource> pullSourceList;
@@ -90,7 +92,7 @@ private:
 	MonitorDataQueue dataq;
 	uint32 activeThreadCount;		/* number of active threads */
 	
-	ibmras::common::PropertiesFile properties;
+	ibmras::common::Properties properties;
 
 };
 }

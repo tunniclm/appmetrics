@@ -21,7 +21,7 @@ namespace headless {
 class HLConnector: public ibmras::monitoring::connector::Connector {
 public:
 
-	static HLConnector* getInstance(JavaVM* theVM, std::string &options, const char* properties);
+	static HLConnector* getInstance(JavaVM* theVM);
 	static HLConnector* getInstance();
 
 	int32 getRunDuration();
@@ -39,9 +39,10 @@ public:
 
 private:
 
+
+	bool enabled;
 	JavaVM* vm;
 	JNIEnv* env;
-	std::string agentOptions;
 	jclass zipJNIclazz;
 	jobject zipClazzObject;
 	jmethodID zipMethod;
@@ -57,22 +58,17 @@ private:
 	int32 run_pause;
 	int32 number_runs;
 	std::string userDefinedPath;
+	std::string tmpPath;
 	std::string userDefinedPrefix;
 	int32 times_run;
 	std::time_t startTime;
 	char startDate[100];
+	std::string hcdName;
 
-	static const int32 default_upper_limit = INT_MAX;
-	static const uint32 default_time_interval = 0;
-	static const uint32 default_files_to_keep = 0;
-	static const uint32 default_run_duration = 0;
-	static const uint32 default_run_pause = 0;
-	static const uint32 default_number_runs = 0;
-
-	HLConnector(JavaVM* theVM, std::string &options, const char* properties);
+	HLConnector(JavaVM* theVM);
 	void createFile(const std::string &fileName);
 	int packFiles();
-	bool createDirectory();
+	bool createDirectory(std::string& path);
 };
 
 void* runCounterThread(ibmras::common::port::ThreadData* tData);

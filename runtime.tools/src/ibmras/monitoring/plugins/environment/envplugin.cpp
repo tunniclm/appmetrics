@@ -74,7 +74,7 @@ void AppendSystemInfo(std::string &s) {
 	s += "system.os.name=" + plugin::osName + '\n'; // eg Windows 7
 	s += "system.os.version=" + plugin::osVersion + '\n'; // eg 6.1 build 7601 Service Pack 1
 	s += "number.of.processors=" + plugin::nprocs + '\n'; // eg 8
-	s += "pid=" + plugin::pid; // + '\n';
+	s += "pid=" + plugin::pid;
 }
 
 // Do something akin to C++11 std::to_string()
@@ -92,6 +92,7 @@ monitordata* OnRequestData() {
 	AppendEnvVars(content);
 	content += '\n';
 	AppendSystemInfo(content);
+	content += '\n';
 	data->size = content.length();
 	data->data = strdup(content.c_str());
 	data->persistent = false;
@@ -111,6 +112,7 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	desc.append(name);
 	src->header.description = desc.c_str();
 	src->header.sourceID = srcid;
+	src->header.config = "";
 	src->next = NULL;
 	src->header.capacity = DEFAULT_CAPACITY;
 	src->callback = OnRequestData;

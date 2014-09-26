@@ -17,7 +17,7 @@ namespace headless {
 HLConnectorPlugin* instance = NULL;
 static HLConnector* hlConnector = NULL;
 
-HLConnectorPlugin::HLConnectorPlugin(JavaVM* theVM, const std::string &options) : agentOptions(options), vm(theVM) {
+HLConnectorPlugin::HLConnectorPlugin(JavaVM* theVM) : vm(theVM) {
 	name = "Headless Connector";
 	type = ibmras::monitoring::plugin::connector;
 	start = NULL;
@@ -31,11 +31,10 @@ HLConnectorPlugin::HLConnectorPlugin(JavaVM* theVM, const std::string &options) 
 
 HLConnectorPlugin::~HLConnectorPlugin(){}
 
-HLConnectorPlugin* HLConnectorPlugin::getInstance(JavaVM* theVM, const std::string &options) {
+HLConnectorPlugin* HLConnectorPlugin::getInstance(JavaVM* theVM) {
 	if(!instance) {
-		instance = new HLConnectorPlugin(theVM, options);
+		instance = new HLConnectorPlugin(theVM);
 	}
-
 	return instance;
 }
 
@@ -44,13 +43,12 @@ void* HLConnectorPlugin::getConnector(const char* properties) {
 	if (instance == NULL) {
 		return NULL;
 	}
-	return instance->getHLConnector(properties);
+	return instance->getHLConnector();
 }
 
-HLConnector* HLConnectorPlugin::getHLConnector(const char* properties) {
+HLConnector* HLConnectorPlugin::getHLConnector() {
 	if(!hlConnector) {
-		//hlConnector = new HLConnector(agentOptions, properties);
-		hlConnector = HLConnector::getInstance(vm, agentOptions, properties);
+		hlConnector = HLConnector::getInstance(vm);
 	}
 
 	return hlConnector;

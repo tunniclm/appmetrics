@@ -8,7 +8,6 @@
 #include "ibmras/monitoring/connector/jmx/JMXConnector.h"
 #include "ibmras/common/logging.h"
 
-
 #include "jvmti.h"
 #include "jni.h"
 #include "ibmjvmti.h"
@@ -60,20 +59,24 @@ namespace monitoring {
 namespace connector {
 namespace jmx {
 
-IBMRAS_DEFINE_LOGGER("JMXConnector");
+IBMRAS_DEFINE_LOGGER("JMXConnector")
+;
 
-JMXConnector::JMXConnector(JavaVM *theVM, const std::string &options,
-		const char* properties) :
-		vm(theVM), agentOptions(options) {
+JMXConnector::JMXConnector(JavaVM *theVM) :
+		vm(theVM) {
 }
 
 JMXConnector::~JMXConnector() {
 }
 
 int JMXConnector::start() {
-
-	int rc = launchMBean();
-
+	int rc = 0;
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string enabled = agent->getAgentProperty("jmx");
+	if (enabled == "on") {
+		rc = launchMBean();
+	}
 	return rc;
 }
 
@@ -183,6 +186,9 @@ int JMXConnector::launchMBean() {
 		return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
 	}
 
+	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
+	std::string agentOptions = agent->getAgentProperty("launch.options");
+
 	applicationArg1 = env->NewStringUTF(agentOptions.c_str());
 	/* should throw OOM or come back null */
 	if (ExceptionCheck(env) || NULL == applicationArg1) {
@@ -241,7 +247,8 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_getProviders
 
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataProvider_getData(
-		JNIEnv * jni_env, jobject obj, jstring name, jint requestedSize, jintArray requestedId) {
+		JNIEnv * jni_env, jobject obj, jstring name, jint requestedSize,
+		jintArray requestedId) {
 	const char* bucketName = jni_env->GetStringUTFChars(name, NULL);
 
 	ibmras::monitoring::agent::Agent* agent =
@@ -257,7 +264,7 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 	signed char* data = NULL;
 	int32 size = requestedSize;
 
-	jint * retID = jni_env->GetIntArrayElements(requestedId,NULL);
+	jint * retID = jni_env->GetIntArrayElements(requestedId, NULL);
 	uint32 id = retID[0];
 
 	id = bucket->getNextData(id, size, (void*&) data);
@@ -266,7 +273,7 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 	}
 
 	retID[0] = id;
-	jni_env->ReleaseIntArrayElements( requestedId, retID, 0);
+	jni_env->ReleaseIntArrayElements(requestedId, retID, 0);
 
 	jbyteArray buffersByteArray = jni_env->NewByteArray(size);
 	jni_env->SetByteArrayRegion(buffersByteArray, 0, (int) size, data);
@@ -279,7 +286,6 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 
 }
 
-
 extern "C" JNIEXPORT void JNICALL
 Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataProvider_sendMessage(
 		JNIEnv * jni_env, jobject obj, jstring topic, jstring message) {
@@ -288,8 +294,9 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
-	ibmras::monitoring::connector::ConnectorManager *conMan = agent->getConnectionManager();
-	conMan->receiveMessage(subject, strlen(msg), (void*)msg);
+	ibmras::monitoring::connector::ConnectorManager *conMan =
+			agent->getConnectionManager();
+	conMan->receiveMessage(subject, strlen(msg), (void*) msg);
 
 	jni_env->ReleaseStringUTFChars(topic, subject);
 	jni_env->ReleaseStringUTFChars(message, msg);
@@ -312,10 +319,12 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 		return NULL;
 	}
 
-	ibmras::monitoring::agent::DataSource<pullsource> *source = agent->getPullSource(bucket->getUniqueID());
+	ibmras::monitoring::agent::DataSource<pullsource> *source =
+			agent->getPullSource(bucket->getUniqueID());
 
 	if (source == NULL) {
-		ibmras::monitoring::agent::DataSource<pushsource> *pushSource = agent->getPushSource(bucket->getUniqueID());
+		ibmras::monitoring::agent::DataSource<pushsource> *pushSource =
+				agent->getPushSource(bucket->getUniqueID());
 		if (pushSource == NULL) {
 			return jni_env->NewStringUTF("DID NOT FIND IT");
 		} else {
@@ -329,6 +338,4 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 		return javaString;
 	}
 }
-
-
 

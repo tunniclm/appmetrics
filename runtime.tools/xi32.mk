@@ -51,7 +51,6 @@ install: all
 	cp ${AGENT_OUT}/${LIB_PREFIX}monagent.${LIB_EXT} ${INSTALL_DIR}
 	cp ${PLUGIN_OUT}/*.so ${INSTALL_DIR}/plugins
 	cp ${CONNECTOR_OUT}/*.so ${INSTALL_DIR}/plugins
-	cp src/ibmras/monitoring/monitoringagent.properties ${INSTALL_DIR}
 	@echo "#!/bin/sh" > ${INSTALL_DIR}/${SCRIPT_NAME}
 	@echo 'export LD_LIBRARY_PATH=.:${INSTALL_DIR}/plugins:${INSTALL_DIR}/libs' >> ${INSTALL_DIR}/${SCRIPT_NAME}
 	@echo "cd ${INSTALL_DIR}" >> ${INSTALL_DIR}/${SCRIPT_NAME}

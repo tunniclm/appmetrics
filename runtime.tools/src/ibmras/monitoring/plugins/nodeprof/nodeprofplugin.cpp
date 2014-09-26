@@ -143,7 +143,7 @@ static char * ConstructData(const CpuProfile *profile) {
 		length += strlen(childrenNodeData[i]) + 1;
 	}
 
-	buffer = new char[length];
+	buffer = new char[length + 1];
 	if (buffer == NULL) goto cleanup2;
 
 	strcpy(buffer, nodeData);
@@ -151,6 +151,7 @@ static char * ConstructData(const CpuProfile *profile) {
 		strcat(buffer, "\n");
 		strcat(buffer, childrenNodeData[i]); 
 	}
+	strcat(buffer, "\n");
 
 cleanup2:
 	for (i = 0; i < childrenAllocated; i++) { delete[] childrenNodeData[i]; }
@@ -182,17 +183,18 @@ void OnComplete(monitordata* data) {
 }
 
 pullsource* createPullSource(uint32 srcid, const char* name) {
-        pullsource *src = new pullsource();
-        src->header.name = name;
-        std::string desc("Description for ");
-        desc.append(name);
-        src->header.description = desc.c_str();
-        src->header.sourceID = srcid;
-        src->next = NULL;
-        src->header.capacity = (DEFAULT_CAPACITY / (srcid+1));
+    pullsource *src = new pullsource();
+    src->header.name = name;
+    std::string desc("Description for ");
+    desc.append(name);
+    src->header.description = desc.c_str();
+    src->header.sourceID = srcid;
+    src->header.config = "";
+    src->next = NULL;
+    src->header.capacity = (DEFAULT_CAPACITY / (srcid+1));
 	src->callback = OnRequestData;
 	src->complete = OnComplete;
-        return src;
+    return src;
 }
 
 pullsource* ibmras_monitoring_registerPullSource(uint32 provID) {

@@ -41,12 +41,14 @@ IBMRAS_DEFINE_LOGGER("Agent")
 
 Agent::Agent() {
 	activeThreadCount = 0;
-	properties.load("monitoringagent.properties");
-	setLogLevels();
 }
 
 void Agent::setLogOutput(ibmras::common::LOCAL_LOGGER_CALLBACK func) {
 	ibmras::common::LogManager::localLogFunc = func;
+}
+
+std::string Agent::getBuildDate() {
+	return __DATE__ " " __TIME__;
 }
 
 void Agent::setLogLevels() {
@@ -267,12 +269,17 @@ void Agent::removeConnector(ibmras::monitoring::connector::Connector* con) {
 }
 
 void Agent::init() {
-	IBMRAS_DEBUG(info, "Agent initialisation : start");IBMRAS_DEBUG_1(debug, "Plugin search path : %s", searchPath.c_str());
+	IBMRAS_DEBUG(info, "Agent initialisation : start");
 
-	std::vector<ibmras::monitoring::Plugin*> found =
-			ibmras::monitoring::Plugin::scan(searchPath);
+	std::string searchPath = getAgentProperty("plugin.path");
+	IBMRAS_DEBUG_1(debug, "Plugin search path : %s", searchPath.c_str());
+	if (searchPath.size() > 0) {
+		std::vector<ibmras::monitoring::Plugin*> found =
+				ibmras::monitoring::Plugin::scan(searchPath);
+		plugins.insert(plugins.begin(), found.begin(), found.end());
+	}
 
-	plugins.insert(plugins.begin(), found.begin(), found.end());
+
 
 	addSystemPlugins();
 	IBMRAS_DEBUG_1(info, "%d plugins found", plugins.size());
@@ -442,9 +449,6 @@ ibmras::monitoring::connector::ConnectorManager* Agent::getConnectionManager() {
 	return &connectionManager;
 }
 
-void Agent::setSearchPath(const std::string &path) {
-	searchPath = path;
-}
 
 Agent* Agent::getInstance() {
 	return instance;
@@ -483,6 +487,10 @@ std::string Agent::getAgentPropertyPrefix() {
 
 std::string Agent::getAgentProperty(const std::string& agentProp) {
 	return properties.get(getAgentPropertyPrefix() + agentProp);
+}
+
+void Agent::setAgentProperty(const std::string& agentProp, const std::string& value) {
+	properties.put(getAgentPropertyPrefix() + agentProp, value);
 }
 
 }

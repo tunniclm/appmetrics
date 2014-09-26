@@ -71,7 +71,6 @@ public:
 	int start();
 	int stop();
 	pullsource* registerPullSource(uint32 provID);
-	static const uint32 DEFAULT_CAPACITY = 1024;
 	uint32 getProvID();
 private:
 	uint32 provid;

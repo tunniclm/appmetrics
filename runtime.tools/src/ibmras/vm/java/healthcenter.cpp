@@ -45,25 +45,6 @@ struct __jdata;
 #include "ibmras/monitoring/plugins/jmx/JMX.h"
 #include "ibmras/monitoring/plugins/jni/Facade.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-#undef com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_OK
-#define com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_OK 0L
-#undef com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_ERR
-#define com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_ERR -1L
-#undef com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_ALREADY_LOADED
-#define com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_ALREADY_LOADED -2L
-#undef com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_JVMTI_ERR
-#define com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_JVMTI_ERR -3L
-#undef com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR
-#define com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR -4L
-#undef com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_EXC
-#define com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_EXC -5L
-#ifdef __cplusplus
-}
-#endif
-
 /*########################################################################################################################*/
 /*########################################################################################################################*/
 /*########################################################################################################################*/
@@ -78,7 +59,6 @@ extern "C" {
 
 static const char* HEALTHCENTER_PROPERTIES_PREFIX = "com.ibm.java.diagnostics.healthcenter.";
 
-jint launchMBean(char *options);
 void launchAgent(const std::string &options);
 std::string agentOptions;
 ibmras::common::Properties hcprops;
@@ -86,16 +66,6 @@ static JavaVM *theVM;
 jvmFunctions tDPP;
 
 jvmtiEnv *pti = NULL;
-JNIEnv* env = NULL;
-jclass javaHCLaunchMBean = NULL;
-static jmethodID mainMethod = NULL;
-static jobjectArray applicationArgs = NULL;
-static jstring applicationArg0 = NULL;
-static jstring applicationArg1 = NULL;
-static int processID = 0;
-static char args0[20];
-
-
 
 typedef struct __jdata jdata_t;
 
@@ -103,6 +73,8 @@ typedef struct __jdata jdata_t;
 #define JNI_VERSION JNI_VERSION_1_4
 
 jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach);
+
+static bool agentStarted = false;
 
 IBMRAS_DEFINE_LOGGER("J9VM");
 
@@ -137,38 +109,24 @@ Agent_OnUnload(JavaVM *vm) {
 JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
 
-    jint rc = 0;
-    IBMRAS_DEBUG(debug, "> Agent_OnAttach");
-    std::cout << "> Agent_OnAttach";
+	jint rc = 0;
+	IBMRAS_DEBUG(debug, "> Agent_OnAttach");
+	if (!agentStarted) {
 
-    if (env != NULL) {
-    	IBMRAS_DEBUG(fine, "Agent_OnAttach: env not NULL, no need to call agentStart");
-    	env = NULL;
-    	javaHCLaunchMBean = NULL;
-    	mainMethod = NULL;
-   		rc = vm->GetEnv((void **)&env, JNI_VERSION);
-   	    if (rc < 0 || NULL == env)
-   	    {
-   	        IBMRAS_LOG(warning, "Agent_OnAttach: GetEnv failed");
-   	        return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_JVMTI_ERR;
-   	    }
-    	rc = launchMBean(options);
-    } else {
-    	IBMRAS_DEBUG(fine, "Agent_OnAttach: env is NULL, calling agentStart");
-    	rc = agentStart(vm, options, reserved, 1);
-    	std::cout << "> agentStart called";
-    	launchAgent(options);
-    }
+		agentStarted = true;
+		rc = agentStart(vm, options, reserved, 1);
+		launchAgent(options);
 
-    IBMRAS_DEBUG_1(debug, "< Agent_OnAttach. rc=%d", rc);
-    std::cout << "< Agent_OnAttach. rc= " << rc;
-    return rc;
+		return 0;
+	} IBMRAS_DEBUG_1(debug, "< Agent_OnAttach. rc=%d", rc);
+	return rc;
 }
 
 /******************************/
 JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
 	IBMRAS_DEBUG(debug, "OnLoad");
+	agentStarted = true;
 	jint rc = 0;
 
 	rc = agentStart(vm, options, reserved, 0);
@@ -197,8 +155,6 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	theVM = vm;
 	tDPP.theVM = vm;
 	agentOptions = options;
-
-	IBMRAS_LOG(none, "Health Center agent build: " __DATE__ " " __TIME__);
 
 	res = vm->GetEnv((void **) &pti, JVMTI_VERSION_1);
 
@@ -336,7 +292,7 @@ int ExceptionCheck(JNIEnv *env) {
 }
 
 
-void getHCProperties() {
+void getHCProperties(const std::string &options) {
 
 	JNIEnv *ourEnv = NULL;
 
@@ -361,8 +317,34 @@ void getHCProperties() {
 		return;
 	}
 
+	std::stringstream ss;
+	ss << ibmras::common::port::getProcessId();
+	std::string pid = ss.str();
+	jobjectArray applicationArgs = NULL;
+
+	jstring pidArg = ourEnv->NewStringUTF(pid.c_str());
+	if (!ExceptionCheck(ourEnv)) {
+		jstring opts = ourEnv->NewStringUTF(options.c_str());
+		if (!ExceptionCheck(ourEnv)) {
+			applicationArgs = ourEnv->NewObjectArray(2,
+					ourEnv->FindClass("java/lang/String"), NULL);
+			if (!ExceptionCheck(ourEnv)) {
+				ourEnv->SetObjectArrayElement(applicationArgs, 0, pidArg);
+				if (!ExceptionCheck(ourEnv)) {
+					ourEnv->SetObjectArrayElement(applicationArgs, 1, opts);
+					if (ExceptionCheck(ourEnv)) {
+						applicationArgs = NULL;
+					}
+				} else {
+					applicationArgs = NULL;
+				}
+			}
+		}
+	}
+
+
 	jobjectArray hcprops = (jobjectArray)ourEnv->CallStaticObjectMethod(hcoptsClass,
-			getPropertiesMethod, NULL);
+			getPropertiesMethod, applicationArgs);
 
 	if (ExceptionCheck(ourEnv) || hcprops == NULL) {
 		IBMRAS_DEBUG(warning, "No healthcenter.properties found")
@@ -407,119 +389,32 @@ void getHCProperties() {
 	agent->setProperties(theProps);
 }
 
-jint
-launchMBean(char* options)
-{
-    IBMRAS_DEBUG(debug, "> launchMBean");
-
-#ifdef _ZOS
-#pragma convlit(resume)
-#endif
-    if (NULL == javaHCLaunchMBean ) {
-    	javaHCLaunchMBean = env->FindClass("com/ibm/java/diagnostics/healthcenter/agent/mbean/HCLaunchMBean");
-#ifdef _ZOS
-#pragma convlit(suspend)
-#endif
-    	if (ExceptionCheck(env) || NULL == javaHCLaunchMBean)
-    	{
-    		IBMRAS_LOG(warning, "launchMBean couldn't find com.ibm.java.diagnostics.healthcenter/agent/mbean/HCLaunchMBean class. Agent not started.");
-    		return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
-    	}
-    }
-
-#ifdef _ZOS
-#pragma convlit(resume)
-#endif
-    if (NULL == mainMethod) {
-    	mainMethod = env->GetStaticMethodID(javaHCLaunchMBean, "main", "([Ljava/lang/String;)V");
-#ifdef _ZOS
-#pragma convlit(suspend)
-#endif
-    	if (ExceptionCheck(env) || NULL == mainMethod)
-    	{
-    		IBMRAS_LOG(warning, "launchMBean couldn't find main method in HCLaunchMBean class. Agent not started.");
-        	return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
-    	}
-    }
-
-#ifdef _ZOS
-#pragma convlit(resume)
-#endif
-    applicationArgs = env->NewObjectArray(2, env->FindClass("java/lang/String"), NULL);
-#ifdef _ZOS
-#pragma convlit(suspend)
-#endif
-    /* should throw OOM or come back null */
-    if (ExceptionCheck(env) || NULL == applicationArgs)
-    {
-    	IBMRAS_LOG(warning, "launchMBean couldn't create object array. Agent not started.");
-       	return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
-    }
-
-    processID= ibmras::common::port::getProcessId();
-    sprintf(args0, "%d", processID);
-
-#ifdef _ZOS
-    __etoa(args0);
-#endif
-
-    applicationArg0 = env->NewStringUTF(args0);
-    /* should throw OOM or come back null */
-    if (ExceptionCheck(env) || NULL == applicationArg0)
-    {
-    	IBMRAS_LOG(warning, "launchMBean couldn't create jstring for main args. Agent not started.");
-       	return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
-    }
-
-    env->SetObjectArrayElement(applicationArgs, 0, applicationArg0);
-    if (ExceptionCheck(env))
-    {
-    	IBMRAS_LOG(warning,"launchMBean couldn't set object array element for main args. Agent not started.");
-        return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
-    }
-
-    applicationArg1 = env->NewStringUTF(options);
-    /* should throw OOM or come back null */
-    if (ExceptionCheck(env) || NULL == applicationArg1)
-    {
-    	IBMRAS_LOG(warning,"launchMBean couldn't create jstring for main args. Agent not started.");
-       	return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
-    }
-
-    /* Also pass our options to the launcher. */
-    env->SetObjectArrayElement(applicationArgs, 1, applicationArg1);
-    if (ExceptionCheck(env))
-    {
-    	IBMRAS_LOG(warning,"launchMBean couldn't set object array element for main args. Agent not started.");
-       	return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
-    }
-
-    env->CallStaticVoidMethod(javaHCLaunchMBean, mainMethod, applicationArgs);
-    /* could throw an exception (doesn't say it'll return null) */
-    if (ExceptionCheck(env))
-    {
-    	IBMRAS_LOG(warning,"launchMBean couldn't run main on com/ibm/java/diagnostics/healthcenter/agent/mbean/HCLaunchMBean class. Agent not started.");
-        return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_EXC;
-    }
-
-    /* Everything OK, return OK */
-    IBMRAS_DEBUG(debug, "< launchMBean");
-    return JNI_OK;
-}
-
 /**
  * launch agent code
  */
 void launchAgent(const std::string &options) {
 
 	agent = ibmras::monitoring::agent::Agent::getInstance();
+	agent->setAgentProperty("launch.options", options);
 
-	getHCProperties();
+	getHCProperties(options);
 	agent->setLogLevels();
-	IBMRAS_DEBUG(debug, "in agent launch agent");
 
-	IBMRAS_DEBUG_1(fine, "options %s", options.c_str());
-	agent->setSearchPath(options);
+	// Set connector properties based on data.collection.level
+	std::string dataCollectionLevel = agent->getAgentProperty("data.collection.level");
+	if (dataCollectionLevel == "HEADLESS") {
+		agent->setAgentProperty("headless", "on");
+		agent->setAgentProperty("mqtt", "off");
+		agent->setAgentProperty("jmx", "off");
+	} else {
+		std::string jmx = agent->getAgentProperty("jmx");
+		if (jmx == "") {
+			agent->setAgentProperty("jmx", "on");
+		}
+
+	}
+
+	IBMRAS_DEBUG(debug, "in agent launch agent");
 
 	if (tDPP.pti == NULL) {
 		IBMRAS_DEBUG(debug, "tDPP.pti is null");
@@ -532,11 +427,9 @@ void launchAgent(const std::string &options) {
 			ibmras::monitoring::plugins::j9::methods::MethodLookupProvider::getInstance(
 					tDPP));
 	agent->addPlugin(
-			ibmras::monitoring::connector::jmx::JMXConnectorPlugin::getInstance(theVM,
-					agentOptions));
+			ibmras::monitoring::connector::jmx::JMXConnectorPlugin::getInstance(theVM));
 	agent->addPlugin(
-			ibmras::monitoring::connector::headless::HLConnectorPlugin::getInstance(theVM,
-					agentOptions));
+			ibmras::monitoring::connector::headless::HLConnectorPlugin::getInstance(theVM));
 
 ////	 //The next call invoked the setJVM function on the JMX plugin
 	ibmras::monitoring::plugins::jmx::setJVM(tDPP.theVM);

@@ -18,7 +18,7 @@ namespace jmx {
 
 class JMXConnectorPlugin: public ibmras::monitoring::Plugin {
 public:
-	static JMXConnectorPlugin* getInstance(JavaVM *theVM, const std::string &options);
+	static JMXConnectorPlugin* getInstance(JavaVM *theVM);
 	virtual ~JMXConnectorPlugin();
 
 	static int startPlugin();
@@ -26,14 +26,13 @@ public:
 	static void* getConnector(const char* properties);
 
 protected:
-	JMXConnectorPlugin(JavaVM *theVM, const std::string &options);
+	JMXConnectorPlugin(JavaVM *theVM);
 
 private:
 	JMXConnector *jmxConnector;
-	JMXConnector* getJMXConnector(const char* properties);
+	JMXConnector* getJMXConnector();
 
 	JavaVM *vm;
-	std::string agentOptions;
 };
 
 } /* namespace jmx */

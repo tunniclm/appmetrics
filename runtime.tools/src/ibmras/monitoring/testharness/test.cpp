@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
 	agent->setLocalLog(true);
 
 	int i;
-	agent->setSearchPath(argv[1]);
+	agent->setAgentProperty("plugin.path", argv[1]);
 	agent->init();
 	agent->start();
 	std::cout << "\n\n** Press any key to stop ** \n";

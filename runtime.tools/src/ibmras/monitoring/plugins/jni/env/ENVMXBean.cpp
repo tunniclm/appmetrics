@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/monitoring/agent/Agent.h"
 
 using namespace ibmras::monitoring::plugins::jni;
 
@@ -61,13 +62,16 @@ monitordata* ENVPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 	data->provID = getProvID();
 	data->sourceID = ENV;
 
-	std::string cp = getString(env, "runtime/tools/java/dataproviders/environment/EnvironmentDataProviderJNI", "getJMXData", "()Ljava/lang/String;");
-
+	std::string cp = getString(env, "com/ibm/java/diagnostics/healthcenter/agent/dataproviders/environment/EnvironmentDataProvider", "getJMXData", "()Ljava/lang/String;");
 	std::stringstream ss;
 	ss << cp;
 	ss<<"\n";
-	const std::string vmd = reportDumpOptions(tdpp);
 
+
+	ss << "native.library.date=" << ibmras::monitoring::agent::Agent::getBuildDate() << "\n";
+	ss << "pid=" << ibmras::common::port::getProcessId() << "\n";
+
+	const std::string vmd = reportDumpOptions(tdpp);
 	ss<<vmd;
 
 	std::string envdata = ss.str();

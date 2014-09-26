@@ -21,6 +21,6 @@ LIB_OBJOPT=-o"$@"
 LIBPATH=-L
 EXEFLAGS=
 LIB_PREFIX=lib
-ifdef NODE_SDK
+#ifdef NODE_SDK
 NODE_GYP=PATH=${NODE_SDK}/bin:$$PATH ${NODE_SDK}/lib/node_modules/npm/bin/node-gyp-bin/node-gyp ${OPT_PYTHON}
-endif
+#endif

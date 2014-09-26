@@ -39,6 +39,7 @@ public:
 		return "MQTTConnector";
 	}
 private:
+	bool enabled;
 	void createClient(const std::string &id);
 	int connect();
 
@@ -46,6 +47,7 @@ private:
 			MQTTAsync_message *message);
 	static int messageReceived(void *context, char *topicName, int topicLen,
 			MQTTAsync_message *message);
+	static void connectionLost(void* context, char* cause);
 
 	void handleOnConnect(MQTTAsync_successData* response);
 	static void onConnect(void* context, MQTTAsync_successData* response);
