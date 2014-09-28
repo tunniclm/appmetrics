@@ -3,7 +3,7 @@
     "srcdir%": "./src/ibmras",
     "pahodir%": "../Paho/org.eclipse.paho.mqtt.c",
     "pahosrcdir%": "../Paho/org.eclipse.paho.mqtt.c/src",
-    "deploydir%": "<(PRODUCT_DIR)/deploy/healthcenter-<(OS)-<(target_arch)",
+    "deploydir%": "<(PRODUCT_DIR)/deploy/healthcenter",
   },
   "conditions": [
     ['OS=="linux"', {
@@ -152,7 +152,7 @@
           "files": [
             "<(PRODUCT_DIR)/healthcenter.node",
             "<(PRODUCT_DIR)/libhealthcenter<(SHARED_LIB_SUFFIX)",
-            "<(srcdir)/monitoring/monitoringagent.properties",
+            "./src/properties/node/healthcenter.properties",
           ],
         },
         {
