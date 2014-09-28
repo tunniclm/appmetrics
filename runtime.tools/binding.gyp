@@ -38,6 +38,7 @@
           "VCCLCompilerTool": {
             "AdditionalOptions": [
               "/EHsc",
+              "/MD",
             ]
           },
         },
