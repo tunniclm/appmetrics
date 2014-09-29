@@ -5,6 +5,7 @@ PAHO_SRC=${PAHO_DIR}/src
 PYTHON_DIR=../OMR-Python
 SRC=./src/ibmras
 OUTPUT=./output
+OMR_SRC_INCLUDE=./omr/include_core
 #-------------------------------------------------------------------------------------------
 #Output directories i.e. where the files are going to be built
 #-------------------------------------------------------------------------------------------
@@ -464,6 +465,7 @@ ${OMR_OUT}/TraceDataProvider.o:
 
 ${OMR_OUT}/MemoryCountersDataProvider.o: 
 	${CC} ${INCS} -I${OMR_SRC_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/omr/MemoryCountersDataProvider.cpp
+
 
 #-------------------------------------------------------------------------------------------
 #Node vm files which make up various Node shim levels
