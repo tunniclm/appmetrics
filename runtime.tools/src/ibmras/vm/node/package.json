@@ -1,0 +1,7 @@
+{
+  "name": "healthcenter",
+  "version": "1.0.0",
+  "description": "IBM Health Center agent",
+  "main": "healthcenter",
+  "private": "true"
+}
