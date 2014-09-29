@@ -128,18 +128,16 @@
       "dependencies": [ "libhealthcenter" ],
     },
     {
-      "target_name": "osplugin",
+      "target_name": "cpuplugin",
       "type": "shared_library",
       "sources": [
-        "<(srcdir)/monitoring/plugins/os/Plugin.cpp",
+        "<(srcdir)/monitoring/plugins/cpu/cpuplugin.cpp",
+        "<(srcdir)/monitoring/plugins/cpu/cputime.cpp",
       ],
       "dependencies": [ "libhealthcenter" ],
       "conditions": [
-        ['OS=="linux"', {
-          "sources": [ "<(srcdir)/monitoring/plugins/os/Linux.cpp" ],
-        }],
         ['OS=="win"', {
-          "sources": [ "<(srcdir)/monitoring/plugins/os/Windows.cpp" ],
+          "libraries": [ "Pdh" ],
         }],
       ],
     },
@@ -169,7 +167,7 @@
         "libhealthcenter",
         "healthcenter",
         "hcmqtt",
-        "osplugin",
+        "cpuplugin",
         "nodeenvplugin",
         "nodegcplugin",
      ],
@@ -186,7 +184,7 @@
           "destination": "<(deploydir)/plugins",
           "files": [
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)hcmqtt<(SHARED_LIB_SUFFIX)",
-            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)osplugin<(SHARED_LIB_SUFFIX)",
+            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)cpuplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodeenvplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodegcplugin<(SHARED_LIB_SUFFIX)",
           ],
