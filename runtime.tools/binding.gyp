@@ -86,6 +86,32 @@
       "dependencies": [ "libhealthcenter" ],
     },
     {
+      "target_name": "hcmqtt",
+      "type": "shared_library",
+      "sources": [
+        "<(pahosrcdir)/Clients.c",
+        "<(pahosrcdir)/Heap.c",
+        "<(pahosrcdir)/LinkedList.c",
+        "<(pahosrcdir)/Log.c",
+        "<(pahosrcdir)/Messages.c",
+        "<(pahosrcdir)/MQTTAsync.c",
+        "<(pahosrcdir)/MQTTPacket.c",
+        "<(pahosrcdir)/MQTTPacketOut.c",
+        "<(pahosrcdir)/MQTTPersistence.c",
+        "<(pahosrcdir)/MQTTPersistenceDefault.c",
+        "<(pahosrcdir)/MQTTProtocolClient.c",
+        "<(pahosrcdir)/MQTTProtocolOut.c",
+        "<(pahosrcdir)/SocketBuffer.c",
+        "<(pahosrcdir)/Socket.c",
+        "<(pahosrcdir)/StackTrace.c",
+        "<(pahosrcdir)/Thread.c",
+        "<(pahosrcdir)/Tree.c",
+        "<(pahosrcdir)/utf-8.c",
+        "<(srcdir)/monitoring/connector/mqtt/MQTTConnector.cpp",
+      ],
+      "dependencies": [ "libhealthcenter" ],
+    },
+    {
       "target_name": "nodeenvplugin",
       "type": "shared_library",
       "sources": [
@@ -142,6 +168,7 @@
       "dependencies": [
         "libhealthcenter",
         "healthcenter",
+        "hcmqtt",
         "osplugin",
         "nodeenvplugin",
         "nodegcplugin",
@@ -158,6 +185,7 @@
         {
           "destination": "<(deploydir)/plugins",
           "files": [
+            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)hcmqtt<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)osplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodeenvplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodegcplugin<(SHARED_LIB_SUFFIX)",
