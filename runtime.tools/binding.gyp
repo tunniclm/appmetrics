@@ -178,6 +178,7 @@
             "<(PRODUCT_DIR)/healthcenter.node",
             "<(PRODUCT_DIR)/libhealthcenter<(SHARED_LIB_SUFFIX)",
             "./src/properties/node/healthcenter.properties",
+            "<(srcdir)/vm/node/index.js",
             "<(srcdir)/vm/node/package.json",
           ],
         },
