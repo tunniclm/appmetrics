@@ -6,6 +6,11 @@
     "deploydir%": "<(PRODUCT_DIR)/deploy/healthcenter",
   },
   "conditions": [
+    ['OS=="aix"', {
+      "variables": {
+        "portdir%": "aix"
+      },
+    }],
     ['OS=="linux"', {
       "variables": {
         "portdir%": "linux"
@@ -24,9 +29,19 @@
     "target_conditions": [
       ['_type=="shared_library"', {
         'product_prefix': '<(SHARED_LIB_PREFIX)',
+        "conditions": [
+          ['OS=="aix"', {
+            'product_extension': 'a',
+          },{
+          }],
+        ],
       }],
     ],
     "conditions": [
+      ['OS=="aix"', {
+        "defines": [ "_AIX", "AIX" ],
+        "libraries": [ "-Wl,-bexpall,-brtllib,-G " ],
+      }],
       ['OS=="linux"', {
         "defines": [ "_LINUX", "LINUX" ],
         "libraries": [ "-Wl,-rpath=\$$ORIGIN" ],
@@ -76,14 +91,6 @@
         "<(srcdir)/monitoring/agent/BucketDataQueueEntry.cpp",
         "<(srcdir)/monitoring/Plugin.cpp",
       ],
-    },
-    {
-      "target_name": "nodecon",
-      "type": "static_library",
-      "sources": [
-        "<(srcdir)/vm/node/nodeconnector.cpp",
-      ],
-      "dependencies": [ "libhealthcenter" ],
     },
     {
       "target_name": "hcmqtt",
@@ -155,10 +162,11 @@
       
       "include_dirs": [ "<(srcdir)/vm/node" ],
       "sources": [ 
+        "<(srcdir)/vm/node/nodeconnector.cpp",
         "<(srcdir)/vm/node/nodeagent.cpp", 
         "<(srcdir)/vm/node/wrapper.cpp"
       ],
-      "dependencies": [ "libhealthcenter", "nodecon" ],
+      "dependencies": [ "libhealthcenter" ],
     },
     {
       "target_name": "install",

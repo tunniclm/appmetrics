@@ -100,7 +100,7 @@ Semaphore::Semaphore(uint32 initial, uint32 max) {
 	int result;
 	result = sem_init(reinterpret_cast<sem_t*>(handle), 0, initial);
 	if(result) {
-		IBMRAS_DEBUG(warning,"Failed to create semaphore : error code %d", result);
+		IBMRAS_DEBUG_1(warning,"Failed to create semaphore : error code %d", result);
 		handle = NULL;
 	}
 }
