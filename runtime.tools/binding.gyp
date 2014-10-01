@@ -40,7 +40,7 @@
     "conditions": [
       ['OS=="aix"', {
         "defines": [ "_AIX", "AIX" ],
-        "libraries": [ "-Wl,-bexpall,-brtllib,-G " ],
+        "libraries": [ "-Wl,-bexpall,-brtllib,-G,-brtl" ],
       }],
       ['OS=="linux"', {
         "defines": [ "_LINUX", "LINUX" ],
