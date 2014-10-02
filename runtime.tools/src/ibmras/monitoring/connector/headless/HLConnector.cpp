@@ -192,7 +192,6 @@ int HLConnector::start() {
 	//The temporary files will be written at a temporary directory under the user defined path
 	//(or the current directory if the one requested by user could not be created.)
 	tmpPath = userDefinedPath;
-	tmpPath.append(".");
 	tmpPath.append(PATHSEPARATOR);
 	tmpPath.append("tmp_");
 	tmpPath.append(startDate);
@@ -560,11 +559,11 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 			} else {
 				if (remove(currentKey.c_str())) {
 					IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
-					return -1;
+				} else {
+					currentSource->open(currentKey.c_str(),
+							std::ios::out | std::ios::app);
+					currentSource->write(cdata, size);
 				}
-				currentSource->open(currentKey.c_str(),
-						std::ios::out | std::ios::app);
-				currentSource->write(cdata, size);
 			}
 			lock->release();
 		}

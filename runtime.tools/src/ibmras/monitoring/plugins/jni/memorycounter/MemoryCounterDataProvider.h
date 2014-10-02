@@ -18,6 +18,8 @@ public:
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env);
 	~MCPullSource(){};
+	bool isEnabled();
+	static void setState(std::string state);
 };
 
 }	/* end namespace env */

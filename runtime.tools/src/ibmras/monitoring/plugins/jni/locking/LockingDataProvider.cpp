@@ -5,6 +5,7 @@
 
 #include "ibmras/monitoring/plugins/jni/locking/LockingDataProvider.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/monitoring/agent/Agent.h"
 #include "jni.h"
 #include "jvmti.h"
 #include <string>
@@ -37,13 +38,13 @@ namespace plugins {
 namespace jni {
 namespace locking {
 
-IBMRAS_DEFINE_LOGGER("DataProviderSources")
-;
+IBMRAS_DEFINE_LOGGER("DataProviderSources");
 
 char* reportJLA(JNIEnv *env);
 char* monitor_dump_event(JNIEnv *env);
 
 JLAPullSource* src = NULL;
+std::string state= "on";
 
 PullSource* getJLAPullSource() {
 	if (!src) {
@@ -55,6 +56,27 @@ PullSource* getJLAPullSource() {
 
 monitordata* callback() {
 	return src->PullSource::generateData();
+}
+
+bool JLAPullSource::isEnabled() {
+	return (state == "on");
+}
+
+void JLAPullSource::setState(std::string newState) {
+
+	state = newState;
+
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
+	ibmras::monitoring::connector::ConnectorManager *conMan =
+					agent->getConnectionManager();
+
+	std::stringstream str;
+	str << "locking_subsystem=" << state << std::endl;
+	std::string msg = str.str();
+
+	conMan->sendMessage("JLASourceConfiguration", msg.length(), (void*) msg.c_str());
 }
 
 uint32 JLAPullSource::getSourceID() {
@@ -79,54 +101,54 @@ pullsource* JLAPullSource::getDescriptor() {
 
 monitordata* JLAPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 	monitordata* data = new monitordata;
-	data->persistent = false;
-	std::stringstream ss;
+	data->size = 0;
+	data->data = NULL;
 
-	data->provID = getProvID();
-	data->sourceID = JLA;
+	if (isEnabled()) {
+		data->persistent = false;
+		std::stringstream ss;
 
-	unsigned long long millisecondsSinceEpoch;
+		data->provID = getProvID();
+		data->sourceID = JLA;
+
+		unsigned long long millisecondsSinceEpoch;
 
 #if defined(WINDOWS)
 
-	SYSTEMTIME st;
-	GetSystemTime(&st);
+		SYSTEMTIME st;
+		GetSystemTime(&st);
 
-	millisecondsSinceEpoch = time(NULL)*1000+st.wMilliseconds;
+		millisecondsSinceEpoch = time(NULL)*1000+st.wMilliseconds;
 
 #else
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
 
-	millisecondsSinceEpoch = (unsigned long long) (tv.tv_sec) * 1000
-			+ (unsigned long long) (tv.tv_usec) / 1000;
+		millisecondsSinceEpoch = (unsigned long long) (tv.tv_sec) * 1000
+				+ (unsigned long long) (tv.tv_usec) / 1000;
 #endif
 
-	ss << "reportTime," << millisecondsSinceEpoch << ",";
+		ss << "reportTime," << millisecondsSinceEpoch << ",";
 
-	char* value = reportJLA(env);
+		char* value = reportJLA(env);
 
-	ss << value;
+		ss << value;
 
-	hc_dealloc(reinterpret_cast<unsigned char**>(&value));
+		hc_dealloc(reinterpret_cast<unsigned char**>(&value));
 
-	std::string lockingdata = ss.str();
+		std::string lockingdata = ss.str();
 
-	int len = lockingdata.length();
+		int len = lockingdata.length();
 
-	char* sval = reinterpret_cast<char*>(hc_alloc(len +1 ));
+		char* sval = reinterpret_cast<char*>(hc_alloc(len + 1));
 
-	if (sval) {
-		strcpy(sval, lockingdata.c_str());
-		data->size = len;
-		data->data = sval;
-	} else {
-		data->size = 0;
-		data->data = NULL;
+		if (sval) {
+			strcpy(sval, lockingdata.c_str());
+			data->size = len;
+			data->data = sval;
+		}
 	}
-
 	return data;
-
 }
 
 char* reportJLA(JNIEnv *env) {

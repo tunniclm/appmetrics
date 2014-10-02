@@ -23,6 +23,8 @@ public:
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env);
 	~JLAPullSource(){};
+	bool isEnabled();
+	static void setState(std::string state);
 };
 
 }	/* end namespace locking */

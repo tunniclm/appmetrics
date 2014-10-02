@@ -1,5 +1,5 @@
 #include "ibmras/monitoring/plugins/jni/memory/MemoryDataProvider.h"
-
+#include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include <cstring>
 #include <string>
@@ -70,74 +70,74 @@ typedef long IDATA;
 #include <sys/types.h>
 #if !defined(VMINFO_GETPSIZES)
 
-    #define VMINFO_GETPSIZES  102 /* report a system's supported page sizes */
-    #define VMINFO_PSIZE      103 /* report statistics for a page size */
+#define VMINFO_GETPSIZES  102 /* report a system's supported page sizes */
+#define VMINFO_PSIZE      103 /* report statistics for a page size */
 
 struct vminfo_psize
 {
-psize_t psize;          /* IN: page size                        */
+	psize_t psize; /* IN: page size                        */
 
-/* The rest of this struct is output from vmgetinfo()           */
+	/* The rest of this struct is output from vmgetinfo()           */
 
-uint64_t attr;          /* bitmap of page size's attributes     */
+	uint64_t attr; /* bitmap of page size's attributes     */
 
-/* Page size attributes reported in the vminfo_psize.attr field: */
+	/* Page size attributes reported in the vminfo_psize.attr field: */
 #define VM_PSIZE_ATTR_PAGEABLE       0x1  /* page size supports paging  */
 
-uint64_t pgexct;        /* count of page faults                 */
-uint64_t pgrclm;        /* count of page reclaims               */
-uint64_t lockexct;      /* count of lockmisses                  */
-uint64_t backtrks;      /* count of backtracks                  */
-uint64_t pageins;       /* count of pages paged in              */
-uint64_t pageouts;      /* count of pages paged out             */
-uint64_t pgspgins;      /* count of page ins from paging space  */
-uint64_t pgspgouts;     /* count of page outs from paging space */
-uint64_t numsios;       /* count of start I/Os                  */
-uint64_t numiodone;     /* count of iodones                     */
-uint64_t zerofills;     /* count of zero filled pages           */
-uint64_t exfills;       /* count of exec filled pages           */
-uint64_t scans;         /* count of page scans by clock         */
-uint64_t cycles;        /* count of clock hand cycles           */
-uint64_t pgsteals;      /* count of page steals                 */
-uint64_t freewts;       /* count of free frame waits            */
-uint64_t extendwts;     /* count of extend XPT waits            */
-uint64_t pendiowts;     /* count of pending I/O waits           */
+	uint64_t pgexct; /* count of page faults                 */
+	uint64_t pgrclm; /* count of page reclaims               */
+	uint64_t lockexct; /* count of lockmisses                  */
+	uint64_t backtrks; /* count of backtracks                  */
+	uint64_t pageins; /* count of pages paged in              */
+	uint64_t pageouts; /* count of pages paged out             */
+	uint64_t pgspgins; /* count of page ins from paging space  */
+	uint64_t pgspgouts; /* count of page outs from paging space */
+	uint64_t numsios; /* count of start I/Os                  */
+	uint64_t numiodone; /* count of iodones                     */
+	uint64_t zerofills; /* count of zero filled pages           */
+	uint64_t exfills; /* count of exec filled pages           */
+	uint64_t scans; /* count of page scans by clock         */
+	uint64_t cycles; /* count of clock hand cycles           */
+	uint64_t pgsteals; /* count of page steals                 */
+	uint64_t freewts; /* count of free frame waits            */
+	uint64_t extendwts; /* count of extend XPT waits            */
+	uint64_t pendiowts; /* count of pending I/O waits           */
 
-/*
- * the next fields need to be computed by vmgetinfo
- * system call, else their value will be inaccurate.
- */
-rpn64_t numframes;      /* # of real memory frames of this psize */
-rpn64_t numfrb;         /* number of pages on free list */
-rpn64_t numclient;      /* number of client frames */
-rpn64_t numcompress;    /* no of frames in compressed segments */
-rpn64_t numperm;        /* number frames non-working segments */
-rpn64_t numvpages;      /* accessed virtual pages */
-rpn64_t minfree;        /* minimun pages free list (fblru) */
-rpn64_t maxfree;        /* maxfree pages free list (fblru) */
+	/*
+	 * the next fields need to be computed by vmgetinfo
+	 * system call, else their value will be inaccurate.
+	 */
+	rpn64_t numframes; /* # of real memory frames of this psize */
+	rpn64_t numfrb; /* number of pages on free list */
+	rpn64_t numclient; /* number of client frames */
+	rpn64_t numcompress; /* no of frames in compressed segments */
+	rpn64_t numperm; /* number frames non-working segments */
+	rpn64_t numvpages; /* accessed virtual pages */
+	rpn64_t minfree; /* minimun pages free list (fblru) */
+	rpn64_t maxfree; /* maxfree pages free list (fblru) */
 #ifndef RPTYPES
 #define RPTYPES         2
 #endif
-rpn64_t rpgcnt[RPTYPES];/* repaging cnt */
-rpn64_t numpout;        /* number of fblru page-outs        */
+	rpn64_t rpgcnt[RPTYPES];/* repaging cnt */
+	rpn64_t numpout; /* number of fblru page-outs        */
 
-rpn64_t numremote;      /* number of fblru remote page-outs */
-rpn64_t numwseguse;     /* count of pages in use for working seg */
-rpn64_t numpseguse;     /* count of pages in use for persistent seg */
-rpn64_t numclseguse;    /* count of pages in use for client seg */
-rpn64_t numwsegpin;     /* count of pages pinned for working seg */
-rpn64_t numpsegpin;     /* count of pages pinned for persistent seg */
-rpn64_t numclsegpin;    /* count of pages pinned for client seg */
-rpn64_t numpgsp_pgs;    /* # of wseg pages with allocated paging space */
+	rpn64_t numremote; /* number of fblru remote page-outs */
+	rpn64_t numwseguse; /* count of pages in use for working seg */
+	rpn64_t numpseguse; /* count of pages in use for persistent seg */
+	rpn64_t numclseguse; /* count of pages in use for client seg */
+	rpn64_t numwsegpin; /* count of pages pinned for working seg */
+	rpn64_t numpsegpin; /* count of pages pinned for persistent seg */
+	rpn64_t numclsegpin; /* count of pages pinned for client seg */
+	rpn64_t numpgsp_pgs; /* # of wseg pages with allocated paging space */
 
-rpn64_t numralloc;      /* number of remote allocations */
-rpn64_t pfrsvdblks;     /* number of system reserved blocks */
-rpn64_t pfavail;        /* number of pages available for pinning */
-rpn64_t pfpinavail;     /* app-level num pages avail for pinning */
-rpn64_t numpermio;      /* number of fblru non-w.s. pageouts    */
+	rpn64_t numralloc; /* number of remote allocations */
+	rpn64_t pfrsvdblks; /* number of system reserved blocks */
+	rpn64_t pfavail; /* number of pages available for pinning */
+	rpn64_t pfpinavail; /* app-level num pages avail for pinning */
+	rpn64_t numpermio; /* number of fblru non-w.s. pageouts    */
 
-rpn64_t system_pgs;     /* pages on SCBs marked V_SYSTEM        */
-rpn64_t nonsys_pgs;     /* pages on SCBs not marked V_SYSTEM    */
+	rpn64_t system_pgs; /* pages on SCBs marked V_SYSTEM        */
+	rpn64_t nonsys_pgs; /* pages on SCBs not marked V_SYSTEM    */
 };
 
 #endif /* !defined(VMINFO_GETPSIZES) */
@@ -151,8 +151,7 @@ namespace plugins {
 namespace jni {
 namespace memory {
 
-IBMRAS_DEFINE_LOGGER("MemoryDataProvider")
-;
+IBMRAS_DEFINE_LOGGER("MemoryDataProvider");
 
 jlong getProcessPhysicalMemorySize(JNIEnv* env);
 jlong getProcessPrivateMemorySize(JNIEnv* env);
@@ -169,6 +168,7 @@ const std::string FREE_PHYSICAL_MEMORY = "freephysicalmemory"; //$NON-NLS-1$
 const std::string TOTAL_PHYSICAL_MEMORY = "totalphysicalmemory"; //$NON-NLS-1$
 
 MEMPullSource* src = NULL;
+std::string state = "on";
 
 PullSource* getMEMPullSource() {
 	if (!src) {
@@ -179,6 +179,31 @@ PullSource* getMEMPullSource() {
 
 monitordata* callback() {
 	return src->PullSource::generateData();
+}
+
+bool MEMPullSource::isEnabled() {
+	return (state == "on");
+}
+
+void MEMPullSource::setState(std::string newState) {
+
+	std::cerr << "MEMPullSource setState=" << newState << "\n";	state = newState;
+
+	state = newState;
+
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
+	ibmras::monitoring::connector::ConnectorManager *conMan =
+			agent->getConnectionManager();
+
+	std::stringstream str;
+	str << "memory_subsystem=" << state << std::endl;
+	std::string msg = str.str();
+
+	conMan->sendMessage("MemorySourceConfiguration", msg.length(),
+			(void*) msg.c_str());
+	std::cerr << "MEMPullSource setState exit\n";
 }
 
 uint32 MEMPullSource::getSourceID() {
@@ -205,42 +230,43 @@ monitordata* MEMPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 
 	IBMRAS_DEBUG(debug, ">>MEMPullSource::sourceData");
 	monitordata* data = new monitordata;
-	data->persistent = false;
-	data->provID = getProvID();
-	data->sourceID = MEM;
+	data->size = 0;
+	data->data = NULL;
 
-	std::string cp = getString(env,
-			"runtime/tools/java/dataproviders/memory/MemoryDataProviderJNI",
-			"getJMXData", "()Ljava/lang/String;");
-	std::stringstream ss;
+	if (isEnabled()) {
+		data->persistent = false;
+		data->provID = getProvID();
+		data->sourceID = MEM;
 
-	//ss << std::endl;
-	ss << cp;
-	ss << PHYSICAL_MEMORY << EQUALS << getProcessPhysicalMemorySize(env)
-			<< COMMA;
-	ss << PRIVATE_MEMORY << EQUALS << getProcessPrivateMemorySize(env) << COMMA;
-	ss << VIRTUAL_MEMORY << EQUALS << getProcessVirtualMemorySize(env) << COMMA;
-	ss << FREE_PHYSICAL_MEMORY << EQUALS << getFreePhysicalMemorySize(env)
-			<< std::endl;
+		std::string cp = getString(env,
+				"runtime/tools/java/dataproviders/memory/MemoryDataProviderJNI",
+				"getJMXData", "()Ljava/lang/String;");
+		std::stringstream ss;
 
-	std::string memorydata = ss.str();
+		//ss << std::endl;
+		ss << cp;
+		ss << PHYSICAL_MEMORY << EQUALS << getProcessPhysicalMemorySize(env)
+				<< COMMA;
+		ss << PRIVATE_MEMORY << EQUALS << getProcessPrivateMemorySize(env)
+				<< COMMA;
+		ss << VIRTUAL_MEMORY << EQUALS << getProcessVirtualMemorySize(env)
+				<< COMMA;
+		ss << FREE_PHYSICAL_MEMORY << EQUALS << getFreePhysicalMemorySize(env)
+				<< std::endl;
 
-	jsize len = memorydata.length();
-	char* sval = reinterpret_cast<char*>(hc_alloc(len + 1));
-	if (sval) {
-		strcpy(sval, memorydata.c_str());
-		IBMRAS_DEBUG(debug, "MEMORY REPORT\n"); IBMRAS_DEBUG_1(debug, "%s", sval);
-		data->size = len;
-		data->data = sval;
-		IBMRAS_DEBUG(debug, "<<MEMPullSource::sourceData(DATA)");
-	} else {
+		std::string memorydata = ss.str();
 
-		data->size = 0;
-		data->data = NULL;
-		IBMRAS_DEBUG(debug, "<<MEMPullSource::sourceData(NODATA)");
+		jsize len = memorydata.length();
+		char* sval = reinterpret_cast<char*>(hc_alloc(len + 1));
+		if (sval) {
+			strcpy(sval, memorydata.c_str());
+			IBMRAS_DEBUG(debug, "MEMORY REPORT\n");IBMRAS_DEBUG_1(debug, "%s", sval);
+			data->size = len;
+			data->data = sval;
+			IBMRAS_DEBUG(debug, "<<MEMPullSource::sourceData(DATA)");
+		}
 	}
 	return data;
-
 }
 
 #if defined(LINUX)

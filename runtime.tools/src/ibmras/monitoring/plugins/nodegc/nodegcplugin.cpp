@@ -11,7 +11,7 @@
 #include <cstring>
 #include <string>
 #include <cstdio>
-#if defined(_LINUX)
+#if defined(_LINUX) || defined(_AIX)
 #include <time.h>
 #else if defined(_WINDOWS)
 #include "windows.h"
@@ -36,7 +36,7 @@ namespace plugin {
 #ifdef _WINDOWS
 	LARGE_INTEGER gcSteadyStart, gcSteadyEnd;
 #endif
-#ifdef _LINUX
+#if defined(_LINUX) || defined(_AIX)
 	struct timespec gcSteadyStart, gcSteadyEnd;
 #endif
 }
@@ -46,7 +46,7 @@ using namespace v8;
 /*
  * Linux
  */
-#ifdef _LINUX
+#if defined(_LINUX) || defined(_AIX)
 static bool GetSteadyTime(struct timespec* tv) {
 	int rc = clock_gettime(CLOCK_MONOTONIC, tv);
 	return rc == 0;

@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <string>
 // #include <thread>
-#ifdef _LINUX
+#if defined (_LINUX) || defined (_AIX)
 #include <sys/utsname.h> // uname()
 #include <sys/sysinfo.h> // get_nprocs()
 #include <unistd.h> // gethostname()
@@ -24,7 +24,7 @@
 #endif
 #include "ibmras/common/logging.h"
 
-#ifdef _LINUX
+#if defined (_LINUX) || defined (_AIX)
 extern "C" char **environ; // use GetEnvironmentStrings() on Windows (maybe getenv() on POSIX?)
 #endif
 
@@ -166,7 +166,7 @@ static const char* GetArchitecture() {
 /* 
  * Linux 
  */
-#ifdef _LINUX
+#if defined (_LINUX) || defined (_AIX)
 static void initStaticInfo() {
 	struct utsname sysinfo;
 	int rc = uname(&sysinfo);
@@ -179,7 +179,12 @@ static void initStaticInfo() {
 		plugin::osName = "Linux"; // this fallback may need to change if this function is made more general (eg POSIX rather than just Linux)
 		plugin::osVersion = "";
 	}
-	plugin::nprocs = ToString(get_nprocs());
+	#if defined (_AIX)
+		// might be _SC_NPROCESSORS_ONLN -https://www.ibm.com/developerworks/community/forums/html/topic?id=77777777-0000-0000-0000-000014250083
+		plugin::nprocs = ToString(sysconf(_SC_NPROCESSORS_CONF));
+	#else
+		plugin::nprocs = ToString(get_nprocs());
+	#endif
 	plugin::pid = ToString(getpid());
 }
 #endif

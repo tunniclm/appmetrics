@@ -26,9 +26,4 @@
 
 core.ignore.recursive= 
 
-core.ignore= \
-	{j9cfg.h} \
-	{j9importstrings.h} \
-	{j9lib.h} \
-	{j9version.h} \
-	{mmomrhook.h} 
+core.ignore= 

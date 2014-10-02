@@ -24,10 +24,7 @@
 #include <map>
 
 #include "ibmras/common/logging.h"
-
-
-struct __jdata;
-
+#include "ibmras/common/util/strUtils.h"
 
 
 namespace ibmras {
@@ -51,11 +48,22 @@ uint buffersNotDropped = 0;
 int firstConnectionMade = 0;
 int countDroppedBuffers = 0;
 bool running = false;
-std::map<std::string, std::string> config;
+
+static const char* SUBSYSTEM = "_subsystem";
+static const char* LOW_ALLOCATION_THRESHOLD = "lowallocationthreshold"; //$NON-NLS-1$
+static const char* HIGH_ALLOCATION_THRESHOLD = "highallocationthreshold"; //$NON-NLS-1$
+static const char* STACKTRACEDEPTH = "stacktracedepth"; //$NON-NLS-1$
+static const char* TRIGGER_STACK_TRACE_ON = "stacktrace.on"; //$NON-NLS-1$
+static const char* TRIGGER_STACK_TRACE_OFF = "stacktrace.off"; //$NON-NLS-1$
+static const char* STACK_TRACE_TRIGGER_SUFFIX = "_stacktrace.trigger"; //$NON-NLS-1$
+static const char* STACKDEPTH_COMMAND = "stackdepth="; //$NON-NLS-1$
+static const char* SET_ALLOCATION_THRESHOLD_TRACEPOINT = "j9mm.231"; //$NON-NLS-1$
+static const char* ALLOCATION_THRESHOLD_TRACEPOINT = "j9mm.234"; //$NON-NLS-1$
+static const char* OOL_ALLOCATION_TRACEPOINT = "j9mm.395"; //$NON-NLS-1$
 
 
-std::string profiling[]={"j9jit.15","j9jit.16", "j9jit.17", "j9jit.18",""};
-std::string gc[] = {"j9mm.1", "j9mm.2", "j9mm.50", "j9mm.51",
+static const char* profiling[] ={"j9jit.15","j9jit.16", "j9jit.17", "j9jit.18",""};
+static const char* gc[] = {"j9mm.1", "j9mm.2", "j9mm.50", "j9mm.51",
 		"j9mm.52", "j9mm.53", "j9mm.54", "j9mm.55", "j9mm.56","j9mm.57",
 		"j9mm.58", "j9mm.59", "j9mm.60", "j9mm.64","j9mm.65", "j9mm.68",
 		"j9mm.69", "j9mm.71", "j9mm.72","j9mm.73", "j9mm.74", "j9mm.75",
@@ -67,20 +75,27 @@ std::string gc[] = {"j9mm.1", "j9mm.2", "j9mm.50", "j9mm.51",
 		"j9mm.345", "j9mm.346", "j9mm.347", "j9mm.348", "j9mm.463","j9mm.464",
 		"j9mm.467", "j9mm.468", "j9mm.469", "j9mm.470","j9mm.560","j9mm.474",
 		"j9mm.475", "j9mm.395", "j9mm.285", "j9mm.286",""};
-std::string classes[] =  { "j9bcu.1", "j9shr.51", "j9bcverify.14", "j9bcverify.18",""};
-std::string jit[] = { "j9jit.1", "j9jit.20", "j9jit.21", "j9jit.22", "j9jit.23", "j9jit.24",
+static const char* classes[] =  { "j9bcu.1", "j9shr.51", "j9bcverify.14", "j9bcverify.18",""};
+static const char* jit[] = { "j9jit.1", "j9jit.20", "j9jit.21", "j9jit.22", "j9jit.23", "j9jit.24",
 		"j9jit.28", "j9jit.29" ,""};
-std::string io[] = {"IO.100", "IO.101", "IO.102",
+static const char* io[] = {"IO.100", "IO.101", "IO.102",
 				"IO.103", "IO.104", "IO.105", "IO.106", "IO.107", "IO.108",
 				"JAVA.315", "JAVA.316", "JAVA.317", "JAVA.318", "JAVA.319",
 				"JAVA.320", "JAVA.321", "JAVA.322", "JAVA.323",
 				"j9scar.35", "j9scar.36", "j9scar.37", "j9scar.38",
 				"j9scar.136", "j9scar.137", "j9scar.138", "j9scar.139", "j9scar.140" ,""};
 
-struct Wrapper
-{
-    std::string points[100];
-};
+
+std::map<std::string, std::string> config;
+std::string getConfigString() {
+	std::stringstream str;
+	for (std::map<std::string, std::string>::iterator propsiter = config.begin();
+			propsiter != config.end(); ++propsiter) {
+		str << propsiter->first << "=" << propsiter->second << std::endl;
+	}
+	return str.str();
+}
+
 
 /**
  * the agent calls registerPushSource to find out which data sources we have
@@ -249,53 +264,81 @@ TraceDataProvider::TraceDataProvider(jvmFunctions tDPP) {
 	confactory = NULL;
 }
 
-void enableTracePoints(std::string s[]) {
+void enableTracePoints(const char* tracePoints[]) {
 
 	IBMRAS_DEBUG(debug,  "start of turning on tracepoints");
 
-	for(int i=0;!s[i].empty(); i++){
-		enableTracePoint(s[i]);
+	for(int i=0; strlen(tracePoints[i]) > 0; i++){
+		enableTracePoint(tracePoints[i]);
 	}
 
 	IBMRAS_DEBUG(debug,  "end of turning on tracepoints");
 }
 
-void disableTracePoints(std::string s[]) {
+void disableTracePoints(const char* tracePoints[]) {
 
 	IBMRAS_DEBUG(debug,  "start of turning off tracepoints");
 
-	for (int i=0;!s[i].empty(); i++) {
-		disableTracePoint(s[i]);
+	for (int i=0;strlen(tracePoints[i]) > 0; i++) {
+		disableTracePoint(tracePoints[i]);
 	}
 	IBMRAS_DEBUG(debug,  "end of turning off tracepoints");
 }
 
-void controlSubsystem(std::string command, std::string points[]) {
+void controlSubsystem(std::string command, const char* tracePoints[]) {
 	if (command == "off") {
-		disableTracePoints(points);
+		disableTracePoints(tracePoints);
 	} else if (command == "on") {
-		enableTracePoints(points);
+		enableTracePoints(tracePoints);
 	}
 }
 
-void controlTracePoints(std::string command, std::string subsystem) {
+void controlSubsystem(std::string command, const std::string& subsystem) {
+
+
+	IBMRAS_DEBUG_2(debug, "processing subsystem command: %s %s", command.c_str(), subsystem.c_str());
+	if (subsystem == "gc") {
+		controlSubsystem(command, gc);
+	} else if (subsystem == "profiling") {
+		controlSubsystem(command, profiling);
+	} else if (subsystem == "classes") {
+		controlSubsystem(command, classes);
+	} else if (subsystem == "jit") {
+		controlSubsystem(command, jit);
+	} else if (subsystem == "io") {
+		controlSubsystem(command, io);
+	} else {
+		return;
+	}
+	//update the config info
+	config[subsystem + SUBSYSTEM] = command;
+	publishConfig();
+}
+
+void handleStackTraceTrigger(std::string command, const std::string& tracePoint) {
+
+
+}
+
+
+void handleCommand(const std::string &command,
+		const std::vector<std::string> &parameters) {
+
 	JNIEnv * env;
 	vmData.theVM->AttachCurrentThread((void **) &env, NULL);
 
-	if (subsystem == "gc_subsystem") {
-		controlSubsystem(command, gc);
-	} else if (subsystem == "profiling_subsystem") {
-		controlSubsystem(command, profiling);
-	} else if (subsystem == "classes_subsystem") {
-		controlSubsystem(command, classes);
-	} else if (subsystem == "jit_subsystem") {
-		controlSubsystem(command, jit);
-	} else if (subsystem == "io_subsystem") {
-		controlSubsystem(command, io);
+	IBMRAS_DEBUG_1(debug, "command received: %s", command.c_str());
+
+	for (std::vector<std::string>::const_iterator it = parameters.begin();
+			it != parameters.end(); ++it) {
+		const std::string parameter = (*it);
+		IBMRAS_DEBUG_2(debug, "processing command: %s %s", command.c_str(), parameter.c_str());
+		if (ibmras::common::util::endsWith(parameter, SUBSYSTEM)) {
+			controlSubsystem(command, parameter.substr(0, parameter.length() - strlen(SUBSYSTEM)));
+		} else if (ibmras::common::util::endsWith(parameter, STACK_TRACE_TRIGGER_SUFFIX)) {
+			handleStackTraceTrigger(command, parameter.substr(0, parameter.length() - strlen(STACK_TRACE_TRIGGER_SUFFIX)));
+		}
 	}
-	//update the config info
-	config[subsystem] = command;
-	publishConfig();
 
 	vmData.theVM->DetachCurrentThread();
 }
@@ -698,14 +741,7 @@ void publishConfig() {
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 					agent->getConnectionManager();
 
-	std::stringstream str;
-
-	for (std::map<std::string, std::string>::iterator propsiter = config.begin();
-			propsiter != config.end(); ++propsiter) {
-		str << propsiter->first << "=" << propsiter->second << std::endl;
-	}
-
-	std::string msg = str.str();
+	std::string msg = getConfigString();
 	conMan->sendMessage("TRACESubscriberSourceConfiguration", msg.length(), (void*) msg.c_str());
 }
 

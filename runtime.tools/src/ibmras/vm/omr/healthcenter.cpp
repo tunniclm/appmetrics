@@ -18,6 +18,7 @@
 #include "ibmras/monitoring/plugins/omr/CpuDataProvider.h"
 #include "ibmras/monitoring/plugins/omr/NativeMemoryDataProvider.h"
 #include "ibmras/vm/omr/healthcenter.h"
+#include "ibmras/common/PropertiesFile.h"
 
 int headerSize = 0;
 
@@ -61,8 +62,9 @@ void launchAgent(char const *options) {
 	agent->setLogLevels();
 	IBMRAS_DEBUG(debug, "launchAgent enter");
 
-	agent->setAgentProperty("plugin.path", options);
-
+	ibmras::common::PropertiesFile props;
+	props.load(options);
+	agent->setProperties(props);
 	if (omrParams.omrti == NULL) {
 		IBMRAS_DEBUG(warning,  "omrParams.omrti is null");
 	}

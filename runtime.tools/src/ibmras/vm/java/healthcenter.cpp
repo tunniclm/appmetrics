@@ -23,6 +23,7 @@
 #include "ibmras/monitoring/plugins/j9/methods/MethodLookupProvider.h"
 #include "ibmras/monitoring/connector/jmx/JMXConnectorPlugin.h"
 #include "ibmras/monitoring/connector/headless/HLConnectorPlugin.h"
+#include "ibmras/monitoring/plugins/jni/JNIReceiver.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/common/Properties.h"
 
@@ -439,6 +440,9 @@ void launchAgent(const std::string &options) {
 	ibmras::monitoring::plugins::jni::setTDPP(&tDPP);
 	//We now register the plugin with the agent
 	agent->addPlugin(ibmras::monitoring::plugins::jni::getPlugin());
+
+	// Add the jni receiver
+	agent->addPlugin((ibmras::monitoring::Plugin*) new ibmras::monitoring::plugins::jni::JNIReceiver());
 
 	agent->init();
 	agent->start();

@@ -16,6 +16,8 @@ public:
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env);
 	~MEMPullSource(){};
+	bool isEnabled();
+	static void setState(std::string state);
 };
 
 }	/* end namespace env */

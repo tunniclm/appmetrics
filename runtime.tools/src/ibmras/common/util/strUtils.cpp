@@ -41,6 +41,9 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return elems;
 }
 
+bool endsWith(const std::string& str, const std::string& suffix) {
+	return (str.length() > suffix.length() && (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix)));
+}
 
 }/*end of namespace util*/
 }/*end of namespace common*/

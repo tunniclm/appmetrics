@@ -47,12 +47,8 @@ void TraceReceiver::receiveMessage(const std::string &id, uint32 size,
 				std::string rest = message.substr(found + 1);
 				std::vector < std::string > parameters =
 						ibmras::common::util::split(rest, ',');
-				for (std::vector<std::string>::iterator it = parameters.begin();
-						it != parameters.end(); ++it) {
-					ibmras::monitoring::plugins::j9::trace::controlTracePoints(
-							command, *it);
-				}
-			}
+				ibmras::monitoring::plugins::j9::trace::handleCommand(
+						command, parameters);			}
 		}
 	}
 }

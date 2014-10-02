@@ -108,7 +108,11 @@ void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 				std::vector<std::string> parameters =
 						ibmras::common::util::split(rest, ',');
 
-				getMethodIDs(parameters);
+				if (parameters.size() > 0) {
+					getMethodIDs(parameters);
+				} else {
+					sendMethodDictionary();
+				}
 			}
 		}
 	}

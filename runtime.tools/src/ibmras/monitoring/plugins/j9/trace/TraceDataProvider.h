@@ -50,11 +50,11 @@ namespace plugins {
 namespace j9 {
 namespace trace {
 
-void controlTracePoints(std::string command, std::string subsystem);
+void handleCommand(const std::string &command, const std::vector<std::string> &parameters);
 void publishConfig();
 void* processLoop(ibmras::common::port::ThreadData* param);
-void enableTracePoints(std::string s[]);
-void disableTracePoints(std::string s[]);
+void enableTracePoints(const char* tracePoints[]);
+void disableTracePoints(const char* tracePoints[]);
 void enableTracePoint(std::string tp);
 void disableTracePoint(std::string tp);
 void enableGCTracePoint(std::string tp);
