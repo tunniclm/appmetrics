@@ -8,7 +8,8 @@
   "conditions": [
     ['OS=="aix"', {
       "variables": {
-        "portdir%": "aix"
+        "portdir%": "aix",
+        "SHARED_LIB_SUFFIX": ".a",
       },
     }],
     ['OS=="linux"', {
