@@ -53,7 +53,6 @@ JMXConnectorPlugin::JMXConnectorPlugin(JavaVM *theVM) : jmxConnector(NULL), vm(t
 	confactory = getConnector;
 	pull = NULL;
 	push = NULL;
-	handle = NULL;
 	recvfactory = NULL;
 }
 

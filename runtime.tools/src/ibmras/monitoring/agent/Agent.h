@@ -62,6 +62,7 @@ public:
 	void setLogLevels();
 	void setLocalLog(bool local);
 	void addPlugin(ibmras::monitoring::Plugin* plugin);	/* manually add a plugin to the agent */
+	void addPlugin(const std::string &dir, const std::string library);	/* manually add a plugin to the agent */
 
 	ibmras::common::Properties getProperties();
 	void setProperties(const ibmras::common::Properties &props);

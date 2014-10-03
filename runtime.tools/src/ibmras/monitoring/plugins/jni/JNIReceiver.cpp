@@ -28,7 +28,6 @@ JNIReceiver::JNIReceiver() {
 	push = NULL;
 	start = ibmras::monitoring::plugins::jni::startReceiver;
 	stop = ibmras::monitoring::plugins::jni::stopReceiver;
-	handle = NULL;
 	type = ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) ibmras_getJNIReceiver;
 	confactory = NULL;

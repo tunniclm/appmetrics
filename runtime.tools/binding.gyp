@@ -71,6 +71,7 @@
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
         "<(srcdir)/common/util/FileUtils.cpp",
+        "<(srcdir)/common/util/LibraryUtils.cpp",
         "<(srcdir)/common/port/<(portdir)/Thread.cpp",
         "<(srcdir)/common/port/<(portdir)/Process.cpp",
         "<(srcdir)/common/port/ThreadData.cpp",

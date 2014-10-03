@@ -96,7 +96,6 @@ NativeMemoryDataProvider::NativeMemoryDataProvider(
 	start = memstart;
 	stop = memstop;
 	push = NULL;
-	handle = NULL;
 	type = ibmras::monitoring::plugin::data;
 	confactory = NULL;
 	recvfactory = NULL;

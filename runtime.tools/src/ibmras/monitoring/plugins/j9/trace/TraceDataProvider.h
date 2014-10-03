@@ -9,16 +9,7 @@
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/monitoring/plugins/j9/trace/TraceReceiver.h"
 
-#if defined(WINDOWS)
-#include <winsock2.h>
-#define JLONG_FMT_STR "%I64d"
-#else /* Unix platforms */
-#define _OE_SOCKETS
-#define JLONG_FMT_STR "%lld"
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#endif
+
 
 struct __traceBuffer {
 	jlong size;

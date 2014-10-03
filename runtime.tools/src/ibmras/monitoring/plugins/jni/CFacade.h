@@ -7,7 +7,6 @@
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/monitoring/plugins/jni/Facade.h"
-#include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/common/util/memUtils.h"
 #include "ibmras/common/Logger.h"

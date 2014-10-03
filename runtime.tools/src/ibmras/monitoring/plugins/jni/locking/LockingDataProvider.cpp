@@ -15,7 +15,7 @@
 #include <ctime>
 #if defined(WINDOWS)
 #include <windows.h>
-#include <winsock2.h>
+//#include <winsock2.h>
 #include <Psapi.h>
 #include <WinBase.h>
 #endif

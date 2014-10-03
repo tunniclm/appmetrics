@@ -12,6 +12,17 @@
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/agent/Agent.h"
 
+#if defined(WINDOWS)
+//#include <winsock2.h>
+#define JLONG_FMT_STR "%I64d"
+#else /* Unix platforms */
+#define _OE_SOCKETS
+#define JLONG_FMT_STR "%lld"
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#endif
+
 #include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -258,7 +269,6 @@ TraceDataProvider::TraceDataProvider(jvmFunctions tDPP) {
 	push = registerPushSource;
 	start = Tracestart;
 	stop = Tracestop;
-	handle = NULL;
 	type = ibmras::monitoring::plugin::data | ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY)TraceDataProvider::getReceiver;
 	confactory = NULL;
@@ -286,9 +296,9 @@ void disableTracePoints(const char* tracePoints[]) {
 }
 
 void controlSubsystem(std::string command, const char* tracePoints[]) {
-	if (command == "off") {
+	if (ibmras::common::util::equalsIgnoreCase(command, "off")) {
 		disableTracePoints(tracePoints);
-	} else if (command == "on") {
+	} else if (ibmras::common::util::equalsIgnoreCase(command, "on")) {
 		enableTracePoints(tracePoints);
 	}
 }

@@ -32,7 +32,7 @@ COPY_CONNECTOR=cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
 #-------------------------------------------------------------------------------------------
 #Objects files which make up various components
 #-------------------------------------------------------------------------------------------
-COMMON_OBJS = ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/FileUtils.o ${COMMON_OUT}/Thread.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/ThreadData.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/PropertiesFile.o ${COMMON_OUT}/LegacyData.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o 
+COMMON_OBJS = ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/FileUtils.o ${COMMON_OUT}/LibraryUtils.o ${COMMON_OUT}/Thread.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/ThreadData.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/PropertiesFile.o ${COMMON_OUT}/LegacyData.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o 
 HL_CONNECTOR_OBJS=${CONNECTOR_OUT}/HLConnector.o ${CONNECTOR_OUT}/HLConnectorPlugin.o
 AGENT_OBJS=${COMMON_OBJS} ${AGENT_OUT}/agent.o ${AGENT_OUT}/MonitorDataQueue.o ${AGENT_OUT}/PullSourceCounter.o ${AGENT_OUT}/ThreadPool.o ${AGENT_OUT}/WorkerThread.o ${AGENT_OUT}/WorkerThreadControl.o ${AGENT_OUT}/SystemReceiver.o ${AGENT_OUT}/ConnectorManager.o ${AGENT_OUT}/Bucket.o ${AGENT_OUT}/BucketList.o ${AGENT_OUT}/BucketDataQueueEntry.o ${AGENT_OUT}/Plugin.o 
 
@@ -61,7 +61,7 @@ TEST_OBJS=${TEST_OUT}/test.o
 #-------------------------------------------------------------------------------------------
 AGENT_LIB=${AGENT_OUT}/agent.${ARC_EXT}
 HC_LIB=healthcenter.${ARC_EXT}
-MQTT_LIB=${CONNECTOR_OUT}/hcmqtt.${ARC_EXT}
+MQTT_LIB=${CONNECTOR_OUT}/${LIB_PREFIX}hcmqtt.${ARC_EXT}
 OSTREAM_LIB=${CONNECTOR_OUT}/ostream.${ARC_EXT}
 
 #-------------------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ NODE_SDK_INCLUDE=${NODE_SDK}/include/node
 #-------------------------------------------------------------------------------------------
 #Components to allow specific sub-builds rather than everything
 #-------------------------------------------------------------------------------------------
-CONNECTORS=${CONNECTOR_OUT}/libhcmqtt.${LIB_EXT} #${CONNECTOR_OUT}/libostream.${LIB_EXT}
+CONNECTORS=${CONNECTOR_OUT}/${LIB_PREFIX}hcmqtt.${LIB_EXT} #${CONNECTOR_OUT}/libostream.${LIB_EXT}
 AGENT=${AGENT_OUT}/${LIB_PREFIX}monagent.${LIB_EXT}
 #PLUGINS=${PLUGIN_OUT}/libplugin.${LIB_EXT} ${PLUGIN_OUT}/libosplugin.${LIB_EXT}
 PLUGINS=${PLUGIN_OUT}/libplugin.${LIB_EXT}
@@ -172,7 +172,7 @@ ${PLUGIN_OUT}/libpyplugin.${LIB_EXT}: ${PYPLUGIN_OBJS}
 	${LINK} ${LDFLAGS} ${LIBFLAGS} ${OBJOPT} ${PYPLUGIN_OBJS} ${COMMON_OBJS}
 	@echo "Python plugin lib built"
 
-${CONNECTOR_OUT}/libhcmqtt.${LIB_EXT}: ${MQTT_CONNECTOR_OBJS} ${PAHO_ASYNC_OBJS}
+${CONNECTOR_OUT}/${LIB_PREFIX}hcmqtt.${LIB_EXT}: ${MQTT_CONNECTOR_OBJS} ${PAHO_ASYNC_OBJS}
 	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIBPATH}"${HC_OUT}" ${HC_LIB_USE} ${LIB_OBJOPT} "${MQTT_CONNECTOR_OBJS}" ${PAHO_ASYNC_OBJS} ${MQTT_LIB_OPTIONS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
 	@echo "MQTT connector lib built"
 
@@ -267,6 +267,9 @@ ${PLUGIN_OUT}/os${OS}.o:
 
 ${COMMON_OUT}/FileUtils.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/util/FileUtils.cpp
+	
+${COMMON_OUT}/LibraryUtils.o: 
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/util/LibraryUtils.cpp
 	
 ${COMMON_OUT}/Logger.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/Logger.cpp

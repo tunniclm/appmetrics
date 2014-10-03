@@ -26,17 +26,10 @@
 #include "ibmras/monitoring/plugins/jni/JNIReceiver.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/common/Properties.h"
+#include "ibmras/common/util/strUtils.h"
 
 struct __jdata;
 
-#if defined(WINDOWS)
-#include <winsock2.h>
-#else /* Unix platforms */
-#define _OE_SOCKETS
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#endif
 
 #include "jvmti.h"
 #include "jni.h"
@@ -49,13 +42,6 @@ struct __jdata;
 /*########################################################################################################################*/
 /*########################################################################################################################*/
 /*########################################################################################################################*/
-
-#if defined(WINDOWS)
-#include <windows.h>
-#include <winbase.h>
-#include <psapi.h>
-#pragma comment(lib,"psapi.lib")
-#endif /* defined(WIN32) || defined(WIN64) */
 
 
 static const char* HEALTHCENTER_PROPERTIES_PREFIX = "com.ibm.java.diagnostics.healthcenter.";
@@ -401,9 +387,18 @@ void launchAgent(const std::string &options) {
 	getHCProperties(options);
 	agent->setLogLevels();
 
+
+	// Add MQTT Connector plugin
+	// TODO load SSL or plain
+	std::string agentLibPath =
+			ibmras::common::util::LibraryUtils::getLibraryDir(
+					"healthcenter.dll", (void*) launchAgent);
+	agent->addPlugin(agentLibPath, "hcmqtt");
+
+
 	// Set connector properties based on data.collection.level
 	std::string dataCollectionLevel = agent->getAgentProperty("data.collection.level");
-	if (dataCollectionLevel == "HEADLESS") {
+	if (ibmras::common::util::equalsIgnoreCase(dataCollectionLevel, "headless")) {
 		agent->setAgentProperty("headless", "on");
 		agent->setAgentProperty("mqtt", "off");
 		agent->setAgentProperty("jmx", "off");
@@ -412,7 +407,6 @@ void launchAgent(const std::string &options) {
 		if (jmx == "") {
 			agent->setAgentProperty("jmx", "on");
 		}
-
 	}
 
 	IBMRAS_DEBUG(debug, "in agent launch agent");

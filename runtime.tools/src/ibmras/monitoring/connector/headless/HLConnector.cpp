@@ -32,6 +32,7 @@
 #include "ibmras/monitoring/connector/headless/HLConnector.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/util/strUtils.h"
 
 namespace ibmras {
 namespace monitoring {
@@ -105,7 +106,7 @@ int HLConnector::start() {
 			ibmras::monitoring::agent::Agent::getInstance();
 
 	std::string enabledProp = agent->getAgentProperty("headless");
-	if (enabledProp == "on") {
+	if (ibmras::common::util::equalsIgnoreCase(enabledProp, "on")) {
 		enabled = true;
 	} else {
 		enabled = false;
@@ -516,11 +517,10 @@ int HLConnector::stop() {
 int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 		void* data) {
 
-	IBMRAS_DEBUG(debug, ">>>HLConnector::sendMessage()");
-
 	if (!collect) {
 		return 0;
 	}
+	IBMRAS_DEBUG(debug, ">>>HLConnector::sendMessage()");
 
 	std::map<std::string, std::string>::iterator it;
 	it = expandedIDs.find(sourceId);

@@ -29,7 +29,6 @@ SystemReceiver::SystemReceiver() {
 	push = NULL;
 	start = ibmras::monitoring::agent::startReceiver;
 	stop = ibmras::monitoring::agent::stopReceiver;
-	handle = NULL;
 	type = ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) ibmras_getSystemReceiver;
 	confactory = NULL;

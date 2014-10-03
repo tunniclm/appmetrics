@@ -4,6 +4,8 @@
 #
 # The value of core.ignore.recursive will be ignored.
 #
+# Ignored files and folders will not be committed, but may be modified during
+# accept or update.
 # Ignore properties should contain a space separated list of filename patterns.
 # Each pattern is case sensitive and surrounded by braces ('{' and '}'). 
 # "*" matches zero or more characters, and "?" matches single characters. 
@@ -15,5 +17,4 @@
 
 core.ignore.recursive= 
 
-core.ignore= \
-	{healthcenter.properties} 
+core.ignore= 

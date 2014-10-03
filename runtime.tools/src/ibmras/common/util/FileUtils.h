@@ -17,7 +17,7 @@ namespace util {
 class FileUtils {
 
 public:
-	static void* getSymbol(void *libHandle, const std::string& symbol);
+
 };
 
 }

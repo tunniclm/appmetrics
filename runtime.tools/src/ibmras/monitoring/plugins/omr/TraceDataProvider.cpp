@@ -231,7 +231,6 @@ TraceDataProvider::TraceDataProvider(
 	push = registerPushSource;
 	start = Tracestart;
 	stop = Tracestop;
-	handle = NULL;
 	type = ibmras::monitoring::plugin::data;
 	confactory = NULL;
 	recvfactory = NULL;

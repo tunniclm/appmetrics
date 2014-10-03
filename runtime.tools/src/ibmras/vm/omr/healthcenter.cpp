@@ -20,6 +20,12 @@
 #include "ibmras/vm/omr/healthcenter.h"
 #include "ibmras/common/PropertiesFile.h"
 
+#if defined(WINDOWS)
+const char PATHSEPARATOR = '\\';
+#else
+const char PATHSEPARATOR = '/';
+#endif
+
 int headerSize = 0;
 
 void launchAgent(char const *options);
@@ -61,6 +67,15 @@ void launchAgent(char const *options) {
 
 	agent->setLogLevels();
 	IBMRAS_DEBUG(debug, "launchAgent enter");
+
+	// Add MQTT Connector plugin
+	// TODO load SSL or plain
+	std::string agentLibPath =
+			ibmras::common::util::LibraryUtils::getLibraryDir(
+					"healthcenter.dll", (void*) launchAgent);
+	agent->addPlugin(agentLibPath + PATHSEPARATOR + "plugins", "hcmqtt");
+
+
 
 	ibmras::common::PropertiesFile props;
 	props.load(options);

@@ -12,6 +12,7 @@
 #include "jni.h"
 #include "ibmjvmti.h"
 #include "jniport.h"
+#include "ibmras/common/util/strUtils.h"
 
 /*
  * This is compiled with convlit(ISO8859-1) so we need to suspend conversion for literals
@@ -74,7 +75,7 @@ int JMXConnector::start() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
 	std::string enabled = agent->getAgentProperty("jmx");
-	if (enabled == "on") {
+	if (ibmras::common::util::equalsIgnoreCase(enabled, "on")) {
 		rc = launchMBean();
 	}
 	return rc;

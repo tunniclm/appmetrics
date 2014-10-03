@@ -26,6 +26,16 @@
 #define AGENTP(func,param) ibmras::monitoring::agent::Agent::getInstance()->func(param);
 
 
+#if defined(WINDOWS)
+const char PATHSEPARATOR = '\\';
+const char* LIBPREFIX = "";
+const char* LIBSUFFIX = ".dll";
+#else
+const char PATHSEPARATOR = '/';
+const char* LIBPREFIX = "lib";
+const char* LIBSUFFIX = ".so";
+#endif
+
 namespace ibmras {
 namespace monitoring {
 namespace agent {
@@ -254,6 +264,14 @@ void Agent::addPlugin(ibmras::monitoring::Plugin* plugin) {
 		IBMRAS_DEBUG(warning, "Attempt to add null plugin");
 	}
 }
+
+void Agent::addPlugin(const std::string &dir, const std::string library) {
+	ibmras::monitoring::Plugin *plugin = ibmras::monitoring::Plugin::processLibrary(dir + PATHSEPARATOR + LIBPREFIX + library + LIBSUFFIX);
+	if (plugin) {
+		plugins.push_back(plugin);
+	}
+}
+
 
 void Agent::addSystemPlugins() {
 //	addPlugin(ibmras::common::LogManager::getPlugin());

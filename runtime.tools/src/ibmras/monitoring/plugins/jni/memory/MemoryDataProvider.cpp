@@ -6,6 +6,7 @@
 #include <sstream>
 #include "jni.h"
 #include "ibmras/common/util/memUtils.h"
+#include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
 
 #include <ctime>
@@ -23,7 +24,7 @@
 
 #if defined(WINDOWS)
 #include <windows.h>
-#include <winsock2.h>
+//#include <winsock2.h>
 #include <Psapi.h>
 #else /* Unix platforms */
 #define _OE_SOCKETS
@@ -168,7 +169,7 @@ const std::string FREE_PHYSICAL_MEMORY = "freephysicalmemory"; //$NON-NLS-1$
 const std::string TOTAL_PHYSICAL_MEMORY = "totalphysicalmemory"; //$NON-NLS-1$
 
 MEMPullSource* src = NULL;
-std::string state = "on";
+bool enabled = true;
 
 PullSource* getMEMPullSource() {
 	if (!src) {
@@ -182,14 +183,12 @@ monitordata* callback() {
 }
 
 bool MEMPullSource::isEnabled() {
-	return (state == "on");
+	return enabled;
 }
 
 void MEMPullSource::setState(std::string newState) {
 
-	std::cerr << "MEMPullSource setState=" << newState << "\n";	state = newState;
-
-	state = newState;
+	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
 
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
@@ -197,13 +196,10 @@ void MEMPullSource::setState(std::string newState) {
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 			agent->getConnectionManager();
 
-	std::stringstream str;
-	str << "memory_subsystem=" << state << std::endl;
-	std::string msg = str.str();
+	std::string msg = "memory_subsystem=" + newState;
 
 	conMan->sendMessage("MemorySourceConfiguration", msg.length(),
 			(void*) msg.c_str());
-	std::cerr << "MEMPullSource setState exit\n";
 }
 
 uint32 MEMPullSource::getSourceID() {

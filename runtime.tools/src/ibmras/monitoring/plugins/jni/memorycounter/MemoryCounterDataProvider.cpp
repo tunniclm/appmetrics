@@ -24,9 +24,16 @@
 #include "ibmras/common/util/sysUtils.h"
 #include "ibmras/common/logging.h"
 
+
+#if defined(WINDOWS)
+#define JLONG_FMT_STR "%I64d"
+#else /* Unix platforms */
+#define JLONG_FMT_STR "%lld"
+#endif
+
 #if defined(WINDOWS)
 #include <windows.h>
-#include <winsock2.h>
+//#include <winsock2.h>
 #include <Psapi.h>
 #elif defined(LINUX)
 #include <sys/time.h>
@@ -47,7 +54,7 @@ IBMRAS_DEFINE_LOGGER("DataProviderSources");
 char* getMemoryCounters(JNIEnv *env);
 
 MCPullSource* src = NULL;
-std::string state = "on";
+bool enabled = true;
 
 PullSource* getMCPullSource() {
 	if (!src) {
@@ -57,12 +64,11 @@ PullSource* getMCPullSource() {
 }
 
 bool MCPullSource::isEnabled() {
-	return (state == "on");
+	return enabled;
 }
 
 void MCPullSource::setState(std::string newState) {
-	std::cerr << "MCPullSource setState=" << newState << "\n";
-	state = newState;
+	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
 
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
@@ -70,13 +76,10 @@ void MCPullSource::setState(std::string newState) {
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 			agent->getConnectionManager();
 
-	std::stringstream str;
-	str << "memorycounters_subsystem=" << state << std::endl;
-	std::string msg = str.str();
+	std::string msg = "memorycounters_subsystem=" + newState;
 
 	conMan->sendMessage("MemoryCountersSourceConfiguration", msg.length(),
 			(void*) msg.c_str());
-	std::cerr << "MCPullSource setState exit\n";
 }
 
 monitordata* callback() {

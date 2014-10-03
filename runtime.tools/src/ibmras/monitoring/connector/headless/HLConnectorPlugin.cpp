@@ -25,7 +25,6 @@ HLConnectorPlugin::HLConnectorPlugin(JavaVM* theVM) : vm(theVM) {
 	confactory = getConnector;
 	pull = NULL;
 	push = NULL;
-	handle = NULL;
 	recvfactory = NULL;
 }
 

@@ -66,7 +66,6 @@ MethodLookupProvider::MethodLookupProvider(jvmFunctions functions) {
 	push = registerPushSource;
 	start = ibmras::monitoring::plugins::j9::methods::startReceiver;
 	stop = ibmras::monitoring::plugins::j9::methods::stopReceiver;
-	handle = NULL;
 	type = ibmras::monitoring::plugin::data
 			| ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) MethodLookupProvider::getInstance;

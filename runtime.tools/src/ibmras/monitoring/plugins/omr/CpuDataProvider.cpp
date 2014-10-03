@@ -96,7 +96,6 @@ CpuDataProvider::CpuDataProvider(
 	start = cpustart;
 	stop = cpustop;
 	push = NULL;
-	handle = NULL;
 	type = ibmras::monitoring::plugin::data;
 	confactory = NULL;
 	recvfactory = NULL;

@@ -148,7 +148,6 @@ DECL ibmras::monitoring::Plugin* getPlugin() {
 	plugin->push = NULL;
 	plugin->start = ibmras::monitoring::plugins::jmx::startJMX;
 	plugin->stop = ibmras::monitoring::plugins::jmx::stopJMX;
-	plugin->handle = NULL;
 	plugin->type = ibmras::monitoring::plugin::data;
 	plugin->confactory = NULL;
 	plugin->recvfactory = NULL;

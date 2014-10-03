@@ -45,6 +45,20 @@ bool endsWith(const std::string& str, const std::string& suffix) {
 	return (str.length() > suffix.length() && (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix)));
 }
 
+bool equalsIgnoreCase(const std::string& s1, const std::string& s2) {
+	if (s1.length() != s2.length()) {
+		return false;
+	}
+	for(std::string::size_type i = 0; i < s1.size(); ++i) {
+	    if (toupper(s1[i]) !=  toupper(s2[i]) ) {
+	    	return false;
+	    }
+	}
+
+	return true;
+}
+
+
 }/*end of namespace util*/
 }/*end of namespace common*/
 } /*end of namespace ibmras*/

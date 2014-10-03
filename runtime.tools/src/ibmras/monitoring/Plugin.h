@@ -12,6 +12,8 @@
 #include <vector>
 #include <string>
 
+#include "ibmras/common/util/LibraryUtils.h"
+
 namespace ibmras {
 namespace monitoring {
 
@@ -33,6 +35,7 @@ public:
 	void unload();
 
 	static std::vector<Plugin*> scan(const std::string &dir); /* scan a directory and return a list of candidate plugins */
+	static Plugin* processLibrary(const std::string &filePath);
 
 	std::string name;										/* name of the library - typically this is the full path */
 	pushsource* (*push)(void (*callback)(monitordata*), uint32);	/* push source function pointer or NULL */
@@ -41,11 +44,10 @@ public:
 	int (*stop)(void);										/* stop function to end data production */
 	CONNECTOR_FACTORY confactory;							/* Connector factory */
 	RECEIVER_FACTORY recvfactory;                           /* Receiver factory */
-	void *handle;											/* handle to be used when closing the dynamically loaded plugin */
+	ibmras::common::util::LibraryUtils::Handle handle;	/* handle to be used when closing the dynamically loaded plugin */
 	int type;
 
 private:
-	static Plugin* buildPlugin(void* libHandle, const std::string &filePath);
 	void setType();
 };
 

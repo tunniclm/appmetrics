@@ -16,6 +16,7 @@
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/PropertiesFile.h"
 #include "ibmras/common/util/sysUtils.h"
+#include "ibmras/common/util/strUtils.h"
 
 #define AGENT_TOPIC_PREFIX "ibm/healthcenter"
 #define CLIENT_IDENTIFY_TOPIC AGENT_TOPIC_PREFIX  "/identify"
@@ -267,7 +268,7 @@ int MQTTConnector::start() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
 	std::string enabledProp = agent->getAgentProperty("mqtt");
-	if (enabledProp == "on") {
+	if (ibmras::common::util::equalsIgnoreCase(enabledProp, "on")) {
 		enabled = true;
 		return connect();
 	}

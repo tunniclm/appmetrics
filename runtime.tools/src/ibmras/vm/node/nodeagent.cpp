@@ -2,13 +2,13 @@
 #define BUILDING_NODE_EXTENSION
 #endif
 
+#include "node.h"
+#include "uv.h"
 #include "ibmras/common/Logger.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/PropertiesFile.h"
-#include "node.h"
-#include "uv.h"
 #include "ibmras/vm/node/nodeconnector.h"
 #include "wrapper.h"
 

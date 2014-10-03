@@ -7,11 +7,17 @@
 #include <string>
 #include <stdint.h>
 
-
 #if defined(WINDOWS)
 #include <windows.h>
+//#include <winsock2.h>
 #include <intrin.h>
 #include <winbase.h>
+#else /* Unix platforms */
+#define _OE_SOCKETS
+
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #endif
 
 #if defined(_ZOS)
@@ -252,7 +258,6 @@ DECL ibmras::monitoring::Plugin* getPlugin() {
 	plugin->push = NULL;
 	plugin->start = ibmras::monitoring::plugins::jni::startjni;
 	plugin->stop = ibmras::monitoring::plugins::jni::stopjni;
-	plugin->handle = NULL;
 	plugin->type = ibmras::monitoring::plugin::data;
 	plugin->recvfactory = NULL;
 	plugin->confactory = NULL;

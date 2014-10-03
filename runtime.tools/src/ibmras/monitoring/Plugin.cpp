@@ -11,7 +11,6 @@
 
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/common/logging.h"
-#include "ibmras/common/util/FileUtils.h"
 
 #include <stdlib.h>
 
@@ -28,7 +27,8 @@
 namespace ibmras {
 namespace monitoring {
 
-IBMRAS_DEFINE_LOGGER("Plugin");
+IBMRAS_DEFINE_LOGGER("Plugin")
+;
 
 /* these names are produced by gcc and may not be the same for all compilers */
 const char* SYM_REGISTER_PUSH_SOURCE = "ibmras_monitoring_registerPushSource";
@@ -40,7 +40,7 @@ const char* SYM_RECEIVER_FACTORY = "ibmras_monitoring_getReceiver";
 
 Plugin::Plugin() :
 		name(""), push(NULL), pull(NULL), start(NULL), stop(NULL), confactory(
-				NULL), recvfactory(NULL), handle(NULL), type(0) {
+				NULL), recvfactory(NULL), type(0) {
 }
 
 std::vector<Plugin*> Plugin::scan(const std::string& dir) {
@@ -62,19 +62,19 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 	size_t length_of_arg;
 	StringCchLength(path, MAX_PATH, &length_of_arg);
 	if (length_of_arg > (MAX_PATH - 3)) {
-		IBMRAS_DEBUG(fine,  "The path is too long");
+		IBMRAS_DEBUG(fine, "The path is too long");
 		return plugins;
 	}
 
 	StringCchCopy(szDir, MAX_PATH, path);
 	StringCchCat(szDir, MAX_PATH, TEXT("\\*.dll"));
 
-	IBMRAS_DEBUG_1(finest,  "Scanning %s", szDir);
+	IBMRAS_DEBUG_1(finest, "Scanning %s", szDir);
 
 	hFind = FindFirstFile(szDir, &ffd);
 
 	if (INVALID_HANDLE_VALUE == hFind) {
-		IBMRAS_DEBUG(warning,  "Unable to access the contents");
+		IBMRAS_DEBUG(warning, "Unable to access the contents");
 		return plugins;
 	}
 
@@ -83,25 +83,18 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 			StringCchCopy(szDir, MAX_PATH, path);
 			StringCchCat(szDir, MAX_PATH, TEXT("\\"));
 			StringCchCat(szDir, MAX_PATH, ffd.cFileName);
-			IBMRAS_DEBUG_1(finest,  "Scanning library : %s", ffd.cFileName);
-			handle = LoadLibrary(szDir);
-			if (handle) {
-				Plugin* plugin = buildPlugin(handle, szDir);
-				if (plugin != NULL) {
-					plugins.push_back(plugin);
-				} else {
-					FreeLibrary(handle);
-				}
+
+			Plugin *plugin = processLibrary(szDir);
+			if (plugin != NULL) {
+				plugins.push_back(plugin);
 			}
-		} else {
-			IBMRAS_DEBUG_1(finest,  "Skipping : %s", ffd.cFileName);
 		}
 	} while (FindNextFile(hFind, &ffd) != 0);
 
 	dwError = GetLastError();
 
 	if (dwError != ERROR_NO_MORE_FILES) {
-		IBMRAS_DEBUG(fine,  "Error while traversing directory");
+		IBMRAS_DEBUG(fine, "Error while traversing directory");
 	}
 
 	FindClose(hFind);
@@ -124,18 +117,11 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 			filePath += "/";
 			filePath += entry->d_name;
 
-			IBMRAS_DEBUG_1(fine, "Processing plugin library: %s", filePath.c_str());
-
-			void *handle = dlopen(filePath.c_str(), RTLD_LAZY);
-			if (handle) {
-				Plugin* plugin = buildPlugin(handle, filePath);
-				if (plugin != NULL) {
-					plugins.push_back(plugin);
-				} else {
-					/* not a plugin so close the handle	*/
-					dlclose(handle);
-				}
+			Plugin *plugin = processLibrary(filePath);
+			if (plugin != NULL) {
+				plugins.push_back(plugin);
 			}
+
 		}
 	}
 	closedir(dp);
@@ -146,52 +132,60 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 
 }
 
-Plugin* Plugin::buildPlugin(void* libHandle, const std::string &filePath) {
+
+Plugin* Plugin::processLibrary(const std::string &filePath) {
+
 	Plugin* plugin = NULL;
+	IBMRAS_DEBUG_1(fine, "Processing plugin library: %s", filePath.c_str());
 
-	void* push = ibmras::common::util::FileUtils::getSymbol(libHandle,
-			SYM_REGISTER_PUSH_SOURCE);
-	void* pull = ibmras::common::util::FileUtils::getSymbol(libHandle,
-			SYM_REGISTER_PULL_SOURCE);
-	void* start = ibmras::common::util::FileUtils::getSymbol(libHandle,
-			SYM_START);
-	void* stop = ibmras::common::util::FileUtils::getSymbol(libHandle,
-			SYM_STOP);
-	void* connectorFactory = ibmras::common::util::FileUtils::getSymbol(
-			libHandle, SYM_CONNECTOR_FACTORY);
-	void* receiverFactory = ibmras::common::util::FileUtils::getSymbol(
-			libHandle, SYM_RECEIVER_FACTORY);
+	ibmras::common::util::LibraryUtils::Handle handle =
+			ibmras::common::util::LibraryUtils::openLibrary(filePath.c_str());
+	if (handle.isValid()) {
 
-	IBMRAS_DEBUG_3(fine, "Library %s: start=%p stop=%p", filePath.c_str(), start, stop);
+		void* push = ibmras::common::util::LibraryUtils::getSymbol(handle,
+				SYM_REGISTER_PUSH_SOURCE);
+		void* pull = ibmras::common::util::LibraryUtils::getSymbol(handle,
+				SYM_REGISTER_PULL_SOURCE);
+		void* start = ibmras::common::util::LibraryUtils::getSymbol(handle,
+				SYM_START);
+		void* stop = ibmras::common::util::LibraryUtils::getSymbol(handle,
+				SYM_STOP);
+		void* connectorFactory = ibmras::common::util::LibraryUtils::getSymbol(
+				handle, SYM_CONNECTOR_FACTORY);
+		void* receiverFactory = ibmras::common::util::LibraryUtils::getSymbol(
+				handle, SYM_RECEIVER_FACTORY);
 
-	/* External plugins MUST implement both start and stop */
-	if (start && stop) {
-		plugin = new Plugin;
+		IBMRAS_DEBUG_3(fine, "Library %s: start=%p stop=%p", filePath.c_str(), start, stop);
 
-		plugin->name = filePath;
-		plugin->handle = libHandle;
+		/* External plugins MUST implement both start and stop */
+		if (start && stop) {
+			plugin = new Plugin;
 
-		plugin->pull = reinterpret_cast<pullsource* (*)(uint32)>(pull);
-		plugin->push = reinterpret_cast<pushsource* (*)(void (*)(monitordata*), uint32)>(push);
-		plugin->stop = reinterpret_cast<int (*)()>(stop);
-		plugin->start = reinterpret_cast<int (*)()>(start);
-		plugin->confactory = reinterpret_cast<CONNECTOR_FACTORY>(connectorFactory);
-		plugin->recvfactory = reinterpret_cast<RECEIVER_FACTORY>(receiverFactory);
+			plugin->name = filePath;
+			plugin->handle = handle;
 
-		plugin->setType();
+			plugin->pull = reinterpret_cast<pullsource* (*)(uint32)>(pull);plugin
+			->push = reinterpret_cast<pushsource* (*)(void (*)(monitordata*),
+					uint32)>(push);plugin
+			->stop = reinterpret_cast<int (*)()>(stop);plugin
+			->start = reinterpret_cast<int (*)()>(start);plugin
+			->confactory =
+					reinterpret_cast<CONNECTOR_FACTORY>(connectorFactory);
+			plugin->recvfactory =
+					reinterpret_cast<RECEIVER_FACTORY>(receiverFactory);
+
+			plugin->setType();
+		} else {
+			/* not a plugin so close the handle	*/
+			ibmras::common::util::LibraryUtils::closeLibrary(handle);
+		}
 	}
-
 	return plugin;
 }
 
 void Plugin::unload() {
-	if (handle) {
-#if defined(WINDOWS)
-		FreeLibrary((HINSTANCE)handle);
-#else
-		dlclose(handle);
-#endif
-		handle = NULL;
+	if (handle.isValid()) {
+		ibmras::common::util::LibraryUtils::closeLibrary(handle);
 	}
 }
 
