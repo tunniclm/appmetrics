@@ -36,7 +36,7 @@ namespace port {
 
 IBMRAS_DEFINE_LOGGER("Port");
 
-void* wrapper(void *params) {
+extern "C" void* wrapper(void *params) {
 	ThreadData* data = reinterpret_cast<ThreadData*>(params);
 	return data->getCallback()(data);
 }

@@ -4,12 +4,12 @@ PORTDIR=zos
 CC=c++
 GCC=c++
 LINK=c++
-LINK_OPT= -Wl,lp64,AMODE=64 -Wl,dll,xplink
+LINK_OPT= -Wl,lp64,dll,xplink
 LD_OPT=
 OBJOPT=-o"$@"
 ARCHIVE=ar -r 
 ARC_EXT=a
-CFLAGS= -D_64BIT -D__BIG_ENDIAN -c -g -Wc,lp64,warn64,expo,dll -Wc,"LANG(EXTENDED)"
+CFLAGS= -D_64BIT -D__BIG_ENDIAN -c -O3 -Wc,lp64,warn64,expo,dll,xplink -Wc,"LANG(EXTENDED),CONVLIT(ISO8859-1)"
 LIB_EXT=so
 EXE_EXT=
 LIBFLAGS= 

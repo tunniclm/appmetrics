@@ -100,7 +100,13 @@ UINT64 read_cycles_on_processor(int cpu);
 uint64_t readCyclesOnProcessor(int cpu);
 uint64_t getPlatformCycles(void);
 void getCycles(uint64_t * t);
+#if defined(_ZOS)
+extern "C" {
+#endif
 int qcmp_jlm(const void * p1, const void * p2);
+#if defined(_ZOS)
+}
+#endif
 
 
 struct __jdata

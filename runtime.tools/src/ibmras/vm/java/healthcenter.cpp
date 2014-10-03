@@ -71,6 +71,7 @@ ibmras::monitoring::agent::Agent* agent;
 /* Agent control functions */
 /* ======================= */
 /******************************/
+extern "C"
 JNIEXPORT void JNICALL
 cbVMInit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread) {
 
@@ -78,6 +79,7 @@ cbVMInit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread) {
 
 }
 /******************************/
+extern "C"
 JNIEXPORT void JNICALL
 cbVMDeath(jvmtiEnv *jvmti_env, JNIEnv* jni_env) {
 	IBMRAS_DEBUG(debug, "VmDeath event");

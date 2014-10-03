@@ -65,7 +65,10 @@ namespace locking {
 	PullSource* getJLAPullSource();
 }
 
+#if defined(_ZOS)
+#else
 extern "C" {
+#endif
 
 	DECL pullsource* registerPullSourcejni(uint32 provID) {
 		return ibmras::monitoring::plugins::jni::mgr->registerPullSource(provID);
@@ -78,7 +81,11 @@ extern "C" {
 	DECL int stopjni() {
 		return ibmras::monitoring::plugins::jni::mgr->stop();
 	}
+
+#if defined(_ZOS)
+#else
 }
+#endif
 
 IBMRAS_DEFINE_LOGGER("DataProviderSources");
 

@@ -23,7 +23,10 @@ namespace jmx {
 
 JMXSourceManager* mgr = new JMXSourceManager;
 
+#if defined(_ZOS)
+#else
 extern "C" {
+#endif
 
 	DECL pullsource* registerPullSourceJMX(uint32 provID) {
 
@@ -37,7 +40,11 @@ extern "C" {
 	DECL int stopJMX() {
 		return ibmras::monitoring::plugins::jmx::mgr->stop();
 	}
+
+#if defined(_ZOS)
+#else
 }
+#endif
 
 IBMRAS_DEFINE_LOGGER("JMXSources");
 
