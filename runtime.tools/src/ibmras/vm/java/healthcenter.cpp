@@ -395,6 +395,9 @@ void launchAgent(const std::string &options) {
 	std::string agentLibPath =
 			ibmras::common::util::LibraryUtils::getLibraryDir(
 					"healthcenter.dll", (void*) launchAgent);
+	if (agentLibPath.length() == 0) {
+		agentLibPath = agent->getProperty("com.ibm.system.agent.path");
+	}
 	agent->addPlugin(agentLibPath, "hcmqtt");
 
 
