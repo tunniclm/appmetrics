@@ -151,6 +151,14 @@
       ],
     },
     {
+      "target_name": "envplugin",
+      "type": "shared_library",
+      "sources": [
+        "<(srcdir)/monitoring/plugins/environment/envplugin.cpp",
+      ],
+      "dependencies": [ "libhealthcenter" ],
+    },
+    {
       "target_name": "ostream",
       "type": "shared_library",
       "sources": [
@@ -178,6 +186,7 @@
         "healthcenter",
         "hcmqtt",
         "cpuplugin",
+        "envplugin",
         "nodeenvplugin",
         "nodegcplugin",
      ],
@@ -197,6 +206,7 @@
           "files": [
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)hcmqtt<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)cpuplugin<(SHARED_LIB_SUFFIX)",
+            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)envplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodeenvplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodegcplugin<(SHARED_LIB_SUFFIX)",
           ],
