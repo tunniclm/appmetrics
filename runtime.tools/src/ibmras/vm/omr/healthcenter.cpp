@@ -65,7 +65,6 @@ void launchAgent(char const *options) {
 
 	agent = ibmras::monitoring::agent::Agent::getInstance();
 
-	agent->setLogLevels();
 	IBMRAS_DEBUG(debug, "launchAgent enter");
 
 	// Add MQTT Connector plugin
@@ -75,14 +74,15 @@ void launchAgent(char const *options) {
 					"healthcenter.dll", (void*) launchAgent);
 	agent->addPlugin(agentLibPath + PATHSEPARATOR + "plugins", "hcmqtt");
 
-
-
 	ibmras::common::PropertiesFile props;
 	props.load(options);
 	agent->setProperties(props);
 	if (omrParams.omrti == NULL) {
 		IBMRAS_DEBUG(warning,  "omrParams.omrti is null");
 	}
+
+	agent->setLogLevels();
+
 
 	agent->addPlugin(
 			(ibmras::monitoring::Plugin*) new plugins::omr::trace::TraceDataProvider(omrParams));
