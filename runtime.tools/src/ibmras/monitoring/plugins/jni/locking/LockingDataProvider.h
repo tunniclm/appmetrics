@@ -25,6 +25,7 @@ public:
 	~JLAPullSource(){};
 	bool isEnabled();
 	static void setState(std::string state);
+	static void publishConfig();
 };
 
 }	/* end namespace locking */

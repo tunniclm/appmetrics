@@ -67,10 +67,11 @@ static const char* STACKTRACEDEPTH = "stacktracedepth"; //$NON-NLS-1$
 static const char* TRIGGER_STACK_TRACE_ON = "stacktrace.on"; //$NON-NLS-1$
 static const char* TRIGGER_STACK_TRACE_OFF = "stacktrace.off"; //$NON-NLS-1$
 static const char* STACK_TRACE_TRIGGER_SUFFIX = "_stacktrace.trigger"; //$NON-NLS-1$
-static const char* STACKDEPTH_COMMAND = "stackdepth="; //$NON-NLS-1$
 static const char* SET_ALLOCATION_THRESHOLD_TRACEPOINT = "j9mm.231"; //$NON-NLS-1$
 static const char* ALLOCATION_THRESHOLD_TRACEPOINT = "j9mm.234"; //$NON-NLS-1$
 static const char* OOL_ALLOCATION_TRACEPOINT = "j9mm.395"; //$NON-NLS-1$
+
+static const char* VERBOSE_GC = "verbose.gc"; //$NON-NLS-1$
 
 
 static const char* profiling[] ={"j9jit.15","j9jit.16", "j9jit.17", "j9jit.18",""};
@@ -295,7 +296,7 @@ void disableTracePoints(const char* tracePoints[]) {
 	IBMRAS_DEBUG(debug,  "end of turning off tracepoints");
 }
 
-void controlSubsystem(std::string command, const char* tracePoints[]) {
+void controlSubsystem(const std::string &command, const char* tracePoints[]) {
 	if (ibmras::common::util::equalsIgnoreCase(command, "off")) {
 		disableTracePoints(tracePoints);
 	} else if (ibmras::common::util::equalsIgnoreCase(command, "on")) {
@@ -303,7 +304,7 @@ void controlSubsystem(std::string command, const char* tracePoints[]) {
 	}
 }
 
-void controlSubsystem(std::string command, const std::string& subsystem) {
+void controlSubsystem(const std::string &command, const std::string& subsystem) {
 
 
 	IBMRAS_DEBUG_2(debug, "processing subsystem command: %s %s", command.c_str(), subsystem.c_str());
@@ -325,9 +326,42 @@ void controlSubsystem(std::string command, const std::string& subsystem) {
 	publishConfig();
 }
 
-void handleStackTraceTrigger(std::string command, const std::string& tracePoint) {
+void handleStackTraceTrigger(const std::string &command, const std::string& tracePoint) {
 
 
+}
+
+void setStackDepth(const std::string &depth) {
+
+}
+
+void handleSetCommand(const std::vector<std::string> &parameters) {
+	for (std::vector<std::string>::const_iterator it = parameters.begin();
+			it != parameters.end(); ++it) {
+		const std::vector<std::string> items = ibmras::common::util::split(*it, '=');
+		if (items.size() != 2) {
+			return;
+		}
+
+		if (ibmras::common::util::equalsIgnoreCase(items[0], STACKTRACEDEPTH)) {
+			setStackDepth(items[1]);
+
+		} else if (ibmras::common::util::equalsIgnoreCase(items[0], LOW_ALLOCATION_THRESHOLD)) {
+
+		} else if (ibmras::common::util::equalsIgnoreCase(items[0], VERBOSE_GC)) {
+			if (ibmras::common::util::equalsIgnoreCase(items[1], "on")) {
+
+				// TODO - Alfonso vgc=on
+
+			} else
+				if (ibmras::common::util::equalsIgnoreCase(items[1], "off")) {
+
+					// TODO - Alfonso vgc=off
+
+			}
+
+		}
+	}
 }
 
 
@@ -339,14 +373,26 @@ void handleCommand(const std::string &command,
 
 	IBMRAS_DEBUG_1(debug, "command received: %s", command.c_str());
 
-	for (std::vector<std::string>::const_iterator it = parameters.begin();
-			it != parameters.end(); ++it) {
-		const std::string parameter = (*it);
-		IBMRAS_DEBUG_2(debug, "processing command: %s %s", command.c_str(), parameter.c_str());
-		if (ibmras::common::util::endsWith(parameter, SUBSYSTEM)) {
-			controlSubsystem(command, parameter.substr(0, parameter.length() - strlen(SUBSYSTEM)));
-		} else if (ibmras::common::util::endsWith(parameter, STACK_TRACE_TRIGGER_SUFFIX)) {
-			handleStackTraceTrigger(command, parameter.substr(0, parameter.length() - strlen(STACK_TRACE_TRIGGER_SUFFIX)));
+	if (ibmras::common::util::equalsIgnoreCase(command, "set")) {
+		handleSetCommand(parameters);
+	} else {
+		for (std::vector<std::string>::const_iterator it = parameters.begin();
+				it != parameters.end(); ++it) {
+			const std::string parameter = (*it);
+			IBMRAS_DEBUG_2(debug, "processing command: %s %s", command.c_str(), parameter.c_str());
+
+			if (ibmras::common::util::endsWith(parameter, SUBSYSTEM)) {
+				controlSubsystem(command,
+						parameter.substr(0,
+								parameter.length() - strlen(SUBSYSTEM)));
+
+			} else if (ibmras::common::util::endsWith(parameter,
+					STACK_TRACE_TRIGGER_SUFFIX)) {
+				handleStackTraceTrigger(command,
+						parameter.substr(0,
+								parameter.length()
+										- strlen(STACK_TRACE_TRIGGER_SUFFIX)));
+			}
 		}
 	}
 
@@ -354,7 +400,7 @@ void handleCommand(const std::string &command,
 }
 
 
-void enableTracePoint(std::string tp) {
+void enableTracePoint(const std::string &tp) {
 	if (tp.find("j9mm.")!=std::string::npos) {
 		enableGCTracePoint(tp);
 	} else {
@@ -362,7 +408,7 @@ void enableTracePoint(std::string tp) {
 	}
 }
 
-void disableTracePoint(std::string tp) {
+void disableTracePoint(const std::string &tp) {
 	if (tp.find("j9mm.")!=std::string::npos) {
 		disableExceptionTracePoint(tp);
 	} else {
@@ -370,31 +416,31 @@ void disableTracePoint(std::string tp) {
 	}
 }
 
-void enableGCTracePoint(std::string tp){
+void enableGCTracePoint(const std::string &tp){
 	disableNormalTracePoint(tp);
 	enableExceptionTracePoint(tp);
 }
 
-void enableNormalTracePoint(std::string tp) {
+void enableNormalTracePoint(const std::string &tp) {
 	std::string command = "maximal=tpnid{" + tp + "}";
 	vmData.setTraceOption(vmData.pti, command.c_str());
 }
 
 
-void disableExceptionTracePoint(std::string tp) {
+void disableExceptionTracePoint(const std::string &tp) {
 	int rc = 0;
 	std::string command = "exception=!tpnid{" + tp +"}";
 	rc = vmData.setTraceOption(vmData.pti, command.c_str());
 }
 
-void enableExceptionTracePoint(std::string tp) {
+void enableExceptionTracePoint(const std::string &tp) {
 	IBMRAS_DEBUG(debug,  "in enableExceptionTracePoint");
 
 	std::string command = "exception=tpnid{" + tp + "}";
 	vmData.setTraceOption(vmData.pti, command.c_str());
 }
 
-void disableNormalTracePoint(std::string tp) {
+void disableNormalTracePoint(const std::string &tp) {
 	int rc = 0;
 	std::string command = "maximal=!tpnid{" + tp +"}";
 	rc = vmData.setTraceOption(vmData.pti, command.c_str());

@@ -15,6 +15,10 @@
 #include <pdhmsg.h>
 #endif
 
+#if defined(_AIX)
+#include <libperfstat.h>
+#endif
+
 using namespace std;
 
 extern IBMRAS_DECLARE_LOGGER;
@@ -23,6 +27,7 @@ extern "C" {
 
 #if defined(_LINUX)
 
+// FIXME should probably move this to common along side getMilliseconds()
 static unsigned long long time_microseconds() {
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
@@ -248,6 +253,37 @@ struct CPUTime* getCPUTime() {
 #endif
 
 #if defined(_AIX)
+
+// FIXME should probably move this to common along side getMilliseconds()
+static unsigned long long time_microseconds() {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return ((unsigned long long)tv.tv_sec * 1000000) + (unsigned long long)tv.tv_usec;
+}
+
+struct CPUTime* getCPUTime() {
+	const unsigned NS_PER_CPU_TICK = 10000000L; // TODO check data type
+	struct CPUTime* cputime = new CPUTime;
+	unsigned long long nsStart, nsEnd;
+	perfstat_cpu_total_t stats;
+	
+	nsStart = time_microseconds() * 1000;
+
+	if (perfstat_cpu_total(NULL, &stats, sizeof(perfstat_cpu_total_t), 1) == -1) {
+		delete cputime;
+		return NULL;
+	}
+	
+	nsEnd = time_microseconds() * 1000;
+	
+	cputime->total = (stats.user + stats.sys) * NS_PER_CPU_TICK;
+	cputime->process = 0; // FIXME
+	cputime->nprocs = stats.ncpus;
+	cputime->time = nsStart + ((nsEnd - nsStart) / 2);
+		 
+	return cputime;
+}
+
 #endif
 
 }

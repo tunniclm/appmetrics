@@ -19,7 +19,6 @@
 #endif
 #ifdef _WINDOWS
 #include "windows.h"
-#include "VersionHelpers.h"
 #define HOST_NAME_MAX 256
 #endif
 #include "ibmras/common/logging.h"
@@ -110,7 +109,7 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	src->header.name = name;
 	std::string desc("Description for ");
 	desc.append(name);
-	src->header.description = desc.c_str();
+	src->header.description = strdup(desc.c_str());
 	src->header.sourceID = srcid;
 	src->header.config = "";
 	src->next = NULL;
@@ -193,21 +192,108 @@ static void initStaticInfo() {
  * Windows
  */
 #ifdef _WINDOWS
-static const char* GetWindowsVersion() {
-	// FIXME? Should do a much more thorough job here using GetVersionEx() etc -- see OSVERSIONINFOEX structure Remarks section on MSDN for details
-	if (IsWindowsVersionOrGreater(6, 3, 1)) return ""; // One more than the latest we know (6.3.0 is Windows 8.1 -- see OSVERSIONINFOEX structure on MSDN)
-	if (IsWindowsServer()) {
-		return "Server"; // This is why we need to use GetVersionEx() ... helper fns are not good with mappings for server versions
-	} else {
-		if (IsWindows8Point1OrGreater()) return "8.1";
-		if (IsWindows8OrGreater()) return "8";
-		if (IsWindows7SP1OrGreater()) return "7 SP1";
-		if (IsWindows7OrGreater()) return "7";
-		if (IsWindowsVistaSP2OrGreater()) return "Vista SP2";
-		if (IsWindowsVistaSP1OrGreater()) return "Vista SP1";
-		if (IsWindowsVistaOrGreater()) return "Vista";
+static const std::string GetWindowsMajorVersion() {
+	OSVERSIONINFOEX versionInfo;
+	versionInfo.dwOSVersionInfoSize = sizeof(versionInfo);
+	
+	static const std::string defaultVersion = "Windows";
+	
+	if (!GetVersionEx((OSVERSIONINFO *) &versionInfo)) {
+		return defaultVersion;
 	}
-	return "unknown";
+	
+	switch (versionInfo.dwPlatformId) {
+	case VER_PLATFORM_WIN32s: return "Windows 3.1";
+	case VER_PLATFORM_WIN32_WINDOWS:
+		switch (versionInfo.dwMinorVersion) {
+		case 0: return "Windows 95";
+		case 90: return "Windows Me";
+		default: return "Windows 98";
+		}
+		break; /* VER_PLATFORM_WIN32_WINDOWS */
+		
+	case VER_PLATFORM_WIN32_NT:
+		if (versionInfo.dwMajorVersion < 5)  {
+			return "Windows NT";
+			
+		} else if (versionInfo.dwMajorVersion == 5) {
+			switch (versionInfo.dwMinorVersion) {
+			case 0: return "Windows 2000";
+			/* case 1: WinNT 5.1 => Windows XP. Handled by the default. */
+			case 2:
+				/* WinNT 5.2 can be either Win2003 Server or Workstation (e.g. XP64).
+				 * Report workstation products as "Windows XP".
+				 * See CMVC 89090 and CMVC 89127 */
+				switch (versionInfo.wProductType) {
+				case VER_NT_WORKSTATION: return "Windows XP";
+				case VER_NT_DOMAIN_CONTROLLER:
+				case VER_NT_SERVER:
+				default: return "Windows Server 2003";
+				}
+			default: return "Windows XP";
+			}
+			
+		} else if (versionInfo.dwMajorVersion == 6) {
+			switch (versionInfo.wProductType) {
+			case VER_NT_WORKSTATION:
+				switch (versionInfo.dwMinorVersion) {
+				case 0: return "Windows Vista";
+				case 1: return "Windows 7";
+				case 2: return "Windows 8";
+				default: return defaultVersion;
+				} /* VER_NT_WORKSTATION */
+			default:
+				switch (versionInfo.dwMinorVersion) {
+				case 0: return "Windows Server 2008";
+				case 1: return "Windows Server 2008 R2";
+				case 2: return "Windows Server 8";
+				default: return defaultVersion;
+				}
+			}
+		} else {
+			return defaultVersion;
+		}
+		break; /* VER_PLATFORM_WIN32_NT */
+			
+	default: return defaultVersion;
+	}
+}
+
+static const std::string GetWindowsBuild() {
+	OSVERSIONINFOW versionInfo;
+	int len = sizeof("0123456789.0123456789 build 0123456789 ") + 1;
+	char *buffer;
+	int position;
+	
+	static const std::string defaultBuild = "";
+	
+	versionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
+	
+	if (!GetVersionExW(&versionInfo)) {
+		return defaultBuild;
+	}
+
+	if (NULL != versionInfo.szCSDVersion) {
+		len += WideCharToMultiByte(CP_UTF8, 0, versionInfo.szCSDVersion, -1, NULL, 0, NULL, NULL);
+	}
+	buffer = new char[len];
+	if (NULL == buffer) {
+		return defaultBuild;
+	}
+
+	position = sprintf(buffer,"%d.%d build %d",
+		versionInfo.dwMajorVersion,
+		versionInfo.dwMinorVersion,
+		versionInfo.dwBuildNumber & 0x0000FFFF);
+
+	if ((NULL != versionInfo.szCSDVersion) && ('\0' != versionInfo.szCSDVersion[0])) {
+		buffer[position++] = ' ';
+		WideCharToMultiByte(CP_UTF8, 0, versionInfo.szCSDVersion, -1, &buffer[position], len - position - 1, NULL, NULL);
+	}
+	
+	std::string version(buffer);
+	delete[] buffer;
+	return version;
 }
 
 static void initStaticInfo() {
@@ -220,9 +306,9 @@ static void initStaticInfo() {
 	case PROCESSOR_ARCHITECTURE_INTEL: plugin::arch = "x86"; break;
 	default: plugin::arch = GetArchitecture(); break;
 	}
-	plugin::osName = "Windows";
-	plugin::osVersion = GetWindowsVersion();
-	plugin::nprocs = ToString(sysinfo.dwNumberOfProcessors).c_str(); /* convert DWORD to char* -- will this need a new ToString() ? */
-	plugin::pid = ToString(GetCurrentProcessId()).c_str(); /* convert DWORD to char* -- will this need a new ToString() ? */	
+	plugin::osName = GetWindowsMajorVersion();
+	plugin::osVersion = GetWindowsBuild();
+	plugin::nprocs = ToString(sysinfo.dwNumberOfProcessors); /* convert DWORD to char* -- will this need a new ToString() ? */
+	plugin::pid = ToString(GetCurrentProcessId()); /* convert DWORD to char* -- will this need a new ToString() ? */	
 }
 #endif

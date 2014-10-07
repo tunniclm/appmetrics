@@ -21,6 +21,7 @@
 #include "ibmras/common/PropertiesFile.h"
 #include "ibmras/common/LogManager.h"
 #include "ibmras/monitoring/agent/SystemReceiver.h"
+#include "ibmras/monitoring/connector/configuration/ConfigurationConnector.h"
 
 #define AGENT(func) ibmras::monitoring::agent::Agent::getInstance()->func();
 #define AGENTP(func,param) ibmras::monitoring::agent::Agent::getInstance()->func(param);
@@ -311,6 +312,7 @@ void Agent::init() {
 		}
 	}
 	createBuckets();
+	addConnector(new ibmras::monitoring::connector::ConfigurationConnector());
 	IBMRAS_DEBUG(finest, bucketList.toString().c_str());IBMRAS_DEBUG(info, "Agent initialisation : end");
 }
 

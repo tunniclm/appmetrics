@@ -24,6 +24,7 @@ typedef struct monitordata {
 
 typedef monitordata* (*PULL_CALLBACK)(void);			/* shortcut definition for the pull source callback */
 typedef void (*PULL_CALLBACK_COMPLETE)(monitordata*);	/* callback to indicate when the data source can free / re-use the memory */
+typedef char* (*GET_CONFIG)(void);
 
 /* common header for data sources */
 typedef struct srcheader {
@@ -32,6 +33,7 @@ typedef struct srcheader {
 	const char *name;			/* null terminated C string */
 	const char *description;	/* null terminated C string */
 	char *config;
+	GET_CONFIG getConfig;
 } srcheader;
 
 typedef struct pushsource {

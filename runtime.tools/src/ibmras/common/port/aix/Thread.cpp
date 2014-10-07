@@ -42,8 +42,8 @@ void exitThread(void *val) {
 	pthread_exit(NULL);
 }
 
-void plsleep(uint32 seconds) {
-	sleep(seconds);
+void sleep(uint32 seconds) {
+	::sleep(seconds);
 }
 
 Lock::Lock() {
@@ -116,7 +116,7 @@ bool Semaphore::wait(uint32 timeout) {
 	int result;
 	struct timespec t;
 	while(!handle) {
-		plsleep(timeout);		/* wait for the semaphore to be established */
+		::sleep(timeout);		/* wait for the semaphore to be established */
 	}
 	clock_gettime(CLOCK_REALTIME, &t);
 	t.tv_sec++;		/* configure the sleep interval */

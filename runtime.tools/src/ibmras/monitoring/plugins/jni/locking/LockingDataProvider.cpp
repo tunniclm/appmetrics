@@ -44,7 +44,7 @@ char* reportJLA(JNIEnv *env);
 char* monitor_dump_event(JNIEnv *env);
 
 JLAPullSource* src = NULL;
-std::string state= "on";
+std::string state = "on";
 
 PullSource* getJLAPullSource() {
 	if (!src) {
@@ -58,25 +58,41 @@ monitordata* callback() {
 	return src->PullSource::generateData();
 }
 
+char* getMyConfig() {
+	std::stringstream str;
+	str << "locking_subsystem=" << state << std::endl;
+	std::string msg = str.str();
+
+	char* config = (char*) malloc(msg.size()+1);
+
+	msg.copy((char*)config, msg.size(), 0);
+
+	return config;
+}
+
 bool JLAPullSource::isEnabled() {
 	return (state == "on");
 }
 
 void JLAPullSource::setState(std::string newState) {
-
 	state = newState;
+	// publish config when state changes
+	publishConfig();
+}
 
+void JLAPullSource::publishConfig() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
 
 	ibmras::monitoring::connector::ConnectorManager *conMan =
-					agent->getConnectionManager();
+			agent->getConnectionManager();
 
 	std::stringstream str;
 	str << "locking_subsystem=" << state << std::endl;
 	std::string msg = str.str();
 
-	conMan->sendMessage("JLASourceConfiguration", msg.length(), (void*) msg.c_str());
+	conMan->sendMessage("JLASourceConfiguration", msg.length(),
+			(void*) msg.c_str());
 }
 
 uint32 JLAPullSource::getSourceID() {
@@ -91,6 +107,7 @@ pullsource* JLAPullSource::getDescriptor() {
 	src->header.sourceID = JLA;
 	src->header.capacity = 256 * 1024;
 	src->header.config = "locking_subsystem=on";
+	src->header.getConfig = getMyConfig;
 	src->next = NULL;
 	src->callback = callback;
 	src->complete = ibmras::monitoring::plugins::jni::complete;
