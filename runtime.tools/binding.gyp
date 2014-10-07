@@ -41,7 +41,7 @@
     "conditions": [
       ['OS=="aix"', {
         "defines": [ "_AIX", "AIX" ],
-        "libraries": [ "-Wl,-bexpall,-brtllib,-G,-brtl" ],
+        "libraries": [ "-Wl,-bexpall,-brtllib,-G,-bernotok,-brtl" ],
       }],
       ['OS=="linux"', {
         "defines": [ "_LINUX", "LINUX" ],
@@ -92,6 +92,7 @@
         "<(srcdir)/monitoring/agent/BucketList.cpp",
         "<(srcdir)/monitoring/agent/BucketDataQueueEntry.cpp",
         "<(srcdir)/monitoring/Plugin.cpp",
+        "<(srcdir)/monitoring/connector/configuration/ConfigurationConnector.cpp",
       ],
     },
     {
@@ -147,6 +148,9 @@
       "conditions": [
         ['OS=="win"', {
           "libraries": [ "Pdh" ],
+        }],
+        ['OS=="aix"', {
+          "libraries": [ "-lperfstat" ],
         }],
       ],
     },
