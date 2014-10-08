@@ -21,6 +21,7 @@ public:
 	uint32 getSourceID();
 	monitordata* generateData(JNIEnv* env, jclass* mgtBean);
 	~RTJMXPullSource(){};
+	void publishConfig();
 };
 
 }	/* end namespace rt */

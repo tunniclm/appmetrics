@@ -74,7 +74,6 @@ pushsource* registerPushSource(void (*callback)(monitordata* data),
 		uint32 provID) {
 	pushsource *src = new pushsource();
 	src->header.name = "trace";
-	src->header.config = "trace_subsystem=on";
 	src->header.description = "Data provided by omr trace engine";
 	/*
 	 * the sourceID is for the plugin to manage. If we have more than 1 source

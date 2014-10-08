@@ -18,6 +18,8 @@ class FileUtils {
 
 public:
 
+bool createDirectory(std::string& path);
+
 };
 
 }

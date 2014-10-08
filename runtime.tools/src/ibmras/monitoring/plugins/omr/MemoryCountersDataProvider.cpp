@@ -79,7 +79,6 @@ pullsource* MemoryCountersDataProvider::registerPullSource(uint32 provID) {
 	IBMRAS_DEBUG(info, "Registering pull sources");
 	pullsource *src = new pullsource();
 	src->header.name = "memorycounters";
-	src->header.config = "memorycounters_subsystem=on";
 	src->header.description = ("This returns the native memory counters breakdown");
 	src->header.sourceID = srcid;
 	src->header.capacity = (DEFAULT_CAPACITY);

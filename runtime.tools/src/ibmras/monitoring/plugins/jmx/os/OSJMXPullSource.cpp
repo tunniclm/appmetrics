@@ -13,6 +13,9 @@
 #include "ibmras/monitoring/plugins/jmx/JMXSourceManager.h"
 #include "ibmras/monitoring/plugins/jmx/JMXUtility.h"
 #include "ibmras/common/data/legacy/LegacyData.h"
+#include "ibmras/common/util/strUtils.h"
+#include "ibmras/monitoring/agent/Agent.h"
+
 #include <cstring>
 #include "ibmras/common/logging.h"
 
@@ -29,6 +32,7 @@ IBMRAS_DEFINE_LOGGER("JMXSources");
 
 /* need to be in own namespace so that top level callbacks work with other MX bean data providers */
 OSJMXPullSource* src = NULL;
+bool enabled = true;
 
 JMXPullSource* getOSPullSource() {
 	if(!src) {
@@ -50,14 +54,40 @@ pullsource* OSJMXPullSource::getDescriptor() {
 	src->header.name = "cpu";
 	src->header.description = "CPU usage";
 	src->header.sourceID = CPU;
-	src->header.capacity = JMXSourceManager::DEFAULT_CAPACITY;
-	src->header.config = "cpu_subsystem=on";
+	src->header.capacity = 1024;
 	src->next = NULL;
 	src->callback = callback;
 	//src->complete = getCallbackComplete();
 	src->complete = ibmras::monitoring::plugins::jmx::complete;	/* use default clean up */
 	src->pullInterval = 2;
 	return src;
+}
+
+void OSJMXPullSource::publishConfig() {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
+	ibmras::monitoring::connector::ConnectorManager *conMan =
+			agent->getConnectionManager();
+
+	std::string msg = "cpu_subsystem=";
+	if (isEnabled()) {
+		msg += "on";
+	} else {
+		msg += "off";
+	}
+
+	conMan->sendMessage("CpuSourceConfiguration", msg.length(),
+			(void*) msg.c_str());
+}
+
+bool OSJMXPullSource::isEnabled() {
+	return enabled;
+}
+
+void OSJMXPullSource::setState(std::string newState) {
+	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
+	getOSPullSource()->publishConfig();
 }
 
 monitordata* OSJMXPullSource::generateData(JNIEnv* env, jclass* mgtBean) {

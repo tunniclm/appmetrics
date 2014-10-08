@@ -138,8 +138,15 @@ pullsource* SourceManager::registerPullSource(uint32 provID) {
 }
 
 int SourceManager::start() {
-	/* do nothing, only have pull sources at the moment */
 	IBMRAS_DEBUG(info,  "Starting");
+	// Ask each source to publish it's config
+	for (uint32 i = 0; i < PULL_COUNT; i++) {
+		PullSource* p = pullsources[i];
+		if (p) {
+			p->publishConfig();
+		}
+	}
+
 #ifndef ORACLE
     tm_stt = read_cycles_on_processor(0);
     //getTDPP().setVMLockMonitor(getTDPP().pti, 1);

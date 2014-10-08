@@ -19,6 +19,7 @@ namespace util {
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
 std::vector<std::string> split(const std::string &s, char delim);
 bool endsWith(const std::string& str, const std::string& suffix);
+bool startsWith(const std::string& str, const std::string& prefix);
 DECL bool equalsIgnoreCase(const std::string& s1, const std::string& s2);
 
 }/*end of namespace util*/

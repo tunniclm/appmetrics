@@ -9,6 +9,7 @@
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/monitoring/agent/Agent.h"
+#include "ibmras/monitoring/connector/configuration/ConfigurationConnector.h"
 #include <iostream>
 
 namespace ibmras {
@@ -46,10 +47,8 @@ void SystemReceiver::receiveMessage(const std::string &id, uint32 size,
 		if(size <= 0 || data == NULL) {
 			return;
 		}
-
 		std::string topic((char*)data, size);
 		topic += "/datasource";
-
 
 		ibmras::monitoring::agent::Agent* agent =
 				ibmras::monitoring::agent::Agent::getInstance();
@@ -60,24 +59,10 @@ void SystemReceiver::receiveMessage(const std::string &id, uint32 size,
 		ibmras::monitoring::agent::BucketList* buckets = agent->getBucketList();
 
 		std::vector < std::string > ids = buckets->getIDs();
-		std::string config;
 
 		for (uint32 i = 0; i < ids.size(); i++) {
-			ibmras::monitoring::agent::Bucket* bucket = buckets->findBucket(
-					ids[i]);
 
-			ibmras::monitoring::agent::DataSource<pullsource> *source =
-					agent->getPullSource(bucket->getUniqueID());
-
-			if (source == NULL) {
-				ibmras::monitoring::agent::DataSource<pushsource> *pushSource =
-						agent->getPushSource(bucket->getUniqueID());
-				if (pushSource != NULL) {
-					config = pushSource->getConfig();
-				}
-			} else {
-				config = source->getConfig();
-			}
+			std::string config = agent->getConfig(ids[i]);
 
 			std::stringstream str;
 			str << ids[i];

@@ -24,6 +24,9 @@ public:
 	uint32 getSourceID();
 	monitordata* generateData(JNIEnv* env, jclass* mgtBean);
 	~OSJMXPullSource(){};
+	bool isEnabled();
+	static void setState(std::string state);
+	void publishConfig();
 };
 
 

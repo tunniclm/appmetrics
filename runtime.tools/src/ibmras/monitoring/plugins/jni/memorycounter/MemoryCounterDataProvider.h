@@ -20,6 +20,7 @@ public:
 	~MCPullSource(){};
 	bool isEnabled();
 	static void setState(std::string state);
+	void publishConfig();
 };
 
 }	/* end namespace env */

@@ -16,7 +16,7 @@ namespace ibmras {
 namespace monitoring {
 namespace connector {
 
-class ConfigurationConnector : public ibmras::monitoring::connector::Connector {
+class DECL ConfigurationConnector : public ibmras::monitoring::connector::Connector {
 public:
 	ConfigurationConnector();
 	virtual ~ConfigurationConnector();

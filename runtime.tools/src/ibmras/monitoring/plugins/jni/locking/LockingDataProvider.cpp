@@ -6,6 +6,7 @@
 #include "ibmras/monitoring/plugins/jni/locking/LockingDataProvider.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/monitoring/agent/Agent.h"
+#include "ibmras/common/util/strUtils.h"
 #include "jni.h"
 #include "jvmti.h"
 #include <string>
@@ -44,40 +45,27 @@ char* reportJLA(JNIEnv *env);
 char* monitor_dump_event(JNIEnv *env);
 
 JLAPullSource* src = NULL;
-std::string state = "on";
+bool enabled = true;
 
 PullSource* getJLAPullSource() {
 	if (!src) {
 		src = new JLAPullSource;
 	}
 	return src;
-
 }
 
 monitordata* callback() {
 	return src->PullSource::generateData();
 }
 
-char* getMyConfig() {
-	std::stringstream str;
-	str << "locking_subsystem=" << state << std::endl;
-	std::string msg = str.str();
-
-	char* config = (char*) malloc(msg.size()+1);
-
-	msg.copy((char*)config, msg.size(), 0);
-
-	return config;
-}
-
 bool JLAPullSource::isEnabled() {
-	return (state == "on");
+	return enabled;
 }
 
 void JLAPullSource::setState(std::string newState) {
-	state = newState;
+	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
 	// publish config when state changes
-	publishConfig();
+	getJLAPullSource()->publishConfig();
 }
 
 void JLAPullSource::publishConfig() {
@@ -87,9 +75,12 @@ void JLAPullSource::publishConfig() {
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 			agent->getConnectionManager();
 
-	std::stringstream str;
-	str << "locking_subsystem=" << state << std::endl;
-	std::string msg = str.str();
+	std::string msg = "locking_subsystem=";
+	if (isEnabled()) {
+		msg += "on";
+	} else {
+		msg += "off";
+	}
 
 	conMan->sendMessage("JLASourceConfiguration", msg.length(),
 			(void*) msg.c_str());
@@ -106,8 +97,6 @@ pullsource* JLAPullSource::getDescriptor() {
 	src->header.description = "Locking information";
 	src->header.sourceID = JLA;
 	src->header.capacity = 256 * 1024;
-	src->header.config = "locking_subsystem=on";
-	src->header.getConfig = getMyConfig;
 	src->next = NULL;
 	src->callback = callback;
 	src->complete = ibmras::monitoring::plugins::jni::complete;

@@ -28,6 +28,7 @@ uint32 provid = 0;
 const char *nodeVersion = NULL;
 const char *nodeTag = NULL;
 const char *nodeVendor = NULL;
+const char *nodeName = NULL;
 }
 
 using namespace v8;
@@ -41,17 +42,19 @@ monitordata* OnRequestData() {
 	data->data = NULL;
 	
 	if (plugin::nodeVersion != NULL) {
-		std::string content("#EnvironmentSource\n");
-		content += "system.java.specification.version=";
-		content += plugin::nodeVersion;
-		content += "\nsdk.version=";
+		std::string content("#EnvironmentSource");
+		content += "\nruntime.version=";
 		content += plugin::nodeVersion;
 		if (plugin::nodeTag != NULL) {
 			content += plugin::nodeTag;
 		}
 		if (plugin::nodeVendor != NULL) {
-			content += "\nsdk.vendor=";
+			content += "\nruntime.vendor=";
 			content += plugin::nodeVendor;
+		}
+		if (plugin::nodeName != NULL) {
+			content += "\nruntime.name=";
+			content += plugin::nodeName;
 		}
 		content += "\n";
 		data->size = content.length();
@@ -73,7 +76,6 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	desc.append(name);
 	src->header.description = desc.c_str();
 	src->header.sourceID = srcid;
-	src->header.config = "";
 	src->next = NULL;
 	src->header.capacity = DEFAULT_CAPACITY;
 	src->callback = OnRequestData;
@@ -119,6 +121,9 @@ void GetNodeInformation(uv_async_t *handle, int status) {
 	plugin::nodeTag = GetNodeTag();
 	if (strstr(plugin::nodeTag, "IBMBuild")) {
 		plugin::nodeVendor = "IBM";
+		plugin::nodeName = "IBM SDK for Node.js";
+	} else {
+		plugin::nodeName = "Node.js";
 	}
 	PrintComponentVersions();
 	uv_close((uv_handle_t*) &async, NULL);

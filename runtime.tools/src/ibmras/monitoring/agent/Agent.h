@@ -20,6 +20,7 @@
 #include "ibmras/common/Logger.h"
 #include "ibmras/common/LogManager.h"
 #include "ibmras/common/Properties.h"
+#include "ibmras/monitoring/connector/configuration/ConfigurationConnector.h"
 
 #include <string>
 /*
@@ -72,6 +73,8 @@ public:
 	std::string getAgentPropertyPrefix();
 	std::string getAgentProperty(const std::string &agentProp);
 	void setAgentProperty(const std::string &agentProp, const std::string &value);
+		
+	std::string getConfig(const std::string& name);
 
 private:
 	Agent();					/* private constructor */
@@ -94,6 +97,7 @@ private:
 	uint32 activeThreadCount;		/* number of active threads */
 	
 	ibmras::common::Properties properties;
+	ibmras::monitoring::connector::ConfigurationConnector configConn;
 
 };
 }

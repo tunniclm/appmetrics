@@ -6,6 +6,7 @@
 #include "ibmras/monitoring/plugins/jni/memory/MemoryDataProvider.h"
 #include "ibmras/monitoring/plugins/jni/memorycounter/MemoryCounterDataProvider.h"
 #include "ibmras/monitoring/plugins/jni/threads/ThreadDataProvider.h"
+#include "ibmras/monitoring/plugins/jmx/os/OSJMXPullSource.h"
 
 #include <iostream>
 
@@ -62,7 +63,6 @@ void JNIReceiver::receiveMessage(const std::string &id, uint32 size,
 
 		ibmras::monitoring::plugins::jni::threads::TDPullSource::setState(
 				command);
-
 	} else if (id == "memorycounters") {
 		std::size_t found = message.find(',');
 		std::string command = message.substr(0, found);
@@ -71,6 +71,13 @@ void JNIReceiver::receiveMessage(const std::string &id, uint32 size,
 		ibmras::monitoring::plugins::jni::memorycounter::MCPullSource::setState(
 				command);
 
+	} else if (id == "cpu") {
+		std::size_t found = message.find(',');
+		std::string command = message.substr(0, found);
+		std::string rest = message.substr(found + 1);
+
+		ibmras::monitoring::plugins::jmx::os::OSJMXPullSource::setState(
+				command);
 	}
 }
 

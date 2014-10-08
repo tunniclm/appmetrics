@@ -45,6 +45,10 @@ bool endsWith(const std::string& str, const std::string& suffix) {
 	return (str.length() > suffix.length() && (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix)));
 }
 
+bool startsWith(const std::string& str, const std::string& prefix) {
+	return (str.length() <= prefix.length() && (0 == str.compare(0, prefix.length(), prefix)));
+}
+
 bool equalsIgnoreCase(const std::string& s1, const std::string& s2) {
 	if (s1.length() != s2.length()) {
 		return false;

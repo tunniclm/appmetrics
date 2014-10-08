@@ -52,7 +52,6 @@ pushsource* MethodLookupProvider::registerPushSource(
 	src->header.sourceID = 0;
 	src->next = NULL;
 	src->header.capacity = 1048576; /* 1MB bucket capacity */
-	src->header.config = "methoddictionary_subsystem=on";
 	MethodLookupProvider::providerID = provID;
 	ibmras::monitoring::plugins::j9::methods::sendMethodData = callback;
 

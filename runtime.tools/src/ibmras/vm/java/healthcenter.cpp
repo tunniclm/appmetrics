@@ -181,8 +181,12 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 			tDPP.jvmtiDeregisterTraceSubscriber = fi->func;
 		} else if (0 == strcmp(fi->id, COM_IBM_GET_TRACE_METADATA)) {
 			tDPP.jvmtiGetTraceMetadata = fi->func;
+		} else if (0 == strcmp(fi->id, COM_IBM_SET_VM_DUMP)) {
+			tDPP.jvmtiSetVmDump = fi->func;
 		} else if (0 == strcmp(fi->id, COM_IBM_QUERY_VM_DUMP)) {
 			tDPP.jvmtiQueryVmDump = fi->func;
+		} else if (0 == strcmp(fi->id, COM_IBM_RESET_VM_DUMP)) {
+			tDPP.jvmtiResetVmDump = fi->func;
 		} else if (0 == strcmp(fi->id, COM_IBM_GET_MEMORY_CATEGORIES)) {
 			tDPP.jvmtiGetMemoryCategories = fi->func;
 		} else if (0 == strcmp(fi->id, COM_IBM_GET_METHOD_AND_CLASS_NAMES)) {
@@ -197,7 +201,11 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 			tDPP.dumpVMLockMonitor = fi->func;
 		} else if (0 == strcmp(fi->id, COM_IBM_SET_VM_JLM)) {
 			tDPP.setVMLockMonitor = fi->func;
-		}
+		} else if (0 == strcmp(fi->id, COM_IBM_REGISTER_VERBOSEGC_SUBSCRIBER)) {
+			tDPP.verboseGCsubscribe = fi->func;
+		} else if ( 0 == strcmp( fi->id, COM_IBM_DEREGISTER_VERBOSEGC_SUBSCRIBER)) {
+			tDPP.verboseGCunsubscribe = fi->func;
+        }
 		/* Cleanup */
 
 		pi = fi->params;

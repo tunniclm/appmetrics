@@ -39,8 +39,13 @@ pullsource* JMXSourceManager::registerPullSource(uint32 provID) {
 }
 
 int JMXSourceManager::start() {
-	/* do nothing, only have pull sources at the moment */
 	IBMRAS_DEBUG(info, "Starting");
+	for (uint32 i = 0; i < pullCount; i++) {
+		JMXPullSource* p = pullsources[i];
+		if (p) {
+			p->publishConfig();
+		}
+	}
 	return 0;
 }
 

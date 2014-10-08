@@ -311,47 +311,11 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 	const char* bucketName = jni_env->GetStringUTFChars(name, NULL);
 	ibmras::monitoring::agent::Agent* agent =
 	ibmras::monitoring::agent::Agent::getInstance();
-	ibmras::monitoring::agent::BucketList* buckets = agent->getBucketList();
-	ibmras::monitoring::agent::Bucket* bucket = buckets->findBucket(bucketName);
 
+	std::string config = agent->getConfig(bucketName);
 	jni_env->ReleaseStringUTFChars(name, bucketName);
 
-	if (bucket == NULL) {
-		return NULL;
-	}
-
-	ibmras::monitoring::agent::DataSource<pullsource> *source =
-	agent->getPullSource(bucket->getUniqueID());
-
-	if (source == NULL) {
-		ibmras::monitoring::agent::DataSource<pushsource> *pushSource =
-		agent->getPushSource(bucket->getUniqueID());
-		if (pushSource == NULL) {
-			return jni_env->NewStringUTF("DID NOT FIND IT");
-		} else {
-			if (pushSource->getSource()->header.getConfig) {
-
-				std::string config = pushSource->getSource()->header.getConfig();
-				std::cerr << "JS JMXConnector Config=" << config << "\n";
-				jstring javaString = jni_env->NewStringUTF(config.c_str());
-				return javaString;
-			} else {
-				return jni_env->NewStringUTF("DID NOT FIND IT");
-			}
-		}
-	} else {
-//		std::string config = source->getConfig();
-///		std::cerr << " JS JMXConnector src=" << src << "\n";
-//		std:string config = source->getSource()->getConfig;
-
-		if (source->getSource()->header.getConfig) {
-			std::string config = source->getSource()->header.getConfig();
-			std::cerr << " JS JMXConnector Config=" << config << "\n";
-			jstring javaString = jni_env->NewStringUTF(config.c_str());
-			return javaString;
-		} else {
-			return jni_env->NewStringUTF("DID NOT FIND IT");
-		}
-	}
+	jstring javaString = jni_env->NewStringUTF(config.c_str());
+	return javaString;
 }
 

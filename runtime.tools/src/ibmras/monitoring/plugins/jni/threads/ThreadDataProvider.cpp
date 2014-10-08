@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include "ibmras/common/util/memUtils.h"
+#include "ibmras/common/util/strUtils.h"
 #include <iostream>
 
 using namespace ibmras::monitoring::plugins::jni;
@@ -14,7 +15,7 @@ namespace jni {
 namespace threads {
 
 TDPullSource* src = NULL;
-std::string state = "on";
+bool enabled = true;
 
 PullSource* getTDPullSource() {
 	if (!src) {
@@ -24,24 +25,30 @@ PullSource* getTDPullSource() {
 }
 
 bool TDPullSource::isEnabled() {
-	return (state == "on");
+	return enabled;
 }
 
-void TDPullSource::setState(std::string newState) {
-	state = newState;
-
+void TDPullSource::publishConfig() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
 
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 			agent->getConnectionManager();
 
-	std::stringstream str;
-	str << "threads_subsystem=" << state << std::endl;
-	std::string msg = str.str();
+	std::string msg = "threads_subsystem=";
+	if (isEnabled()) {
+		msg += "on";
+	} else {
+		msg += "off";
+	}
 
 	conMan->sendMessage("ThreadsSourceConfiguration", msg.length(),
 			(void*) msg.c_str());
+}
+
+void TDPullSource::setState(std::string newState) {
+	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
+	getTDPullSource()->publishConfig();
 }
 
 monitordata* callback() {
@@ -59,7 +66,6 @@ pullsource* TDPullSource::getDescriptor() {
 	src->header.description = "Thread information";
 	src->header.sourceID = TD;
 	src->header.capacity = 32 * 1024;
-	src->header.config = "threads_subsystem=on";
 	src->next = NULL;
 	src->callback = callback;
 	src->complete = ibmras::monitoring::plugins::jni::complete;

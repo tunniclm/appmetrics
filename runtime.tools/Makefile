@@ -44,7 +44,7 @@ OSPLUGIN_OBJS=${PLUGIN_OUT}/osplugin.o ${PLUGIN_OUT}/os${OS}.o
 
 JMXPLUGIN_OBJS=${PLUGIN_OUT}/JMXPullSource.o ${PLUGIN_OUT}/JMXSourceManager.o ${PLUGIN_OUT}/JMXUtility.o ${PLUGIN_OUT}/OSJMXPullSource.o ${PLUGIN_OUT}/RTJMXPullSource.o
 JNIPLUGIN_OBJS=${PLUGIN_OUT}/CFacade.o ${PLUGIN_OUT}/ENVMXBean.o ${PLUGIN_OUT}/ThreadDataProvider.o ${PLUGIN_OUT}/MemoryDataProvider.o ${PLUGIN_OUT}/MemoryCounterDataProvider.o  ${PLUGIN_OUT}/LockingDataProvider.o ${PLUGIN_OUT}/JNIReceiver.o
-JAVA_OBJS = ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o ${JAVA_OUT}/MethodLookupProvider.o ${HL_CONNECTOR_OBJS}
+JAVA_OBJS = ${JAVA_OUT}/Util.o ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o ${JAVA_OUT}/MethodLookupProvider.o ${HL_CONNECTOR_OBJS}
 
 OMR_OBJS = ${OMR_OUT}/NativeMemoryDataProvider.o ${OMR_OUT}/CpuDataProvider.o ${OMR_OUT}/TraceDataProvider.o  ${OMR_OUT}/MemoryCountersDataProvider.o ${OMR_OUT}/healthcenter.o
 NODE_SRCS = ${NODE_OUT}/nodeagent.cpp ${NODE_OUT}/wrapper.cpp ${NODE_OUT}/wrapper.h ${NODE_OUT}/binding.gyp
@@ -371,6 +371,9 @@ ${PLUGIN_OUT}/cpuplugin.o: ${SRC}/monitoring/plugins/cpu/cpuplugin.cpp ${SRC}/mo
 ${JAVA_OUT}/healthcenter.o: 
 	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/vm/java/healthcenter.cpp
 	
+
+${JAVA_OUT}/Util.o: 
+	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/Util.cpp
 
 ${JAVA_OUT}/TraceDataProvider.o: 
 	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/trace/TraceDataProvider.cpp

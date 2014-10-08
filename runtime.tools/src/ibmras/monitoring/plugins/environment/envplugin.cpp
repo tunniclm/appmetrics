@@ -69,9 +69,9 @@ void AppendEnvVars(std::string &s) {
 }
 
 void AppendSystemInfo(std::string &s) {
-	s += "system.os.arch=" + plugin::arch + '\n'; // eg amd64
-	s += "system.os.name=" + plugin::osName + '\n'; // eg Windows 7
-	s += "system.os.version=" + plugin::osVersion + '\n'; // eg 6.1 build 7601 Service Pack 1
+	s += "os.arch=" + plugin::arch + '\n'; // eg amd64
+	s += "os.name=" + plugin::osName + '\n'; // eg Windows 7
+	s += "os.version=" + plugin::osVersion + '\n'; // eg 6.1 build 7601 Service Pack 1
 	s += "number.of.processors=" + plugin::nprocs + '\n'; // eg 8
 	s += "pid=" + plugin::pid;
 }
@@ -111,7 +111,6 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	desc.append(name);
 	src->header.description = strdup(desc.c_str());
 	src->header.sourceID = srcid;
-	src->header.config = "";
 	src->next = NULL;
 	src->header.capacity = DEFAULT_CAPACITY;
 	src->callback = OnRequestData;

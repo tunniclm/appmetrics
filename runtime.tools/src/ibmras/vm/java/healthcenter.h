@@ -19,9 +19,14 @@ struct jvmFunctions {
 	jvmtiExtensionFunction jvmtiGetMethodAndClassNames;
 	jvmtiExtensionFunction jvmtiFlushTraceData;
 	jvmtiExtensionFunction getJ9method;
+	jvmtiExtensionFunction jvmtiSetVmDump;
 	jvmtiExtensionFunction jvmtiQueryVmDump;
+	jvmtiExtensionFunction jvmtiResetVmDump;
 	jvmtiExtensionFunction dumpVMLockMonitor;
 	jvmtiExtensionFunction setVMLockMonitor;
+		jvmtiExtensionFunction verboseGCsubscribe;
+	jvmtiExtensionFunction verboseGCunsubscribe;
+	
 	jvmtiEnv *pti;
 	JavaVM *theVM;
 };

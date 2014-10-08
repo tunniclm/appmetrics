@@ -52,6 +52,7 @@ public:
 	void setProvID(uint32 provID) { this->provID = provID; };	/* allows the prov ID to be set - remember this is allocated by the agent at startup */
 	monitordata* generateData();								/* where the agent will call into */
 	monitordata* generateError(char* msg);						/* Wrap an error message to send back */
+	virtual void publishConfig() = 0;							/* sub classes must implement to publish their configuration details */
 protected:
 	virtual monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env) = 0;		/* sub classes must implement this to get the right JNI env to use to retrieve data */
 private:

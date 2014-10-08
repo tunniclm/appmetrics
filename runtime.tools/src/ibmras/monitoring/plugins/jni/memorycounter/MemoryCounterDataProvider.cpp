@@ -67,19 +67,26 @@ bool MCPullSource::isEnabled() {
 	return enabled;
 }
 
-void MCPullSource::setState(std::string newState) {
-	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
-
+void MCPullSource::publishConfig() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
 
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 			agent->getConnectionManager();
 
-	std::string msg = "memorycounters_subsystem=" + newState;
-
+	std::string msg = "memorycounters_subsystem=";
+	if (isEnabled()) {
+		msg += "on";
+	} else {
+		msg += "off";
+	}
 	conMan->sendMessage("MemoryCountersSourceConfiguration", msg.length(),
 			(void*) msg.c_str());
+}
+
+void MCPullSource::setState(std::string newState) {
+	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
+	getMCPullSource()->publishConfig();
 }
 
 monitordata* callback() {
@@ -97,7 +104,6 @@ pullsource* MCPullSource::getDescriptor() {
 	src->header.description = "Memory-counter information";
 	src->header.sourceID = MC;
 	src->header.capacity = 8 * 1024;
-	src->header.config = "memorycounters_subsystem=on";
 	src->next = NULL;
 	src->callback = callback;
 	src->complete = ibmras::monitoring::plugins::jni::complete;

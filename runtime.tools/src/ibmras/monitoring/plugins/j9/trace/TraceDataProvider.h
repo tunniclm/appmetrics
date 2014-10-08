@@ -65,6 +65,13 @@ void queuePut(TRACEBUFFERQUEUE *queue, TRACEBUFFER *buffer);
 void initializeTraceUserData();
 int sendTraceBuffers(int maxSize);
 void sendTraceHeader(bool persistent);
+int registerVerboseGCSubscriber(std::string fileName);
+jvmtiError verboseGCSubscriber(jvmtiEnv *env, const char *record, jlong length, void *userData);
+jvmtiError verboseGCAlarm(jvmtiEnv *env, void *subscriptionID, void *userData);
+void handleVerboseGCSetting(std::string value);
+std::string getWriteableDirectory();
+std::string getString(JNIEnv* env, const std::string& cname, const std::string& mname, const std::string& signature, jstring args);
+
 
 class TraceDataProvider : public ibmras::monitoring::Plugin {
 public:

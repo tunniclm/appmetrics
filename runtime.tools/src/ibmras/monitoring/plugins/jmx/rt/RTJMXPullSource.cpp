@@ -41,13 +41,16 @@ uint32 RTJMXPullSource::getSourceID() {
 	return CPU;
 }
 
+void RTJMXPullSource::publishConfig() {
+
+}
+
 pullsource* RTJMXPullSource::getDescriptor() {
 	pullsource *src = new pullsource();
 	src->header.name = "RT";
 	src->header.description = "Runtime information";
 	src->header.sourceID = RT;
 	src->header.capacity = JMXSourceManager::DEFAULT_CAPACITY;
-	src->header.config = "runtime_subsystem=on";
 	src->next = NULL;
 	src->callback = callback;
 	//src->complete = getCallbackComplete();

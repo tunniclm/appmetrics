@@ -186,20 +186,29 @@ bool MEMPullSource::isEnabled() {
 	return enabled;
 }
 
-void MEMPullSource::setState(std::string newState) {
-
-	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
-
+void MEMPullSource::publishConfig() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
 
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 			agent->getConnectionManager();
 
-	std::string msg = "memory_subsystem=" + newState;
+	std::string msg = "memory_subsystem=";
+	if (isEnabled()) {
+		msg += "on";
+	} else {
+		msg += "off";
+	}
 
 	conMan->sendMessage("MemorySourceConfiguration", msg.length(),
 			(void*) msg.c_str());
+}
+
+void MEMPullSource::setState(std::string newState) {
+	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
+
+	// publish config when state changes
+	getMEMPullSource()->publishConfig();
 }
 
 uint32 MEMPullSource::getSourceID() {
@@ -213,7 +222,6 @@ pullsource* MEMPullSource::getDescriptor() {
 	src->header.description = "Memory information";
 	src->header.sourceID = MEM;
 	src->header.capacity = 8 * 1024;
-	src->header.config = "memory_subsystem=on";
 	src->next = NULL;
 	src->callback = callback;
 	src->complete = ibmras::monitoring::plugins::jni::complete;

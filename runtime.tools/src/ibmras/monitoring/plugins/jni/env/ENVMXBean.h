@@ -17,6 +17,7 @@ public:
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* Env);
 	~ENVPullSource(){};
+	void publishConfig();
 };
 
 }	/* end namespace env */

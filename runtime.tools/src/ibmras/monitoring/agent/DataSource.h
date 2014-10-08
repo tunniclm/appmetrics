@@ -41,7 +41,6 @@ public:
 	uint32 getCapacity();
 	std::string getProviderName();
 	std::string getUniqueID();
-	std::string getConfig();
 	const char* getDescription();
 	T* getSource();
 private:
@@ -66,14 +65,6 @@ uint32 DataSource<T>::getProvID() {
 template <class T>
 std::string DataSource<T>::getProviderName() {
 	return providerName;
-}
-
-template <class T>
-std::string DataSource<T>::getConfig() {
-
-	std::stringstream str;
-	str << src->header.config;
-	return str.str();
 }
 
 template <class T>
