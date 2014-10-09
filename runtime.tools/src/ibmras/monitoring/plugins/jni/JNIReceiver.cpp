@@ -6,7 +6,9 @@
 #include "ibmras/monitoring/plugins/jni/memory/MemoryDataProvider.h"
 #include "ibmras/monitoring/plugins/jni/memorycounter/MemoryCounterDataProvider.h"
 #include "ibmras/monitoring/plugins/jni/threads/ThreadDataProvider.h"
+#include "ibmras/monitoring/plugins/j9/DumpHandler.h"
 #include "ibmras/monitoring/plugins/jmx/os/OSJMXPullSource.h"
+#include "ibmras/common/util/strUtils.h"
 
 #include <iostream>
 
@@ -70,7 +72,6 @@ void JNIReceiver::receiveMessage(const std::string &id, uint32 size,
 
 		ibmras::monitoring::plugins::jni::memorycounter::MCPullSource::setState(
 				command);
-
 	} else if (id == "cpu") {
 		std::size_t found = message.find(',');
 		std::string command = message.substr(0, found);
@@ -78,6 +79,16 @@ void JNIReceiver::receiveMessage(const std::string &id, uint32 size,
 
 		ibmras::monitoring::plugins::jmx::os::OSJMXPullSource::setState(
 				command);
+	} else if (id == "environment") {
+		std::size_t found = message.find(',');
+		std::string command = message.substr(0, found);
+		std::string rest = message.substr(found + 1);
+		std::vector < std::string > parameters = ibmras::common::util::split(
+				rest, ',');
+
+		if (ibmras::common::util::equalsIgnoreCase(command, "set")) {
+			ibmras::monitoring::plugins::j9::DumpHandler::requestDumps (parameters);
+		}
 	}
 }
 

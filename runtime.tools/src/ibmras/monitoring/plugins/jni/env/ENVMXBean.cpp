@@ -36,10 +36,16 @@ monitordata* callback() {
 }
 
 void ENVPullSource::publishConfig() {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
 
+	ibmras::monitoring::connector::ConnectorManager *conMan =
+			agent->getConnectionManager();
+
+	std::string msg = "environment_subsystem=on";
+	conMan->sendMessage("EnvironmentSourceConfiguration", msg.length(),
+			(void*) msg.c_str());
 }
-
-
 
 uint32 ENVPullSource::getSourceID() {
 	return ENV;

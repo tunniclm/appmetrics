@@ -24,8 +24,9 @@ struct jvmFunctions {
 	jvmtiExtensionFunction jvmtiResetVmDump;
 	jvmtiExtensionFunction dumpVMLockMonitor;
 	jvmtiExtensionFunction setVMLockMonitor;
-		jvmtiExtensionFunction verboseGCsubscribe;
+	jvmtiExtensionFunction verboseGCsubscribe;
 	jvmtiExtensionFunction verboseGCunsubscribe;
+	jvmtiExtensionFunction jvmtiTriggerVmDump;
 	
 	jvmtiEnv *pti;
 	JavaVM *theVM;

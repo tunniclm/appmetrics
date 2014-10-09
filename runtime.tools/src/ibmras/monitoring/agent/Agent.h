@@ -69,10 +69,11 @@ public:
 	void setProperties(const ibmras::common::Properties &props);
 	void setProperty(const std::string &prop, const std::string &value);
 	std::string getProperty(const std::string &prop);
-
+	bool propertyExists(const std::string &prop);
 	std::string getAgentPropertyPrefix();
 	std::string getAgentProperty(const std::string &agentProp);
 	void setAgentProperty(const std::string &agentProp, const std::string &value);
+	bool agentPropertyExists(const std::string &agentProp);
 		
 	std::string getConfig(const std::string& name);
 

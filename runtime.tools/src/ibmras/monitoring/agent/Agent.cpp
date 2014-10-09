@@ -504,17 +504,27 @@ std::string Agent::getProperty(const std::string& prop) {
 	return properties.get(prop);
 }
 
+
+bool Agent::propertyExists(const std::string& prop) {
+	return properties.exists(prop);
+}
+
 std::string Agent::getAgentPropertyPrefix() {
 	return PROPERTIES_PREFIX;
 }
 
 std::string Agent::getAgentProperty(const std::string& agentProp) {
-	return properties.get(getAgentPropertyPrefix() + agentProp);
+	return getProperty(getAgentPropertyPrefix() + agentProp);
 }
 
 void Agent::setAgentProperty(const std::string& agentProp, const std::string& value) {
-	properties.put(getAgentPropertyPrefix() + agentProp, value);
+	setProperty(getAgentPropertyPrefix() + agentProp, value);
 }
+
+bool Agent::agentPropertyExists(const std::string& agentProp) {
+	return propertyExists(getAgentPropertyPrefix() + agentProp);
+}
+
 
 }
 }

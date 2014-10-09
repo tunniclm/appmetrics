@@ -378,6 +378,14 @@ void setCapabilities() {
 	}
 }
 
+void setNoDynamicProperties() {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	if (agent->agentPropertyExists("leave.dynamic.trace")) {
+		vmData.setTraceOption(vmData.pti, "buffers=nodynamic");
+	}
+}
+
 /**
  * The start() method starts the plugin and is the method called from the setup ibmras::monitoring::Plugin* getPlugin()
  * function above
@@ -385,6 +393,8 @@ void setCapabilities() {
 int Tracestart() {
 
 	IBMRAS_DEBUG(debug, "Tracestart enter");
+
+	setNoDynamicProperties();
 
 	setCapabilities();
 
@@ -690,10 +700,11 @@ void handleStackTraceTrigger(const std::string &command,
 	}
 	vmData.setTraceOption(vmData.pti, traceCommand.c_str());
 	config[tracePoint + STACK_TRACE_TRIGGER_SUFFIX] = command;
+	publishConfig();
 }
 
 void handleSetCommand(const std::vector<std::string> &parameters) {
-	IBMRAS_DEBUG(debug, ">>>handleSetCommand");
+	IBMRAS_DEBUG(debug, "handleSetCommand");
 
 	std::string lowAllocationThreshold;
 	std::string highAllocationThreshold;
@@ -703,8 +714,11 @@ void handleSetCommand(const std::vector<std::string> &parameters) {
 		const std::vector<std::string> items = ibmras::common::util::split(*it,
 				'=');
 		if (items.size() != 2) {
-			return;
+			continue;
 		}
+
+		IBMRAS_DEBUG_2(debug, "processing: set %s=%s", items[0].c_str(), items[1].c_str());
+
 
 		if (ibmras::common::util::equalsIgnoreCase(items[0], STACKTRACEDEPTH)) {
 			setStackDepth(items[1]);
@@ -741,6 +755,7 @@ void handleSetCommand(const std::vector<std::string> &parameters) {
 		setAllocationThresholds(lowAllocationThreshold,
 				highAllocationThreshold);
 	}
+	publishConfig();
 }
 
 void handleCommand(const std::string &command,

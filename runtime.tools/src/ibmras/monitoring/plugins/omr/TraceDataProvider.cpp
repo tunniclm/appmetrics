@@ -111,7 +111,7 @@ int Tracestart() {
 	initializeTraceUserData();
 
 	if (OMR_ERROR_NONE == rc) {
-		rc = vmData.omrti->BindCurrentThread(vmData.theVm, NULL, &vmThread);
+		rc = vmData.omrti->BindCurrentThread(vmData.theVm, "HC Tracestart", &vmThread);
 	}
 
 	/* get the trace header data from the vm */
@@ -187,7 +187,7 @@ void* processLoop(ibmras::common::port::ThreadData* param) {
 	int rc = 0;
 	OMR_VMThread *vmThread = NULL;
 
-	rc = vmData.omrti->BindCurrentThread(vmData.theVm, NULL, &vmThread);
+	rc = vmData.omrti->BindCurrentThread(vmData.theVm, "HC processLoop", &vmThread);
 	if (OMR_ERROR_NONE == rc) {
 		while (true) {
 			// acquire lock, if !running break
@@ -441,7 +441,7 @@ bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 	OMR_VMThread *vmThread = NULL;
 	int rc;
 
-	rc = vmData.omrti->BindCurrentThread(vmData.theVm, NULL, &vmThread);
+	rc = vmData.omrti->BindCurrentThread(vmData.theVm, "HC startTraceSubscriber", &vmThread);
 
 	if (OMR_ERROR_NONE != rc) {
 		IBMRAS_DEBUG(warning,  "startTraceSubscriber exit as unable to bindCurrentThread");

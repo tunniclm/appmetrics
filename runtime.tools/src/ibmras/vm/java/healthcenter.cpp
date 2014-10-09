@@ -21,6 +21,8 @@
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/plugins/j9/methods/MethodLookupProvider.h"
+#include "ibmras/monitoring/plugins/j9/DumpHandler.h"
+#include "ibmras/monitoring/plugins/j9/ClassHistogramProvider.h"
 #include "ibmras/monitoring/connector/jmx/JMXConnectorPlugin.h"
 #include "ibmras/monitoring/connector/headless/HLConnectorPlugin.h"
 #include "ibmras/monitoring/plugins/jni/JNIReceiver.h"
@@ -151,6 +153,18 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 
 	(void) memset(&cap, 0, sizeof(cap/*jvmtiCapabilities*/));
 
+    cap.can_get_owned_monitor_info = 1;
+    cap.can_get_current_contended_monitor = 1;
+    cap.can_tag_objects = 1;
+    rc = pti->AddCapabilities(&cap);
+    if ( rc != JVMTI_ERROR_NONE )
+    {
+	    if ( rc != JVMTI_ERROR_NOT_AVAILABLE )
+    	{
+	    	IBMRAS_DEBUG_1(debug,"AddCapabilities failed: rc = %d", rc);
+    	}
+    }
+
 	/*--------------------------------------
 	 Manage Extension Functions
 	 --------------------------------------*/
@@ -169,6 +183,7 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	tDPP.jvmtiGetTraceMetadata = 0;
 	tDPP.jvmtiGetMethodAndClassNames = 0;
 	tDPP.jvmtiFlushTraceData = 0;
+	tDPP.jvmtiTriggerVmDump = 0;
 	tDPP.getJ9method = 0;
 	tDPP.pti = pti;
 	IBMRAS_DEBUG(debug, "before launchagent 2");
@@ -205,6 +220,8 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 			tDPP.verboseGCsubscribe = fi->func;
 		} else if ( 0 == strcmp( fi->id, COM_IBM_DEREGISTER_VERBOSEGC_SUBSCRIBER)) {
 			tDPP.verboseGCunsubscribe = fi->func;
+        } else if (0 == strcmp(fi->id, COM_IBM_TRIGGER_VM_DUMP)) {
+        	tDPP.jvmtiTriggerVmDump = fi->func;
         }
 		/* Cleanup */
 
@@ -435,9 +452,14 @@ void launchAgent(const std::string &options) {
 			ibmras::monitoring::plugins::j9::methods::MethodLookupProvider::getInstance(
 					tDPP));
 	agent->addPlugin(
+			ibmras::monitoring::plugins::j9::DumpHandler::getInstance(tDPP));
+	agent->addPlugin(
 			ibmras::monitoring::connector::jmx::JMXConnectorPlugin::getInstance(theVM));
 	agent->addPlugin(
 			ibmras::monitoring::connector::headless::HLConnectorPlugin::getInstance(theVM));
+	agent->addPlugin(
+			ibmras::monitoring::plugins::j9::classhistogram::ClassHistogramProvider::getInstance(
+					tDPP));
 
 ////	 //The next call invoked the setJVM function on the JMX plugin
 	ibmras::monitoring::plugins::jmx::setJVM(tDPP.theVM);
