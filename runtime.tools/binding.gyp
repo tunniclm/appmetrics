@@ -134,6 +134,9 @@
         [ 'OS=="aix"', {
           "dependencies!": [ "libhealthcenter" ],
           "dependencies": [ "libhealthcenter-aix" ],
+        }],      
+        [ 'node_byteorder=="big"', {
+          "defines": [ "REVERSED" ], 
         }],
       ],
     },
