@@ -8,6 +8,18 @@
  * restricted by GSA ADP Schedule Contract with IBM Corp.
  *******************************************************************************/
 
+var path = require("path")
+var module_dir = path.dirname(module.filename)
+
+var os = require("os")
+if (os.type() == "AIX") {
+    if (process.env.LIBPATH) {
+        process.env.LIBPATH = module_dir + path.delimiter + process.env.LIBPATH
+    } else {
+        process.env.LIBPATH = module_dir
+    }
+}
+
 var agent = require("./healthcenter")
 
 // Export any functions exported by the agent
@@ -18,6 +30,5 @@ for (var prop in agent) {
 }
 
 // Set the plugin search path
-var path = require("path")
-agent.spath(path.join(path.dirname(module.filename), "plugins"))
+agent.spath(path.join(module_dir, "plugins"))
 

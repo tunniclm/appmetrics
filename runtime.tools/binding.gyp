@@ -96,6 +96,16 @@
       ],
     },
     {
+      # This target is a workaround for AIX to prevent the value of <(PRODUCT_DIR) being written into the linked binaries
+      "target_name": "libhealthcenter-aix",
+      "type": "none",
+      "dependencies": [ "libhealthcenter" ],
+      "dependencies_traverse": 0,
+      "direct_dependent_settings": {
+        "libraries": [ "-L<(PRODUCT_DIR)", "-lhealthcenter" ],
+      },
+    },
+    {
       "target_name": "hcmqtt",
       "type": "shared_library",
       "sources": [
@@ -120,6 +130,12 @@
         "<(srcdir)/monitoring/connector/mqtt/MQTTConnector.cpp",
       ],
       "dependencies": [ "libhealthcenter" ],
+      "conditions": [
+        [ 'OS=="aix"', {
+          "dependencies!": [ "libhealthcenter" ],
+          "dependencies": [ "libhealthcenter-aix" ],
+        }],
+      ],
     },
     {
       "target_name": "nodeenvplugin",
@@ -128,6 +144,12 @@
         "<(srcdir)/monitoring/plugins/nodeenv/nodeenvplugin.cpp",
       ],
       "dependencies": [ "libhealthcenter" ],
+      "conditions": [
+        [ 'OS=="aix"', {
+          "dependencies!": [ "libhealthcenter" ],
+          "dependencies": [ "libhealthcenter-aix" ],
+        }],
+      ],
     },
     {
       "target_name": "nodegcplugin",
@@ -136,6 +158,12 @@
         "<(srcdir)/monitoring/plugins/nodegc/nodegcplugin.cpp",
       ],
       "dependencies": [ "libhealthcenter" ],
+      "conditions": [
+        [ 'OS=="aix"', {
+          "dependencies!": [ "libhealthcenter" ],
+          "dependencies": [ "libhealthcenter-aix" ],
+        }],
+      ],
     },
     {
       "target_name": "cpuplugin",
@@ -151,6 +179,8 @@
         }],
         ['OS=="aix"', {
           "libraries": [ "-lperfstat" ],
+          "dependencies!": [ "libhealthcenter" ],
+          "dependencies": [ "libhealthcenter-aix" ],
         }],
       ],
     },
@@ -161,6 +191,12 @@
         "<(srcdir)/monitoring/plugins/environment/envplugin.cpp",
       ],
       "dependencies": [ "libhealthcenter" ],
+      "conditions": [
+        [ 'OS=="aix"', {
+          "dependencies!": [ "libhealthcenter" ],
+          "dependencies": [ "libhealthcenter-aix" ],
+        }],
+      ],
     },
     {
       "target_name": "ostream",
@@ -169,6 +205,12 @@
         "<(srcdir)/monitoring/connector/ostream/OStreamConnector.cpp",
       ],
       "dependencies": [ "libhealthcenter" ],
+      "conditions": [
+        [ 'OS=="aix"', {
+          "dependencies!": [ "libhealthcenter" ],
+          "dependencies": [ "libhealthcenter-aix" ],
+        }],
+      ],
     },
 
     {
@@ -181,6 +223,12 @@
         "<(srcdir)/vm/node/wrapper.cpp"
       ],
       "dependencies": [ "libhealthcenter" ],
+      "conditions": [
+        [ 'OS=="aix"', {
+          "dependencies!": [ "libhealthcenter" ],
+          "dependencies": [ "libhealthcenter-aix" ],
+        }],
+      ],
     },
     {
       "target_name": "install",
