@@ -32,10 +32,10 @@ private:
 
 
 	static monitordata* generateData(uint32 sourceID, const char *dataToSend, int size);
-	std::string ClassHistogramProvider::createHistogramReport();
+	std::string createHistogramReport();
 	unsigned char* hc_alloc(int size);
 	void hc_dealloc(unsigned char** buffer);
-	void force2Native(char * str);
+	//void force2Native(char * str);
 	//static jvmtiIterationControl JNICALL updateClassTotals(jlong class_tag, jlong size, jlong* tag_ptr, void* user_data);
 };
 }

@@ -11,6 +11,8 @@
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
 
+#include "ibmras/common/port/Lock.h"
+
 namespace ibmras {
 namespace monitoring {
 namespace plugins {
@@ -24,6 +26,8 @@ public:
 	int startReceiver();
 	int stopReceiver();
 	void receiveMessage(const std::string &id, uint32 size, void *data);
+private:
+	ibmras::common::port::Lock receiverLock;
 };
 
 }

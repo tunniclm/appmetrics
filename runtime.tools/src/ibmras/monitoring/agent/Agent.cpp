@@ -140,33 +140,18 @@ void callback(monitordata* data) {
 void* processPublishLoop(ibmras::common::port::ThreadData* param) {
 	IBMRAS_DEBUG(info, "Starting agent publishing loop");
 	Agent* agent = Agent::getInstance();
-	int count = 0;
+
 	while (running) {
-		ibmras::common::port::sleep(1);
-		agent->publish();
+		ibmras::common::port::sleep(20);
+		agent->getConnectionManager()->sendMessage(HEARTBEAT_TOPIC, 0, NULL);
 
-		// Send heartbeat ping every 20 seconds
-		if (++count > 20) {
-			count = 0;
-			agent->getConnectionManager()->sendMessage(HEARTBEAT_TOPIC, 0, NULL);
-		}
+	}
 
-	}IBMRAS_DEBUG(info, "Exiting agent publishing loop");
+	IBMRAS_DEBUG(info, "Exiting agent publishing loop");
 	agent->threadStop();
 	return NULL;
 }
 
-/* thread entry point for the agent processing thread */
-void* processLoop(ibmras::common::port::ThreadData* param) {
-	IBMRAS_DEBUG(info, "Starting agent process loop");
-	Agent* agent = Agent::getInstance();
-	while (running) {
-		ibmras::common::port::sleep(5);
-		agent->drain();
-	}IBMRAS_DEBUG(info, "Exiting agent process loop");
-	agent->threadStop();
-	return NULL;
-}
 
 void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 	Agent* agent = Agent::getInstance();
@@ -191,7 +176,7 @@ void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 
 	pool->startAll();
 	while (running) {
-		ibmras::common::port::sleep(1); /* polling interval for thread */
+		ibmras::common::port::sleep(2); /* polling interval for thread */
 		pool->process(); /* process the pull sources */
 	}
 	pool->stopAll();
@@ -201,17 +186,11 @@ void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 	return NULL;
 }
 
-void Agent::publish() {
-	bucketList.publish(connectionManager);
-}
 
 void Agent::republish(const std::string &topicPrefix) {
 	bucketList.republish(topicPrefix, connectionManager);
 }
 
-void Agent::drain() {
-	dataq.drain(bucketList);
-}
 
 void Agent::addPushSource(std::vector<ibmras::monitoring::Plugin*>::iterator i,
 		uint32 provID) {
@@ -334,29 +313,25 @@ void Agent::start() {
 	IBMRAS_DEBUG(info, "Agent start : data providers");
 	startPlugins();
 
-	ibmras::common::port::ThreadData* data =
-			new ibmras::common::port::ThreadData(processLoop);
-	result = ibmras::common::port::createThread(data);
 	running = true; /* if any of the thread creation below fails then running will be set to false and started threads will exit */
+
+	ibmras::common::port::ThreadData* data =
+			new ibmras::common::port::ThreadData(processPullSourceLoop);
+	result = ibmras::common::port::createThread(data);
 	if (result) {
 		running = false;
 	} else {
 		activeThreadCount++;
-		data = new ibmras::common::port::ThreadData(processPullSourceLoop);
+		data = new ibmras::common::port::ThreadData(processPublishLoop);
 		result = ibmras::common::port::createThread(data);
 		if (result) {
 			running = false;
 		} else {
-			activeThreadCount++;
-			data = new ibmras::common::port::ThreadData(processPublishLoop);
-			result = ibmras::common::port::createThread(data);
-			if (result) {
-				running = false;
-			} else {
-				activeThreadCount++; /* should end up with three active threads */
-			}
+			activeThreadCount++; /* should end up with three active threads */
 		}
-	}IBMRAS_DEBUG(info, "Agent start : finish");
+	}
+
+	IBMRAS_DEBUG(info, "Agent start : finish");
 }
 
 void Agent::startPlugins() {
@@ -457,7 +432,6 @@ void Agent::stop() {
 void Agent::shutdown() {
 	std::string str;
 	IBMRAS_DEBUG(info, "Agent shutdown : begin");
-	dataq.shutdown(bucketList);
 
 	IBMRAS_DEBUG(info, bucketList.toString().c_str());
 	IBMRAS_DEBUG(info, "Agent shutdown : finish");
@@ -478,8 +452,19 @@ Agent* Agent::getInstance() {
 }
 
 bool Agent::addData(monitordata* data) {
-	dataq.add(data);
-	return true;
+	if (data != NULL & (data->size > 0 && data->data != NULL)) {
+		Bucket* b = bucketList.findBucket(data->provID, data->sourceID);
+		if (b) {
+			BucketDataQueueEntry* entry = new BucketDataQueueEntry(data);
+			b->add(entry, connectionManager); /* found a matching bucket so add the data*/
+			return true;
+		} else {
+			IBMRAS_DEBUG_2(warning, "Attempted to add data to missing bucket [%d:%d]",
+					data->provID, data->sourceID);
+		}
+	}
+	return false;
+
 }
 
 void Agent::threadStop() {

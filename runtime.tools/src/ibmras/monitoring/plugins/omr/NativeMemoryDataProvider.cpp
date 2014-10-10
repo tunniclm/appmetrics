@@ -142,7 +142,7 @@ char* NativeMemoryDataProvider::getNativeMemoryData()
 
     IBMRAS_DEBUG(debug, "getNativeMemoryData start\n");
 
-    err = vmData.omrti->BindCurrentThread(vmData.theVm, "getNativeMemoryData", &vmThread);
+    err = vmData.omrti->BindCurrentThread(vmData.theVm, "HC getNativeMemoryData", &vmThread);
 
 	if (OMR_ERROR_NONE != err) {
 		IBMRAS_DEBUG(debug, "getNativeMemoryData exit as unable to bindCurrentThread");

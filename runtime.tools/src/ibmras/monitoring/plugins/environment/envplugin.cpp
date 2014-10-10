@@ -6,16 +6,21 @@
  */
 
 #include "ibmras/monitoring/Monitoring.h"
+#include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/Logger.h"
 #include <iostream>
 #include <cstring>
 #include <cstdio>
 #include <string>
+#include <sstream>
 // #include <thread>
-#if defined (_LINUX) || defined (_AIX)
+#if defined(_LINUX) || defined(_AIX)
 #include <sys/utsname.h> // uname()
 #include <sys/sysinfo.h> // get_nprocs()
 #include <unistd.h> // gethostname()
+#endif
+#if defined(_AIX)
+#include <sys/systemcfg.h>
 #endif
 #ifdef _WINDOWS
 #include "windows.h"
@@ -35,7 +40,7 @@ extern "C" char **environ; // use GetEnvironmentStrings() on Windows (maybe gete
 
 static void initStaticInfo();
 
-#define DEFAULT_CAPACITY 1024*10
+#define DEFAULT_BUCKET_CAPACITY 1024*10
 
 IBMRAS_DEFINE_LOGGER("EnvironmentPlugin");
 
@@ -48,13 +53,11 @@ namespace plugin {
 	std::string pid;
 }
 
-void AppendEnvVars(std::string &s) {
+void AppendEnvVars(std::stringstream &ss) {
 	bool hostnameDefined = false;
 	int i = 0;
 	while (environ[i] != NULL) {
-		if (i > 0) s += '\n';
-		s += "environment.";
-		s += environ[i];
+		ss << "environment." << environ[i] << '\n';
 		if (strncmp("HOSTNAME=", environ[i], strlen("HOSTNAME=")) == 0) {
 			hostnameDefined = true;
 		}
@@ -63,17 +66,18 @@ void AppendEnvVars(std::string &s) {
 	if (!hostnameDefined) {
 		char hostname[HOST_NAME_MAX + 1];
 		if (gethostname(hostname, HOST_NAME_MAX) == 0) {
-			s += '\n'; s += "environment.HOSTNAME="; s += hostname; 
+			ss  << "environment.HOSTNAME=" << hostname << '\n'; 
 		}
 	}
 }
 
-void AppendSystemInfo(std::string &s) {
-	s += "os.arch=" + plugin::arch + '\n'; // eg amd64
-	s += "os.name=" + plugin::osName + '\n'; // eg Windows 7
-	s += "os.version=" + plugin::osVersion + '\n'; // eg 6.1 build 7601 Service Pack 1
-	s += "number.of.processors=" + plugin::nprocs + '\n'; // eg 8
-	s += "pid=" + plugin::pid;
+void AppendSystemInfo(std::stringstream &ss) {
+	ss << "os.arch="     << plugin::arch             << '\n'; // eg "amd64"
+	ss << "os.name="     << plugin::osName           << '\n'; // eg "Windows 7"
+	ss << "os.version="  << plugin::osVersion        << '\n'; // eg "6.1 build 7601 Service Pack 1"
+	ss << "pid="         << plugin::pid              << '\n'; // eg "12345"
+	ss << "native.library.date=" << ibmras::monitoring::agent::Agent::getBuildDate() << '\n'; // eg "Oct 10 2014 11:44:56"
+	ss << "number.of.processors=" << plugin::nprocs  << '\n'; // eg 8
 }
 
 // Do something akin to C++11 std::to_string()
@@ -87,15 +91,17 @@ monitordata* OnRequestData() {
 	monitordata *data = new monitordata;
 	data->provID = plugin::provid;
 	data->sourceID = 0;
-	std::string content("#EnvironmentSource\n");
-	AppendEnvVars(content);
-	content += '\n';
-	AppendSystemInfo(content);
-	content += '\n';
+	
+	std::stringstream contentss;
+	contentss << "#EnvironmentSource\n";
+	AppendEnvVars(contentss);
+	AppendSystemInfo(contentss);
+	
+	std::string content = contentss.str();
 	data->size = content.length();
 	data->data = strdup(content.c_str());
 	data->persistent = false;
-	
+
 	return data;
 }
 
@@ -112,10 +118,10 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	src->header.description = strdup(desc.c_str());
 	src->header.sourceID = srcid;
 	src->next = NULL;
-	src->header.capacity = DEFAULT_CAPACITY;
+	src->header.capacity = DEFAULT_BUCKET_CAPACITY;
 	src->callback = OnRequestData;
 	src->complete = OnComplete;
-	src->pullInterval=20*60;
+	src->pullInterval = 20*60;
 	return src;
 }
 
@@ -169,7 +175,22 @@ static void initStaticInfo() {
 	struct utsname sysinfo;
 	int rc = uname(&sysinfo);
 	if (rc >= 0) {
+#if defined(_AIX)
+		uint64_t architecture = getsystemcfg(SC_ARCH);
+		uint64_t width = getsystemcfg(SC_WIDTH);
+		
+		std::string bits = (width == 32) ? "32" : 
+		                   (width == 64) ? "64" : 
+		                   "";
+		plugin::arch = (architecture == POWER_PC) ? "ppc" : "";
+		if (plugin::arch != "") {
+			plugin::arch += bits;
+		} else {
+			plugin::arch = std::string(sysinfo.machine);
+		}
+#else
 		plugin::arch = std::string(sysinfo.machine);
+#endif
 		plugin::osName = std::string(sysinfo.sysname);
 		plugin::osVersion = std::string(sysinfo.release) + std::string(sysinfo.version);
 	} else {

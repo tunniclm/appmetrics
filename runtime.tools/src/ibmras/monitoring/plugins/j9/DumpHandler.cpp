@@ -61,11 +61,11 @@ DumpHandler* DumpHandler::getInstance() {
 	return instance;
 }
 
-void DumpHandler::requestDumps(std::vector<std::string> &dumpRequests) {
+void DumpHandler::requestDumps(const std::vector<std::string> &dumpRequests) {
 	getInstance()->triggerDumps(dumpRequests);
 }
 
-void DumpHandler::triggerDumps(std::vector<std::string> &dumpRequests) {
+void DumpHandler::triggerDumps(const std::vector<std::string> &dumpRequests) {
 	JNIEnv * env;
 
 	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);

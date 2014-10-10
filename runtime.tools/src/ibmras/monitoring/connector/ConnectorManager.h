@@ -10,6 +10,8 @@
 
 #include "ibmras/monitoring/connector/Connector.h"
 #include "ibmras/monitoring/connector/Receiver.h"
+
+#include "ibmras/common/port/Lock.h"
 #include <set>
 
 namespace ibmras{
@@ -39,6 +41,7 @@ public:
 
 private:
 
+	ibmras::common::port::Lock sendLock;
 	std::set<Connector*> connectors;
 	std::set<Receiver*> receivers;
 

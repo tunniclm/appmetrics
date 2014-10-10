@@ -263,9 +263,12 @@ static unsigned long long time_microseconds() {
 
 struct CPUTime* getCPUTime() {
 	const unsigned NS_PER_CPU_TICK = 10000000L; // TODO check data type
+	const unsigned NS_PER_MS = 1000000L;
 	struct CPUTime* cputime = new CPUTime;
 	unsigned long long nsStart, nsEnd;
 	perfstat_cpu_total_t stats;
+	perfstat_process_t pstats;
+	perfstat_id_t psid;
 	
 	nsStart = time_microseconds() * 1000;
 
@@ -274,10 +277,17 @@ struct CPUTime* getCPUTime() {
 		return NULL;
 	}
 	
+	// psid.name is char[IDENTIIFER_LENGTH] (64); see libperfstat.h
+	sprintf(psid.name, "%d", getpid());
+	if (perfstat_process(&psid, &pstats, sizeof(perfstat_process_t), 1) == -1) {
+		delete cputime;
+		return NULL;
+	}
+	
 	nsEnd = time_microseconds() * 1000;
 	
 	cputime->total = (stats.user + stats.sys) * NS_PER_CPU_TICK;
-	cputime->process = 0; // FIXME
+	cputime->process = (pstats.ucpu_time + pstats.scpu_time) * NS_PER_MS;
 	cputime->nprocs = stats.ncpus;
 	cputime->time = nsStart + ((nsEnd - nsStart) / 2);
 		 

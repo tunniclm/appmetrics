@@ -13,7 +13,8 @@
 #include <cstdio>
 #if defined(_LINUX) || defined(_AIX)
 #include <time.h>
-#else if defined(_WINDOWS)
+#endif
+#if defined(_WINDOWS)
 #include "windows.h"
 #endif
 #include "v8.h"

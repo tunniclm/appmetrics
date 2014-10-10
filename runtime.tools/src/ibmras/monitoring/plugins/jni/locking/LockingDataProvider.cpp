@@ -62,7 +62,7 @@ bool JLAPullSource::isEnabled() {
 	return enabled;
 }
 
-void JLAPullSource::setState(std::string newState) {
+void JLAPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
 	// publish config when state changes
 	getJLAPullSource()->publishConfig();

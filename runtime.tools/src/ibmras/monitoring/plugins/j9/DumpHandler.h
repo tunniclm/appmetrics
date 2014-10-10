@@ -18,8 +18,8 @@ public:
 	static uint32 providerID;
 	static DumpHandler* getInstance(jvmFunctions functions);
 	static DumpHandler* getInstance();
-	static void requestDumps(std::vector<std::string> &dumpRequests);
-	void triggerDumps(std::vector<std::string> &dumpRequests);
+	static void requestDumps(const std::vector<std::string> &dumpRequests);
+	void triggerDumps(const std::vector<std::string> &dumpRequests);
 private:
 	jvmFunctions vmFunctions;
 };

@@ -21,7 +21,7 @@
  * be in ISO8859-1 encoding
  */
 #ifdef _ZOS
-#pragma convlit(suspend)
+#pragma convert("ISO8859-1")
 #include <unistd.h>
 #endif
 
@@ -117,14 +117,14 @@ int JMXConnector::launchMBean() {
 	}
 
 #ifdef _ZOS
-#pragma convlit(resume)
+#pragma convert(pop)
 #endif
 	if (NULL == javaHCLaunchMBean) {
 		javaHCLaunchMBean =
 				env->FindClass(
 						"com/ibm/java/diagnostics/healthcenter/agent/mbean/HCLaunchMBean");
 #ifdef _ZOS
-#pragma convlit(suspend)
+#pragma convert("ISO8859-1")
 #endif
 		if (ExceptionCheck(env) || NULL == javaHCLaunchMBean) {
 			IBMRAS_LOG(warning,
@@ -134,13 +134,13 @@ int JMXConnector::launchMBean() {
 	}
 
 #ifdef _ZOS
-#pragma convlit(resume)
+#pragma convert(pop)
 #endif
 	if (NULL == mainMethod) {
 		mainMethod = env->GetStaticMethodID(javaHCLaunchMBean, "main",
 				"([Ljava/lang/String;)V");
 #ifdef _ZOS
-#pragma convlit(suspend)
+#pragma convert("ISO8859-1")
 #endif
 		if (ExceptionCheck(env) || NULL == mainMethod) {
 			IBMRAS_LOG(warning,
@@ -150,7 +150,7 @@ int JMXConnector::launchMBean() {
 	}
 
 #ifdef _ZOS
-#pragma convlit(resume)
+#pragma convert(pop)
 #endif
 	applicationArgs = env->NewObjectArray(2, env->FindClass("java/lang/String"),
 	NULL);
@@ -234,8 +234,13 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_getProviders
 	ibmras::monitoring::agent::Agent::getInstance();
 	ibmras::monitoring::agent::BucketList* buckets = agent->getBucketList();
 	std::vector<std::string> ids = buckets->getIDs();
-
+#ifdef _ZOS
+#pragma convert("ISO8859-1")
+#endif
 	jclass stringClass = jni_env->FindClass("java/lang/String");
+#ifdef _ZOS
+#pragma convert(pop)
+#endif
 	jobjectArray stringArray = jni_env->NewObjectArray(ids.size(), stringClass,
 			0);
 	for (uint32 i = 0; i < ids.size(); ++i) {

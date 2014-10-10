@@ -14,7 +14,6 @@
 #include "ibmras/monitoring/connector/Connector.h"
 #include "ibmras/monitoring/agent/BucketList.h"
 #include "ibmras/monitoring/agent/BucketDataQueueEntry.h"
-#include "ibmras/monitoring/agent/MonitorDataQueue.h"
 #include "ibmras/monitoring/connector/ConnectorManager.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/common/Logger.h"
@@ -55,9 +54,7 @@ public:
 	ibmras::monitoring::connector::ConnectorManager* getConnectionManager();
 	bool addData(monitordata* data);
 
-	void publish();							/* publish messages to connectors */
 	void republish(const std::string &prefix); /* republish history */
-	void drain();							/* drain any plugin data into the buckets */
 	void threadStop();						/* fired when an agent processing thread stops */
 	void setLogOutput(ibmras::common::LOCAL_LOGGER_CALLBACK func);
 	void setLogLevels();
@@ -94,7 +91,6 @@ private:
 	DataSourceList<pushsource> pushSourceList;
 	DataSourceList<pullsource> pullSourceList;
 	std::vector<ibmras::monitoring::Plugin*> plugins;
-	MonitorDataQueue dataq;
 	uint32 activeThreadCount;		/* number of active threads */
 	
 	ibmras::common::Properties properties;

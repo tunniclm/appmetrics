@@ -29,6 +29,7 @@ public:
 	int32 getNumberOfRuns();
 	int32 getTimesRun();
 	void incrementRuns();
+	int packFiles();
 
 	virtual ~HLConnector();
 	virtual std::string getID() {return "HLConnector"; }
@@ -48,7 +49,6 @@ private:
 	jmethodID zipMethod;
 	int32 seqNumber;
 	time_t lastPacked;
-	uint32 time_interval;
 	uint32 upper_limit;
 	int32 files_to_keep;
 	std::map<std::string, std::fstream*> createdFiles;
@@ -67,7 +67,6 @@ private:
 
 	HLConnector(JavaVM* theVM);
 	void createFile(const std::string &fileName);
-	int packFiles();
 	bool createDirectory(std::string& path);
 };
 

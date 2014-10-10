@@ -46,7 +46,7 @@ void TDPullSource::publishConfig() {
 			(void*) msg.c_str());
 }
 
-void TDPullSource::setState(std::string newState) {
+void TDPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
 	getTDPullSource()->publishConfig();
 }

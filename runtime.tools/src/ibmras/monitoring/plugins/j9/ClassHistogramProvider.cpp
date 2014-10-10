@@ -323,30 +323,30 @@ void ClassHistogramProvider::hc_dealloc(unsigned char** buffer)
 }
 
 /******************************/
-void
-ClassHistogramProvider::force2Native(char * str)
-{
-    char *p = str;
-
-    if ( NULL != str )
-    {
-        while ( 0 != *p )
-        {
-            if ( 0 != ( 0x80 & *p ) )
-            {
-                p = NULL;
-                break;
-            }
-            p++;
-        }
-#ifdef _ZOS
-        if ( NULL != p )
-        {
-            __atoe(str);
-        }
-#endif
-    }
-}
+//void
+//ClassHistogramProvider::force2Native(char * str)
+//{
+//    char *p = str;
+//
+//    if ( NULL != str )
+//    {
+//        while ( 0 != *p )
+//        {
+//            if ( 0 != ( 0x80 & *p ) )
+//            {
+//                p = NULL;
+//                break;
+//            }
+//            p++;
+//        }
+//#ifdef _ZOS
+//        if ( NULL != p )
+//        {
+//            __atoe(str);
+//        }
+//#endif
+//    }
+//}
 
 
 }

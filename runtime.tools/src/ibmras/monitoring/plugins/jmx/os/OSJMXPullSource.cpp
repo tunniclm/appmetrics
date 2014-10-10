@@ -85,7 +85,7 @@ bool OSJMXPullSource::isEnabled() {
 	return enabled;
 }
 
-void OSJMXPullSource::setState(std::string newState) {
+void OSJMXPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
 	getOSPullSource()->publishConfig();
 }

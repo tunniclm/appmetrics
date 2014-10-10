@@ -25,6 +25,7 @@
   ],
 
   "target_defaults": {
+    "cflags_cc!": [ '-fno-exceptions' ],
     "defines": [ "EXPORT", "IBMRAS_DEBUG_LOGGING" ],
     "include_dirs": [ "src", "<(pahosrcdir)" ],
     "target_conditions": [
@@ -81,7 +82,6 @@
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
         "<(srcdir)/monitoring/agent/Agent.cpp",
-        "<(srcdir)/monitoring/agent/MonitorDataQueue.cpp",
         "<(srcdir)/monitoring/agent/PullSourceCounter.cpp",
         "<(srcdir)/monitoring/agent/threads/ThreadPool.cpp",
         "<(srcdir)/monitoring/agent/threads/WorkerThread.cpp",
@@ -221,7 +221,6 @@
       
       "include_dirs": [ "<(srcdir)/vm/node" ],
       "sources": [ 
-        "<(srcdir)/vm/node/nodeconnector.cpp",
         "<(srcdir)/vm/node/nodeagent.cpp", 
         "<(srcdir)/vm/node/wrapper.cpp"
       ],

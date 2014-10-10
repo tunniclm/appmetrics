@@ -45,8 +45,13 @@ struct __jdata;
 /*########################################################################################################################*/
 /*########################################################################################################################*/
 
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 static const char* HEALTHCENTER_PROPERTIES_PREFIX = "com.ibm.java.diagnostics.healthcenter.";
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 
 void launchAgent(const std::string &options);
 std::string agentOptions;
@@ -187,7 +192,9 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	tDPP.getJ9method = 0;
 	tDPP.pti = pti;
 	IBMRAS_DEBUG(debug, "before launchagent 2");
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	fi = exfn;
 	for (i = 0; i < xcnt; i++) {
 		if (0 == strcmp(fi->id, COM_IBM_REGISTER_TRACE_SUBSCRIBER)) {
@@ -224,7 +231,9 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
         	tDPP.jvmtiTriggerVmDump = fi->func;
         }
 		/* Cleanup */
-
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 		pi = fi->params;
 
 		for (j = 0; j < fi->param_count; j++) {
@@ -316,16 +325,27 @@ void getHCProperties(const std::string &options) {
 		return;
 	}
 
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	jclass hcoptsClass =
 			ourEnv->FindClass(
 					"com/ibm/java/diagnostics/healthcenter/agent/mbean/HealthCenterOptionHandler");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	if (ExceptionCheck(ourEnv) || hcoptsClass == NULL) {
 		IBMRAS_DEBUG(warning, "could not find HealthCenterOptionHandler")
 		return;
 	}
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	jmethodID getPropertiesMethod = ourEnv->GetStaticMethodID(hcoptsClass,
 			"getProperties", "([Ljava/lang/String;)[Ljava/lang/String;");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	if (ExceptionCheck(ourEnv) || getPropertiesMethod == NULL) {
 		IBMRAS_DEBUG(warning, "could not find getProperties method")
 		return;
@@ -340,8 +360,14 @@ void getHCProperties(const std::string &options) {
 	if (!ExceptionCheck(ourEnv)) {
 		jstring opts = ourEnv->NewStringUTF(options.c_str());
 		if (!ExceptionCheck(ourEnv)) {
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 			applicationArgs = ourEnv->NewObjectArray(2,
 					ourEnv->FindClass("java/lang/String"), NULL);
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 			if (!ExceptionCheck(ourEnv)) {
 				ourEnv->SetObjectArrayElement(applicationArgs, 0, pidArg);
 				if (!ExceptionCheck(ourEnv)) {
@@ -386,7 +412,9 @@ void getHCProperties(const std::string &options) {
 		ourEnv->ReleaseStringUTFChars(line, lineChars);
 
 	}
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	std::string agentPropertyPrefix = agent->getAgentPropertyPrefix();
 	std::list<std::string> hcPropKeys = theProps.getKeys(HEALTHCENTER_PROPERTIES_PREFIX);
 	for (std::list<std::string>::iterator i = hcPropKeys.begin(); i != hcPropKeys.end();
@@ -399,7 +427,9 @@ void getHCProperties(const std::string &options) {
 			}
 		}
 	}
-
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	agent->setProperties(theProps);
 }
 

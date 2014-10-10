@@ -149,7 +149,7 @@ char* MemoryCountersDataProvider::getMemoryCounters()
 
 	int rc;
 
-	rc = vmData.omrti->BindCurrentThread(vmData.theVm, NULL, &vmThread);
+	rc = vmData.omrti->BindCurrentThread(vmData.theVm, " HC getMemoryCounters", &vmThread);
 
 	if (OMR_ERROR_NONE != rc) {
 		IBMRAS_DEBUG(debug, "getMemoryCounters exit as unable to bindCurrentThread");

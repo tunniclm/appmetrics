@@ -67,7 +67,6 @@ HLConnector::HLConnector(JavaVM* theVM) :
 
 	number_runs = 0;
 	run_duration = 0;
-	time_interval = 0;
 	startTime = 0;
 	files_to_keep = 0;
 	run_pause = 0;
@@ -113,13 +112,6 @@ int HLConnector::start() {
 		collect = false;
 		return 0;
 	}
-
-	std::string tiString = agent->getAgentProperty("headless.run.time.loop");
-	if (tiString.length()) {
-		time_interval = atoi(tiString.c_str()) * 60;
-	}
-	IBMRAS_DEBUG_1(debug, "Time interval = %d", time_interval);
-	IBMRAS_DEBUG_1(debug, "User time interval = %d", tiString.c_str());
 
 	std::string ulString = agent->getAgentProperty("headless.files.max.size");
 	if (ulString.length()) {
@@ -518,6 +510,7 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 		void* data) {
 
 	if (!collect) {
+		IBMRAS_DEBUG(debug, "<<<HLConnector::sendMessage()[NOT COLLECTING DATA]");
 		return 0;
 	}
 	IBMRAS_DEBUG(debug, ">>>HLConnector::sendMessage()");
@@ -543,11 +536,11 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 				std::time_t currentTime;
 				time(&currentTime);
 
-				if ((length + size > upper_limit)
-						|| (time_interval
-								&& ((currentTime - lastPacked) >= time_interval))) {
+				if ((length + size > upper_limit)) {
+						//|| (run_duration
+						//		&& ((currentTime - lastPacked) >= run_duration))) {
 
-					time(&lastPacked);
+					//time(&lastPacked);
 
 					IBMRAS_DEBUG_1(debug,  "SendMessage from = %s", sourceId.c_str());
 					IBMRAS_DEBUG_1(debug,  "MAX_FILE_SIZE = %d", upper_limit);
@@ -668,6 +661,7 @@ void* runCounterThread(ibmras::common::port::ThreadData* tData) {
 				IBMRAS_DEBUG_1(debug,  "Produce HCDs for %d seconds", hlc->getRunDuration());
 				ibmras::common::port::sleep(hlc->getRunDuration());
 				hlc->incrementRuns();
+				hlc->packFiles();
 			}
 			collect = false;
 			IBMRAS_DEBUG_1(warning, "Not producing HCDs for %d seconds", hlc->getRunPause());
@@ -679,7 +673,7 @@ void* runCounterThread(ibmras::common::port::ThreadData* tData) {
 			collect = true;
 			IBMRAS_DEBUG_1(debug, "Produce HCDs for %d seconds", hlc->getRunDuration());
 			ibmras::common::port::sleep(hlc->getRunDuration());
-
+			hlc->packFiles();
 			collect = false;
 			IBMRAS_DEBUG_1(warning, "Rest for %d seconds", hlc->getRunPause());
 			ibmras::common::port::sleep(hlc->getRunPause());

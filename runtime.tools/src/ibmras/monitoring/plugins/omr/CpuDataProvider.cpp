@@ -138,7 +138,7 @@ char* CpuDataProvider::getCpuData()
 	unsigned long long millisecondsSinceEpoch;
 
     IBMRAS_DEBUG(debug, "getCpuData start\n");
-    err = vmData.omrti->BindCurrentThread(vmData.theVm, "getCpuData", &vmThread);
+    err = vmData.omrti->BindCurrentThread(vmData.theVm, "HC getCpuData", &vmThread);
 
 	if (OMR_ERROR_NONE != err) {
 		IBMRAS_DEBUG(debug, "getCpuData exit as unable to bindCurrentThread");

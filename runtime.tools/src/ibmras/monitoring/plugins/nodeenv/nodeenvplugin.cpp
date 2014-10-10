@@ -5,11 +5,13 @@
  *      Author: Mike Tunnicliffe
  */
 
+#include "ibmras/monitoring/plugins/nodeenv/agent_version.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/logging.h"
 #include <iostream>
 #include <cstring>
 #include <string>
+#include <sstream>
 #include "uv.h"
 #include "v8.h"
 
@@ -42,21 +44,24 @@ monitordata* OnRequestData() {
 	data->data = NULL;
 	
 	if (plugin::nodeVersion != NULL) {
-		std::string content("#EnvironmentSource");
-		content += "\nruntime.version=";
-		content += plugin::nodeVersion;
+		std::stringstream contentss;
+		contentss << "#EnvironmentSource\n";
+		
+		contentss << "runtime.version=" << plugin::nodeVersion;
 		if (plugin::nodeTag != NULL) {
-			content += plugin::nodeTag;
+			contentss << plugin::nodeTag;
 		}
+		contentss << '\n';
+		
 		if (plugin::nodeVendor != NULL) {
-			content += "\nruntime.vendor=";
-			content += plugin::nodeVendor;
+			contentss << "runtime.vendor=" << plugin::nodeVendor << '\n';
 		}
 		if (plugin::nodeName != NULL) {
-			content += "\nruntime.name=";
-			content += plugin::nodeName;
+			contentss << "runtime.name=" << plugin::nodeName << '\n';
 		}
-		content += "\n";
+		contentss << "jar.version=" << getAgentVersionAndDate() << '\n'; // eg "3.0.0-20141010" (NB: jar.version is a legacy name) 
+		
+		std::string content = contentss.str();
 		data->size = content.length();
 		data->data = strdup(content.c_str());
 	}		

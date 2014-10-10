@@ -57,7 +57,7 @@ uint buffersDroppedBeforeFirstConnection = 0;
 uint buffersDropped = 0;
 uint buffersNotDropped = 0;
 int firstConnectionMade = 0;
-int countDroppedBuffers = 0;
+int countDroppedBuffers = 1;
 bool running = false;
 std::map<std::string, std::string> config;
 FILE *vgcFile = NULL;
@@ -460,10 +460,14 @@ int Tracestart() {
 	} else {
 		IBMRAS_DEBUG(debug, "processLoop thread started ok");
 	}
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	/* turn off all trace to start with */
 	vmData.setTraceOption(vmData.pti, "none=all,maximal=mt");
-
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	/* now enable HC specific trace */
 	enableTracePoints(gc);
 	enableTracePoints(profiling);
@@ -576,7 +580,6 @@ void controlSubsystem(const std::string &command,
 	}
 	//update the config info
 	config[subsystem + SUBSYSTEM] = command;
-	publishConfig();
 }
 
 std::string getAllocationThresholds() {
@@ -700,7 +703,6 @@ void handleStackTraceTrigger(const std::string &command,
 	}
 	vmData.setTraceOption(vmData.pti, traceCommand.c_str());
 	config[tracePoint + STACK_TRACE_TRIGGER_SUFFIX] = command;
-	publishConfig();
 }
 
 void handleSetCommand(const std::vector<std::string> &parameters) {
@@ -711,6 +713,7 @@ void handleSetCommand(const std::vector<std::string> &parameters) {
 
 	for (std::vector<std::string>::const_iterator it = parameters.begin();
 			it != parameters.end(); ++it) {
+		IBMRAS_DEBUG_1(debug, "processing: set %s", (*it).c_str());
 		const std::vector<std::string> items = ibmras::common::util::split(*it,
 				'=');
 		if (items.size() != 2) {
@@ -755,7 +758,6 @@ void handleSetCommand(const std::vector<std::string> &parameters) {
 		setAllocationThresholds(lowAllocationThreshold,
 				highAllocationThreshold);
 	}
-	publishConfig();
 }
 
 void handleCommand(const std::string &command,
@@ -764,7 +766,7 @@ void handleCommand(const std::string &command,
 	JNIEnv * env;
 	vmData.theVM->AttachCurrentThread((void **) &env, NULL);
 
-	IBMRAS_DEBUG_1(debug, "command received: %s", command.c_str());
+	IBMRAS_DEBUG_1(fine, "command received: %s", command.c_str());
 
 	if (ibmras::common::util::equalsIgnoreCase(command, "set")) {
 		handleSetCommand(parameters);
@@ -788,7 +790,7 @@ void handleCommand(const std::string &command,
 			}
 		}
 	}
-
+	publishConfig();
 	vmData.theVM->DetachCurrentThread();
 }
 
@@ -826,6 +828,9 @@ void enableGCTracePoint(const std::string &tp) {
 }
 
 void enableNormalTracePoint(const std::string &tp) {
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	std::string command = "maximal=tpnid{" + tp + "}";
 	vmData.setTraceOption(vmData.pti, command.c_str());
 }
@@ -848,6 +853,9 @@ void disableNormalTracePoint(const std::string &tp) {
 	std::string command = "maximal=!tpnid{" + tp + "}";
 	rc = vmData.setTraceOption(vmData.pti, command.c_str());
 }
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 
 /*
  * Converts a jlong from host to network byte order (big endian)
@@ -984,9 +992,15 @@ bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 			}
 		}
 		int rc;
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 		rc = vmData.jvmtiRegisterTraceSubscriber(vmData.pti,
 				"Health Center trace subscriber", traceSubscriber, NULL,
 				&traceData, &subscriptionID);
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 		IBMRAS_DEBUG_1(debug, "return code from jvmtiRegisterTraceSubscriber %d", rc);
 		if (JVMTI_ERROR_NONE == rc) {
 			IBMRAS_DEBUG(debug,
@@ -1018,6 +1032,8 @@ jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 			/* Drop the oldest buffer */
 			buffer = queueGet(&(data->traceBufferQueue), 1);
 			data->droppedBufferCount++;
+			IBMRAS_DEBUG(fine,
+					"traceSubscriber dropping buffer.");
 			if (countDroppedBuffers != 0) {
 				buffersDropped++;
 			}
@@ -1044,7 +1060,13 @@ jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 		assert(buffer->size == (length + 4 + sizeof(jlong)));
 
 		/* Write eye catcher */
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 		strcpy((char*) buffer->buffer, "HCTB");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 		/* Convert payload length to network byte order */
 		payLoadLength = htonjl(payLoadLength);
 
@@ -1199,6 +1221,8 @@ void publishConfig() {
 			agent->getConnectionManager();
 
 	std::string msg = getConfigString();
+	IBMRAS_DEBUG_1(fine, "publishing config: %s", msg.c_str());
+
 	conMan->sendMessage("TRACESubscriberSourceConfiguration", msg.length(),
 			(void*) msg.c_str());
 }
@@ -1216,8 +1240,13 @@ int sendTraceBuffers(int maxSize) {
 	int droppedBufferCount = 0;
 	TRACEBUFFER *buffersToSend = NULL;
 	TRACEBUFFER *traceBuffer = NULL;
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	const char* droppedMsgEyeCatcher = "HCDB";
-
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	long droppedBuffersMsgSize = 0;
 	int bytesToSendSize = 0;
 
@@ -1231,7 +1260,8 @@ int sendTraceBuffers(int maxSize) {
 
 	rc = vmData.pti->RawMonitorEnter(traceData.monitor);
 	if (JVMTI_ERROR_NONE == rc) {
-		int numberOfBuffersToSend = (maxSize / traceData.traceBufferSize) + 1;
+		// Request ALL buffers
+		int numberOfBuffersToSend = INT_MAX; //(maxSize / traceData.traceBufferSize) + 1;
 		droppedBufferCount = traceData.droppedBufferCount;
 		buffersToSend = queueGet(&(traceData.traceBufferQueue),
 				numberOfBuffersToSend);
@@ -1265,7 +1295,13 @@ int sendTraceBuffers(int maxSize) {
 
 	/* Add a dropped buffer message if required */
 	if (droppedBufferCount > 0) {
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 		const char* droppedMsgEyeCatcher = "HCDB";
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 		char buffer[16];
 		jlong length = sizeof(int);
 		jint count = htonl(droppedBufferCount);
@@ -1531,11 +1567,12 @@ void handleVerboseGCSetting(std::string value) {
 		int err = 0;
 
 		err = registerVerboseGCSubscriber(vgcFileName);
-
 		if (err) {
+			config[VERBOSE_GC] = "off";
 			IBMRAS_DEBUG(debug, "Error in registerVerboseGCSubscriber(vgcFileName)");
 		} else {
-			IBMRAS_DEBUG(debug, "Error in registerVerboseGCSubscriber(vgcFileName)");
+			config[VERBOSE_GC] = vgcFileName;
+			IBMRAS_DEBUG(debug, "registerVerboseGCSubscriber(vgcFileName) success");
 		}
 
 	} else {
@@ -1544,10 +1581,12 @@ void handleVerboseGCSetting(std::string value) {
 		if (err) {
 			IBMRAS_DEBUG(debug, "Error in deregisterVerboseGCSubscriber(vgcFileName)");
 		} else {
-			IBMRAS_DEBUG(debug, "Error in deregisterVerboseGCSubscriber(vgcFileName)");
+			IBMRAS_DEBUG(debug, "deregisterVerboseGCSubscriber(vgcFileName) success");
 		}
+		config[VERBOSE_GC] = "off";
 	}
 }
+
 
 }
 }

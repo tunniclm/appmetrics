@@ -56,14 +56,19 @@ void ConnectorManager::receiveMessage(const std::string &id, uint32 size,
 
 int ConnectorManager::sendMessage(const std::string &sourceId, uint32 size,
 		void *data) {
-
 	int count = 0;
-	for (std::set<Connector*>::iterator it = connectors.begin();
-			it != connectors.end(); ++it) {
-		if ((*it)->sendMessage(sourceId, size, data) > 0) {
-			count++;
+	try {
+		sendLock.acquire();
+
+		for (std::set<Connector*>::iterator it = connectors.begin();
+				it != connectors.end(); ++it) {
+			if ((*it)->sendMessage(sourceId, size, data) > 0) {
+				count++;
+			}
 		}
+	} catch (...) {
 	}
+	sendLock.release();
 	return count;
 }
 

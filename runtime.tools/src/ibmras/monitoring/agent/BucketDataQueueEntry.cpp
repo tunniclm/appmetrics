@@ -10,12 +10,15 @@ BucketDataQueueEntry::BucketDataQueueEntry(monitordata* data) {
 	this->provID = data->provID;
 	this->sourceID = data->sourceID;
 	this->size = data->size;
-	this->data = new ibmras::common::alloc<char>(size); /* char array of the data to store */
+	if (size > 0 && data->data != NULL) {
+		this->data = new ibmras::common::alloc<char>(size); /* char array of the data to store */
+		this->data->copyfrom(data->data);
+	}
 	next = NULL;
 }
 
-BucketDataQueueEntry::~BucketDataQueueEntry(){
-	if(data){
+BucketDataQueueEntry::~BucketDataQueueEntry() {
+	if (data) {
 		delete data;
 	}
 }

@@ -61,16 +61,14 @@ int Callback::sendMessage(const std::string &sourceId, uint32 size, void *data) 
 
 int NodeConnector::sendMessage(const std::string &sourceId, uint32 size, void *data) {
 	Bucket* bucket = buckets->findBucket(sourceId);
-	if(bucket) {
+	if(bucket && size > 0 && data != NULL) {
 		monitordata* md = new monitordata;	/* copy into a monitor data structure so that we can add to a bucket */
 		md->persistent = false;
 		md->provID = bucket->getProvID();
 		md->sourceID = bucket->getSourceID();
 		md->size = size;
-		md->data = NULL;
-		char* bytes = reinterpret_cast<char *>(reinterpret_cast<long>(data));	/* allow conversion of const char * to char * */
+		md->data = data;
 		BucketDataQueueEntry* entry = new BucketDataQueueEntry(md);
-		entry->data->copyfrom(bytes);
 		bucket->add(entry);
 	}
 	return 0;

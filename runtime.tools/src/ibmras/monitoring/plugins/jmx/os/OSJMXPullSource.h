@@ -25,7 +25,7 @@ public:
 	monitordata* generateData(JNIEnv* env, jclass* mgtBean);
 	~OSJMXPullSource(){};
 	bool isEnabled();
-	static void setState(std::string state);
+	static void setState(const std::string &newState);
 	void publishConfig();
 };
 

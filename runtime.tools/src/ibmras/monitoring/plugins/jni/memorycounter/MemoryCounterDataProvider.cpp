@@ -84,7 +84,7 @@ void MCPullSource::publishConfig() {
 			(void*) msg.c_str());
 }
 
-void MCPullSource::setState(std::string newState) {
+void MCPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
 	getMCPullSource()->publishConfig();
 }

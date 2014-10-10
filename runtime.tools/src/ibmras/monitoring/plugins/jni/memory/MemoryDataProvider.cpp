@@ -204,7 +204,7 @@ void MEMPullSource::publishConfig() {
 			(void*) msg.c_str());
 }
 
-void MEMPullSource::setState(std::string newState) {
+void MEMPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
 
 	// publish config when state changes

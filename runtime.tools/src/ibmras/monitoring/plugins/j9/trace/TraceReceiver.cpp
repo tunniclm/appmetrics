@@ -41,14 +41,21 @@ void TraceReceiver::receiveMessage(const std::string &id, uint32 size,
 		if (message == "header") {
 			ibmras::monitoring::plugins::j9::trace::sendTraceHeader(false);
 		} else {
-			std::size_t found = message.find(',');
-			if (found != std::string::npos) {
-				std::string command = message.substr(0, found);
-				std::string rest = message.substr(found + 1);
-				std::vector < std::string > parameters =
-						ibmras::common::util::split(rest, ',');
-				ibmras::monitoring::plugins::j9::trace::handleCommand(
-						command, parameters);			}
+			try {
+				receiverLock.acquire();
+				std::size_t found = message.find(',');
+				if (found != std::string::npos) {
+					std::string command = message.substr(0, found);
+					std::string rest = message.substr(found + 1);
+					std::vector<std::string> parameters =
+							ibmras::common::util::split(rest, ',');
+					ibmras::monitoring::plugins::j9::trace::handleCommand(
+							command, parameters);
+				}
+			} catch (...) {
+
+			}
+			receiverLock.release();
 		}
 	}
 }
