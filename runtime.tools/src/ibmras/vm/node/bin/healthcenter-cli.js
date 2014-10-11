@@ -29,6 +29,13 @@ while (typeof arg != "undefined") {
 }
 
 var path = require("path")
-var launcher_filename = path.join(path.dirname(module.filename), "..", "launcher.js")
+var launcher_dir = path.join(path.dirname(module.filename), "..")
+var launcher_filename = path.join(launcher_dir, "launcher.js")
 var child_process = require("child_process")
+if (process.env.NODE_PATH) {
+    process.env.NODE_PATH = process.cwd() + path.delimiter + process.env.NODE_PATH
+} else {
+    process.env.NODE_PATH = process.cwd()
+}
+
 var p = child_process.fork(launcher_filename, args, {"execArgv": node_args})

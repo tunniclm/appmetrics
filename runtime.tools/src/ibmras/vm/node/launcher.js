@@ -22,7 +22,10 @@ var agent_module = path.join(dir, "index.js")
 var agent = require(agent_module)
 agent.start()
 
-// Start module
-// Prepend cwd to module search path
-module.paths.unshift(process.cwd())
-require(process.argv[1])
+if (process.argv.length > 1) {
+    // Start module
+    require(process.argv[1])
+} else {
+    // Start REPL
+    require("repl").start({})
+}
