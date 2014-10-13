@@ -13,6 +13,7 @@
 #include <cstring>
 #include <cstdio>
 #include <string>
+#include <sstream>
 
 #if defined(_WINDOWS)
 #define CPUPLUGIN_DECL __declspec(dllexport)	/* required for DLLs to export the plugin functions */
@@ -31,44 +32,20 @@ namespace plugin {
 	struct CPUTime* current;
 }
 
-// Do something akin to C++11 std::to_string()
-// use VPRINT macro from Logger for these?
-std::string ToStringLLU(unsigned long long value) {
-	char buf[32]; // bounds...
-	std::sprintf(buf, "%llu", value);
-	return std::string(buf);
+static double CalculateTotalCPU(struct CPUTime* start, struct CPUTime* finish) {
+	return (double)(finish->total - start->total) / (double)(finish->time - start->time);
 }
 
-std::string ToStringD(int value) {
-	char buf[32]; // bounds...
-	std::sprintf(buf, "%d", value);
-	return std::string(buf);
+static double CalculateProcessCPU(struct CPUTime* start, struct CPUTime* finish) {
+	return (double)(finish->process - start->process) / (double)(finish->time - start->time);
 }
 
-std::string ToStringU4(unsigned value) {
-	char buf[32]; // only 4 digits required
-	std::sprintf(buf, "%04u", value);
-	return std::string(buf);
-}
-
-static unsigned CalculateTotalCPUPercentage(struct CPUTime* start, struct CPUTime* finish) {
-	// percentage * 100 (gives 2 decimal places) -- eg 44.55% would be 4455
-	return (unsigned)(100ULL * 100ULL * (finish->total - start->total) / (finish->time - start->time));
-}
-
-static unsigned CalculateProcessCPUPercentage(struct CPUTime* start, struct CPUTime* finish) {
-	// percentage * 100 (gives 2 decimal places) -- eg 44.55% would be 4455
-	return (unsigned)(100ULL * 100ULL * (finish->process - start->process) / (finish->time - start->time));
-}
-
-static void AppendCPUTime(std::string &content) {
-	unsigned total = CalculateTotalCPUPercentage(plugin::last, plugin::current);
-	unsigned process = CalculateProcessCPUPercentage(plugin::last, plugin::current);
-	content += "startCPU";
-	content += "@#" + ToStringLLU(plugin::current->time / 1000000); // time in ms
-	content += "@#0." + ToStringU4(process);
-	content += "@#0." + ToStringU4(total);
-	//content += "@#" + ToStringD(plugin::current->nprocs);
+static void AppendCPUTime(std::stringstream& contentss) {
+	contentss << "startCPU";
+	contentss << "@#" << (plugin::current->time / 1000000); // time in ms
+	contentss << "@#" << CalculateProcessCPU(plugin::last, plugin::current);
+	contentss << "@#" << CalculateTotalCPU(plugin::last, plugin::current);
+	contentss << '\n';
 }
 
 static bool IsValidData(struct CPUTime* cputime) {
@@ -87,10 +64,12 @@ monitordata* OnRequestData() {
 	plugin::current = getCPUTime();
 	
 	if (IsValidData(plugin::last) && IsValidData(plugin::current)) {
-		std::string content("#CPUSource\n");
-		AppendCPUTime(content);
-		content += "\n";
-		data->size = content.length() + 1;
+		std::stringstream contentss;
+		contentss << "#CPUSource\n";
+		AppendCPUTime(contentss);
+		
+		std::string content = contentss.str();
+		data->size = content.length();
 		data->data = strdup(content.c_str());
 	}
 	

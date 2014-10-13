@@ -24,6 +24,7 @@ Bucket::Bucket(uint32 provID, uint32 sourceID, uint32 capacity,
 	tail = NULL;
 	masterID = 1;
 	lock = new ibmras::common::port::Lock;
+	lastPublish = 0;
 	IBMRAS_DEBUG_1(fine, "Bucket created for : %s", uniqueID.c_str());
 }
 
@@ -33,6 +34,25 @@ Bucket::BucketData::~BucketData() {
 	}
 }
 
+void Bucket::publish(ibmras::monitoring::connector::Connector &con) {
+	IBMRAS_DEBUG(fine, "in Bucket::publish()");
+	if (!lock->acquire()) {
+		if (!lock->isDestroyed()) {
+			BucketData* current = head;
+			while (current) {
+				if ((current->id > lastPublish) || !lastPublish) {
+					lastPublish = current->id;
+					IBMRAS_DEBUG_2(fine, "publishing message to %s of %d bytes",
+							uniqueID.c_str(), current->entry->size);
+					con.sendMessage(uniqueID, current->entry->size,
+							current->entry->data->ptr());
+				}
+				current = current->next;
+			}
+			lock->release();
+		}
+	}
+}
 
 void Bucket::spill(uint32 entrysize) {
 	BucketData* bdata; /* used to manage the bucket data */
@@ -49,6 +69,10 @@ void Bucket::spill(uint32 entrysize) {
 			BucketData *prev = NULL;
 			while ((entrysize > (capacity - size)) && (cursor != NULL)) {
 				if (!cursor->entry->persistentData) {
+					if (cursor->id > lastPublish) {
+						IBMRAS_DEBUG_2(warning, "Bucket %s: spilling unpublished data: %d", uniqueID.c_str(), cursor->id);
+						//TODO why don't we publish here before deletion?
+					}
 					bdata = cursor;
 					size -= bdata->entry->size;
 					count--;
@@ -74,7 +98,7 @@ void Bucket::spill(uint32 entrysize) {
 			sourceID, count, size);
 }
 
-bool Bucket::add(BucketDataQueueEntry* entry, ibmras::monitoring::connector::Connector &con) {
+bool Bucket::add(BucketDataQueueEntry* entry) {
 	BucketData* bdata; /* used to manage the bucket data */
 	if ((entry->provID != provID) || (entry->sourceID != sourceID)) {
 		IBMRAS_DEBUG_4(info,
@@ -96,9 +120,6 @@ bool Bucket::add(BucketDataQueueEntry* entry, ibmras::monitoring::connector::Con
 	bdata->next = NULL;
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
-			con.sendMessage(uniqueID, entry->size,
-					entry->data->ptr());
-
 			if (tail) {
 				tail->next = bdata; /* add new entry to tail */
 				tail = bdata; /* make a new tail */
@@ -183,10 +204,12 @@ void Bucket::republish(const std::string &topicPrefix,
 			std::string messageTopic = topicPrefix + uniqueID;
 			BucketData* current = head;
 			while (current) {
+				if ((current->id <= lastPublish)) {
 					IBMRAS_DEBUG_2(fine, "publishing message to %s of %d bytes",
 							uniqueID.c_str(), current->entry->size);
 					con.sendMessage(messageTopic, current->entry->size,
 							current->entry->data->ptr());
+				}
 				current = current->next;
 			}
 			con.sendMessage(messageTopic, 0, NULL);

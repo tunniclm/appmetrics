@@ -62,6 +62,13 @@ Bucket* BucketList::findBucket(const std::string &uniqueID) {
 	return NULL; /* did not find a matching bucket */
 }
 
+void BucketList::publish(ibmras::monitoring::connector::Connector &con) {
+	for (uint32 i = 0; i < buckets.size(); i++) {
+		Bucket* b = buckets[i];
+		b->publish(con);
+	}
+}
+
 void BucketList::republish(const std::string &prefix, ibmras::monitoring::connector::Connector &con) {
 	for (uint32 i = 0; i < buckets.size(); i++) {
 		Bucket* b = buckets[i];
@@ -69,6 +76,17 @@ void BucketList::republish(const std::string &prefix, ibmras::monitoring::connec
 	}
 }
 
+bool BucketList::addData(BucketDataQueueEntry* data) {
+	Bucket* b = findBucket(data->provID, data->sourceID);
+	if (b) {
+		b->add(data); /* found a matching bucket so add the data*/
+		return true;
+	} else {
+		IBMRAS_DEBUG_2(warning,  "Attempted to add data to missing bucket [%d:%d]",
+				data->provID, data->sourceID);
+	}
+	return false;
+}
 
 std::vector<std::string> BucketList::getIDs() {
 	std::vector<std::string> ids;

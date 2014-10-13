@@ -32,8 +32,6 @@ typedef struct srcheader {
 	uint32 capacity;			/* the amount of space in bytes that should be allocated for this source */
 	const char *name;			/* null terminated C string */
 	const char *description;	/* null terminated C string */
-	char *config;
-	GET_CONFIG getConfig;
 } srcheader;
 
 typedef struct pushsource {

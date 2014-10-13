@@ -11,30 +11,6 @@
 
 
 
-struct __traceBuffer {
-	jlong size;
-	unsigned char *buffer;
-	struct __traceBuffer *next;
-};
-typedef struct __traceBuffer TRACEBUFFER;
-
-struct __traceBufferQueue {
-	TRACEBUFFER *head;
-	TRACEBUFFER *tail;
-};
-typedef struct __traceBufferQueue TRACEBUFFERQUEUE;
-
-struct __traceData {
-	TRACEBUFFERQUEUE traceBufferQueue;
-	TRACEBUFFERQUEUE freeBufferQueue;
-	int droppedBufferCount;
-	jboolean badMaxSizeWarningShown;
-	jint traceBufferSize;
-	jrawMonitorID monitor;
-};
-typedef struct __traceData TRACEDATA;
-
-
 namespace ibmras {
 namespace monitoring {
 namespace plugins {
@@ -56,14 +32,7 @@ void disableNormalTracePoint(const std::string &tp);
 bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize);
 jlong htonjl(jlong l);
 monitordata* generateData(uint32 sourceID, char *dataToSend, int size);
-TRACEBUFFER *allocateTraceBuffers(jvmtiEnv *jvmtienv, jlong maxBufferSize, jint bufferSize);
-TRACEBUFFER *allocateTraceBuffer(jvmtiEnv *jvmtienv, jlong length);
 jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,void *userData);
-void freeTraceBuffer(jvmtiEnv *jvmtienv, TRACEBUFFER *buffer);
-TRACEBUFFER *queueGet(TRACEBUFFERQUEUE *queue, int maxNumberOfItems);
-void queuePut(TRACEBUFFERQUEUE *queue, TRACEBUFFER *buffer);
-void initializeTraceUserData();
-int sendTraceBuffers(int maxSize);
 void sendTraceHeader(bool persistent);
 int registerVerboseGCSubscriber(std::string fileName);
 jvmtiError verboseGCSubscriber(jvmtiEnv *env, const char *record, jlong length, void *userData);

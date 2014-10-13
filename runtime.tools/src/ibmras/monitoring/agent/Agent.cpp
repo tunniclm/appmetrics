@@ -140,13 +140,18 @@ void callback(monitordata* data) {
 void* processPublishLoop(ibmras::common::port::ThreadData* param) {
 	IBMRAS_DEBUG(info, "Starting agent publishing loop");
 	Agent* agent = Agent::getInstance();
-
+	int count = 0;
 	while (running) {
-		ibmras::common::port::sleep(20);
-		agent->getConnectionManager()->sendMessage(HEARTBEAT_TOPIC, 0, NULL);
+		ibmras::common::port::sleep(1);
+		agent->publish();
+
+		// Send heartbeat ping every 20 seconds
+		if (++count > 20) {
+			count = 0;
+			agent->getConnectionManager()->sendMessage(HEARTBEAT_TOPIC, 0, NULL);
+		}
 
 	}
-
 	IBMRAS_DEBUG(info, "Exiting agent publishing loop");
 	agent->threadStop();
 	return NULL;
@@ -186,6 +191,9 @@ void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 	return NULL;
 }
 
+void Agent::publish() {
+	bucketList.publish(connectionManager);
+}
 
 void Agent::republish(const std::string &topicPrefix) {
 	bucketList.republish(topicPrefix, connectionManager);
@@ -456,8 +464,7 @@ bool Agent::addData(monitordata* data) {
 		Bucket* b = bucketList.findBucket(data->provID, data->sourceID);
 		if (b) {
 			BucketDataQueueEntry* entry = new BucketDataQueueEntry(data);
-			b->add(entry, connectionManager); /* found a matching bucket so add the data*/
-			return true;
+			return b->add(entry); /* found a matching bucket so add the data*/
 		} else {
 			IBMRAS_DEBUG_2(warning, "Attempted to add data to missing bucket [%d:%d]",
 					data->provID, data->sourceID);

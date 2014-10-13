@@ -20,7 +20,9 @@ public:
 	bool add(std::vector<Bucket*> buckets);		/* add multiple buckets in one go */
 	Bucket* findBucket(uint32 provID, uint32 sourceID);	/* find a bucket for a given provider */
 	Bucket* findBucket(const std::string &uniqueID);
+	void publish(ibmras::monitoring::connector::Connector &con); /* publish all bucket contents */
 	void republish(const std::string &prefix, ibmras::monitoring::connector::Connector &con);
+	bool addData(BucketDataQueueEntry* data);
 	std::vector<std::string> getIDs();
 	std::string toString();						/* debug / log string version */
 private:

@@ -17,12 +17,13 @@ class DECL Bucket {
 
 public:
 	Bucket(uint32 provID, uint32 sourceID, uint32 capacity, const std::string& uniqueID);
-	bool add(BucketDataQueueEntry* entry, ibmras::monitoring::connector::Connector &con); /* adds monitor data to the bucket */
+	bool add(BucketDataQueueEntry* entry);			/* adds monitor data to the bucket */
 	void spill(uint32 size);								/* spill bucket contents until there is the requested space */
 	std::string toString();			/* debug / log string version */
 	uint32 getProvID();
 	uint32 getSourceID();
 	std::string getUniqueID();
+	void publish(ibmras::monitoring::connector::Connector &con);				/* publish bucket contents to the connector manager */
 	uint32 getNextData(uint32 id, int32 &size,	void* &data);
 	void republish(const std::string &topicPrefix, ibmras::monitoring::connector::Connector &con);
 private:
@@ -41,6 +42,7 @@ private:
 	std::string uniqueID;  /*Name of the uniqueID plugin providing the name */
 	BucketData* head;		/* when a bucket over flows then items are removed from the head */
 	BucketData* tail;		/* when items are added to the bucket they are added to the tail */
+	uint32 lastPublish;/* the last entry published */
 	uint32 capacity;		/* maximum capacity for the bucket in bytes */
 	uint32 size;			/* current size of the bucket */
 	uint32 count;			/* number of items in the bucket */

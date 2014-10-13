@@ -491,9 +491,9 @@ void launchAgent(const std::string &options) {
 			ibmras::monitoring::plugins::j9::classhistogram::ClassHistogramProvider::getInstance(
 					tDPP));
 
-////	 //The next call invoked the setJVM function on the JMX plugin
+	//The next call invoked the setJVM function on the JMX plugin
 	ibmras::monitoring::plugins::jmx::setJVM(tDPP.theVM);
-////	// We now register the plugin with the agent
+	// We now register the plugin with the agent
 	agent->addPlugin(ibmras::monitoring::plugins::jmx::getPlugin());
 
 	ibmras::monitoring::plugins::jni::setTDPP(&tDPP);

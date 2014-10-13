@@ -115,10 +115,14 @@ bool Semaphore::wait(uint32 timeout) {
 	}
 	clock_gettime(CLOCK_REALTIME, &t);
 	t.tv_sec++;		/* configure the sleep interval */
+	IBMRAS_DEBUG(finest, "semaphore wait");
 	result = sem_timedwait(reinterpret_cast<sem_t*>(handle), &t);
 	if(!result) {
+		IBMRAS_DEBUG(finest, "semaphore posted");
 		return true;
 	}
+
+	IBMRAS_DEBUG(finest, "semaphore timeout");
 	return (errno != ETIMEDOUT);
 }
 

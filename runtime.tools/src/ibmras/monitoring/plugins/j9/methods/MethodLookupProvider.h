@@ -34,6 +34,8 @@ public:
 	static void sendMethodDictionary();
 private:
 	jvmFunctions vmFunctions;
+	unsigned char* hc_alloc(int size);
+	void hc_dealloc(unsigned char** buffer);
 
 	static monitordata* generateData(uint32 sourceID, const char *dataToSend, int size);
 };

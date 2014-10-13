@@ -370,7 +370,7 @@ void HLConnector::createFile(const std::string &fileName) {
 	fullPath.append(PATHSEPARATOR);
 	fullPath.append(fileName);
 
-	file->open(fullPath.c_str(), std::ios::out | std::ios::app);
+	file->open(fullPath.c_str(), std::ios::out | std::ios::app | std::ios::binary);
 
 	createdFiles[fullPath] = file;
 	expandedIDs[fileName] = fullPath;

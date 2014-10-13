@@ -8,7 +8,6 @@
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/monitoring/plugins/j9/methods/MethodLookupProvider.h"
-#include "ibmras/monitoring/plugins/jni/CFacade.h"
 #include "ibmras/common/util/memUtils.h"
 #include "ibmjvmti.h"
 #include "jni.h"
@@ -133,14 +132,14 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 		int stringBytesLength = 200000;
 
 		/* Allocate memory for the method identifiers */
-		ramMethods = (char**) ibmras::monitoring::plugins::jni::hc_alloc(
+		ramMethods = (char**) hc_alloc(
 				sizeof(void*) * numberOfMethods);
 		if (ramMethods == NULL) {
 			goto cleanup;
 		}
 
 		descriptorBuffer =
-				(unsigned char**) ibmras::monitoring::plugins::jni::hc_alloc(
+				(unsigned char**) hc_alloc(
 						sizeof(jvmtiExtensionRamMethodData) * numberOfMethods);
 		if (descriptorBuffer == NULL) {
 			goto cleanup;
@@ -186,8 +185,8 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 	}
 
 	cleanup: vmFunctions.theVM->DetachCurrentThread();
-	ibmras::monitoring::plugins::jni::hc_dealloc((unsigned char**) &ramMethods);
-	ibmras::monitoring::plugins::jni::hc_dealloc(
+	hc_dealloc((unsigned char**) &ramMethods);
+	hc_dealloc(
 			(unsigned char**) &descriptorBuffer);
 }
 
@@ -210,6 +209,46 @@ monitordata* MethodLookupProvider::generateData(uint32 sourceID,
 	return data;
 }
 
+/*******************************
+ * MEMORY MANAGEMENT FUNCTIONS *
+ *******************************/
+
+unsigned char* MethodLookupProvider::hc_alloc(int size)
+{
+    jvmtiError rc;
+    void* buffer = NULL;
+    rc = (vmFunctions.pti)->Allocate(size, (unsigned char**)&buffer);
+    if (rc != JVMTI_ERROR_NONE)
+    {
+    	//fprintf(stderr,"OutOfMem : hc_alloc failed to allocate %d bytes.", size);
+        return NULL ;
+    } else
+    {
+    	//fprintf(stderr,"hc_alloc: allocated %d bytes at %p", size, buffer);
+        memset(buffer, 0, size);
+        return (unsigned char*)buffer;
+    }
+
+}
+
+void MethodLookupProvider::hc_dealloc(unsigned char** buffer)
+{
+    jvmtiError rc;
+
+    if (*buffer == NULL)
+    {
+        //fprintf(stderr,"hc_dealloc buffer == NULL");
+        return;
+    }
+    rc = (vmFunctions.pti)->Deallocate( *buffer);
+    if (rc != JVMTI_ERROR_NONE)
+    {
+        //fprintf(stderr,"hc_dealloc failed to deallocate. rc=%d", rc);
+    } else
+    {
+        *buffer = NULL;
+    }
+}
 }
 }
 }

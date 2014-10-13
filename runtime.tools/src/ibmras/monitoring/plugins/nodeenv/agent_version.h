@@ -11,7 +11,7 @@ static const std::string getAgentVersionAndDate() {
 	static const std::string date = __DATE__;
 	std::stringstream ss;
 	
-	ss << AGENT_VERSION << '-' << /* year */ date.substr(7, 4);
+	ss << AGENT_VERSION << '.' << /* year */ date.substr(7, 4);
 	
 	std::string month = date.substr(0, 3);
 	for (int i = 1; i <= 12; i++) { 

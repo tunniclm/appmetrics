@@ -54,6 +54,7 @@ public:
 	ibmras::monitoring::connector::ConnectorManager* getConnectionManager();
 	bool addData(monitordata* data);
 
+	void publish();							/* publish messages to connectors */
 	void republish(const std::string &prefix); /* republish history */
 	void threadStop();						/* fired when an agent processing thread stops */
 	void setLogOutput(ibmras::common::LOCAL_LOGGER_CALLBACK func);

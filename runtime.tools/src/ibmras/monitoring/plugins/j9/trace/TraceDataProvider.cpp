@@ -2,7 +2,7 @@
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools for Java\u2122 - Health Center
- * Ã¯Â¿Â½ Copyright IBM Corp. 2008, 2014
+ * (C) Copyright IBM Corp. 2008, 2014
  * The source code for this program is not published or otherwise
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
@@ -51,15 +51,10 @@ jvmFunctions vmData;
 char *traceMetadata = NULL;
 int headerSize = 0;
 int DEFAULT_MAX_CIRCULAR_BUFFER_SIZE = 4000000;
-int initialisedTraceBuffers = 0;
-TRACEDATA traceData;
-uint buffersDroppedBeforeFirstConnection = 0;
-uint buffersDropped = 0;
-uint buffersNotDropped = 0;
-int firstConnectionMade = 0;
-int countDroppedBuffers = 1;
 bool running = false;
+
 std::map<std::string, std::string> config;
+
 FILE *vgcFile = NULL;
 void *vgcsubscriptionID = NULL;
 
@@ -157,8 +152,6 @@ pushsource* registerPushSource(void (*callback)(monitordata* data),
 	src->header.sourceID = 0;
 	src->next = NULL;
 	src->header.capacity = 1048576; /* 1MB bucket capacity */
-	src->header.config =
-			"gc_subsystem=on\nprofiling_subsystem=on\nclasses_subsystem=on\nio_subsystem=on\njit_subsystem=on";
 
 	ibmras::monitoring::plugins::j9::trace::provID = provID;
 	ibmras::monitoring::plugins::j9::trace::sendDataToAgent = callback;
@@ -398,7 +391,6 @@ int Tracestart() {
 
 	setCapabilities();
 
-	int result = 0;
 	int bufferSize = 0;
 	int rc = 0;
 	char* tempMeta;
@@ -407,8 +399,6 @@ int Tracestart() {
 	/* this is the eye catcher that tells the health center client trace parser
 	 * that this is a header record */
 	char METADATA_EYE_CATCHER[] = { 'H', 'C', 'T', 'H' };
-
-	initializeTraceUserData();
 
 	/* get the trace header data from the vm */
 	if (vmData.jvmtiGetTraceMetadata != 0) {
@@ -450,16 +440,7 @@ int Tracestart() {
 	/* start the trace subscriber */
 	startTraceSubscriber(maxCircularBufferSize, bufferSize);
 
-	/* start a loop that will publish the data coming back from the trace subscriber */
-	ibmras::common::port::ThreadData* data =
-			new ibmras::common::port::ThreadData(processLoop);
-	result = ibmras::common::port::createThread(data);
-	if (result) {
-		IBMRAS_DEBUG(debug, "processLoop thread failed to start");
-		// do something clever as it failed to start
-	} else {
-		IBMRAS_DEBUG(debug, "processLoop thread started ok");
-	}
+
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
 #endif
@@ -885,119 +866,19 @@ monitordata* generateData(uint32 sourceID, char *dataToSend, int size) {
 	return data;
 }
 
-TRACEBUFFER *
-allocateTraceBuffer(jvmtiEnv *jvmtienv, jlong length) {
-	TRACEBUFFER *buffer = NULL;
-	jvmtiError rc;
-	rc = jvmtienv->Allocate(sizeof(TRACEBUFFER), (unsigned char**) &buffer);
-	if (rc != JVMTI_ERROR_NONE) {
-		IBMRAS_DEBUG_2(debug,
-				"allocateTraceBuffer: unable to allocate %ld bytes for trace buffer wrapper (rc=%d).",
-				sizeof(TRACEBUFFER), rc);
-	} else {
-		buffer->buffer = NULL;
-		buffer->next = NULL;
-		rc = jvmtienv->Allocate(length, &(buffer->buffer));
-		if (rc == JVMTI_ERROR_NONE) {
-			buffer->size = length;
-		} else {
-			IBMRAS_DEBUG_2(debug,
-					"allocateTraceBuffer unable to allocate " JLONG_FMT_STR " bytes for trace buffer (rc=%d).",
-					length, rc);
-			if (JVMTI_ERROR_NONE
-					!= jvmtienv->Deallocate((unsigned char*) buffer)) {
-				IBMRAS_DEBUG(debug,
-						"allocateTraceBuffer unable to deallocate memory.");
-			}
-			buffer = NULL;
-		}
-	}
-	return buffer;
-}
-TRACEBUFFER *
-allocateTraceBuffers(jvmtiEnv *jvmtienv, jlong maxBufferSize, jint bufferSize) {
-	TRACEBUFFER *buffers = NULL;
-	int i, numberOfBuffers;
-	jlong wrappedBufferLength = 4 + sizeof(jlong) + bufferSize;
-
-	//IBMRAS_DEBUG(debug,  "> allocateTraceBuffers");
-	assert(wrappedBufferLength > 0);
-	numberOfBuffers = (maxBufferSize / wrappedBufferLength);
-
-	/* We need at least one buffer to correctly function */
-	if (numberOfBuffers <= 0) {
-		numberOfBuffers = 1;
-	}
-	for (i = 0; i < numberOfBuffers; i++) {
-		TRACEBUFFER *newBuffer = allocateTraceBuffer(jvmtienv,
-				wrappedBufferLength);
-		if (newBuffer == NULL) {
-			continue;
-		}
-		/* Chain allocated buffers to the new one */
-		if (buffers != NULL) {
-			newBuffer->next = buffers;
-		}
-		buffers = newBuffer;
-	}
-	return buffers;
-}
-
 bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 	IBMRAS_DEBUG(debug, "> startTraceSubscriber");
 	if (vmData.jvmtiGetTraceMetadata != 0
 			&& vmData.jvmtiRegisterTraceSubscriber != 0) {
 		void *subscriptionID;
-		TRACEBUFFER* traceBufferChain;
 
-		if (initialisedTraceBuffers == 0) {
-			traceBufferChain = allocateTraceBuffers(vmData.pti,
-					maxCircularBufferSize, traceBufferSize);
-			initialisedTraceBuffers = 1;
-			IBMRAS_DEBUG(debug,
-					"Have initialised TBs and set flag to 1 (won't create TBs again).");
-		} else {
-			IBMRAS_DEBUG(debug,
-					"Have NOT initialised TBs, flag was already set to 1.");
-			return true;
-		}
-
-		/* We need at least one buffer to use the subscriber */
-		if (traceBufferChain == NULL) {
-			IBMRAS_DEBUG(debug,
-					"startTraceSubscriber unable to allocate buffer memory.");
-			return false;
-		} else {
-			jvmtiError rc;
-
-			traceData.traceBufferSize = traceBufferSize;
-
-			/* Make the buffers available to the subscriber */
-			IBMRAS_DEBUG(debug, "startTraceSubscriber before >RawMonitorEnter ");
-			rc = vmData.pti->RawMonitorEnter(traceData.monitor);
-
-			if (JVMTI_ERROR_NONE == rc) {
-				queuePut(&(traceData.freeBufferQueue), traceBufferChain);
-
-				rc = vmData.pti->RawMonitorExit(traceData.monitor);
-				if (rc != JVMTI_ERROR_NONE) {
-					IBMRAS_DEBUG(debug,
-							"startTraceSubscriber unable to exit raw monitor 1.");
-					return false;
-				}
-			} else {
-				IBMRAS_DEBUG(debug,
-						"startTraceSubscriber unable to enter raw monitor 2.");
-				return false;
-			}
-		}
 		int rc;
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
 #endif
 		rc = vmData.jvmtiRegisterTraceSubscriber(vmData.pti,
 				"Health Center trace subscriber", traceSubscriber, NULL,
-				&traceData, &subscriptionID);
+				NULL, &subscriptionID);
 #if defined(_ZOS)
 #pragma convert(pop)
 #endif
@@ -1018,195 +899,48 @@ bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 	}
 }
 
+
 jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 		void *userData) {
-	TRACEDATA *data = (TRACEDATA *) userData;
-	TRACEBUFFER *buffer = NULL;
 
-	jvmtiError rc;
-	rc = pti->RawMonitorEnter(data->monitor);
-	if (JVMTI_ERROR_NONE == rc) {
-		/* Get a free buffer to copy the record into */
-		buffer = queueGet(&(data->freeBufferQueue), 1);
-		if (buffer == NULL) {
-			/* Drop the oldest buffer */
-			buffer = queueGet(&(data->traceBufferQueue), 1);
-			data->droppedBufferCount++;
-			IBMRAS_DEBUG(fine,
-					"traceSubscriber dropping buffer.");
-			if (countDroppedBuffers != 0) {
-				buffersDropped++;
-			}
-		} else {
-			if (countDroppedBuffers != 0) {
-				buffersNotDropped++;
-			}
 
-		}
-
-		rc = pti->RawMonitorExit(data->monitor);
-		if (rc != JVMTI_ERROR_NONE) {
-			IBMRAS_DEBUG(debug,
-					"traceSubscriber unable to exit raw monitor to obtain free buffer.");
-		}
-	} else {
-		IBMRAS_DEBUG(debug,
-				"traceSubscriber unable to enter raw monitor to obtain free buffer.");
+	IBMRAS_DEBUG(debug, "entering trace subscriber callback");
+	if (record == NULL || length == 0) {
+		IBMRAS_DEBUG(debug, "exiting trace subscriber callback: no buffer");
+		return JVMTI_ERROR_NONE;
 	}
 
-	/* Copy and queue the trace buffer */
-	if (buffer != NULL) {
-		jlong payLoadLength = length;
-		assert(buffer->size == (length + 4 + sizeof(jlong)));
+	jlong payLoadLength = length;
 
-		/* Write eye catcher */
+	unsigned char* buffer = new unsigned char[length + 4 + sizeof(jlong)];
+	/* Write eye catcher */
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
 #endif
-		strcpy((char*) buffer->buffer, "HCTB");
+	strcpy((char*) buffer, "HCTB");
 #if defined(_ZOS)
 #pragma convert(pop)
 #endif
-		/* Convert payload length to network byte order */
-		payLoadLength = htonjl(payLoadLength);
+	/* Convert payload length to network byte order */
+	payLoadLength = htonjl(payLoadLength);
 
-		/* Write length of trace buffer */
-		memcpy(buffer->buffer + 4, (char*) &payLoadLength, sizeof(jlong));
+	/* Write length of trace buffer */
+	memcpy(buffer + 4, (char*) &payLoadLength, sizeof(jlong));
 
-		/* Copy the trace buffer */
-		memcpy(buffer->buffer + 4 + sizeof(jlong), record, length);
+	/* Copy the trace buffer */
+	memcpy(buffer + 4 + sizeof(jlong), record, length);
 
-		/* Queue the copied trace buffer */
-		rc = pti->RawMonitorEnter(data->monitor);
-		if (JVMTI_ERROR_NONE == rc) {
-			queuePut(&(data->traceBufferQueue), buffer);
+	monitordata* mdata = generateData(0, (char*) buffer,
+			length+4+sizeof(jlong));
+	sendDataToAgent(mdata);
+	delete[] buffer;
+	delete mdata;
 
-			rc = pti->RawMonitorExit(data->monitor);
-			if (rc != JVMTI_ERROR_NONE) {
-				IBMRAS_DEBUG(debug,
-						"traceSubscriber unable to exit raw monitor to queue copied buffer.");
-			}
-		} else {
-			IBMRAS_DEBUG(debug,
-					"traceSubscriber unable to enter raw monitor to queue copied buffer.");
-		}
-	} else {
-		IBMRAS_DEBUG(debug,
-				"traceSubscriber unable to obtain memory to copy trace buffer.");
-	}
+	IBMRAS_DEBUG(debug, "exiting trace subscriber callback");
+
 	return JVMTI_ERROR_NONE;
 }
-void queuePut(TRACEBUFFERQUEUE *queue, TRACEBUFFER *buffer) {
-	assert(queue != NULL);
-	if (buffer == NULL) {
-		return;
-	}
-	/* Append the buffer to the tail of the queue */
-	if (queue->tail == NULL) {
-		queue->head = buffer;
-	} else {
-		queue->tail->next = buffer;
-	}
-	queue->tail = buffer;
-	while (queue->tail->next != NULL) {
-		queue->tail = queue->tail->next;
-	}
-}
 
-/******************************/
-TRACEBUFFER *
-queueGet(TRACEBUFFERQUEUE *queue, int maxNumberOfItems) {
-	TRACEBUFFER *firstItemToReturn = NULL;
-	TRACEBUFFER *lastItemToReturn = NULL;
-	int items = 0;
-
-	assert(queue != NULL);
-
-	if (maxNumberOfItems <= 0 || queue->head == NULL) {
-		return NULL;
-	}
-	firstItemToReturn = queue->head;
-	lastItemToReturn = firstItemToReturn;
-	items = 1;
-	while ((items < maxNumberOfItems) && (lastItemToReturn->next != NULL)) {
-		lastItemToReturn = lastItemToReturn->next;
-		items++;
-	}
-	queue->head = lastItemToReturn->next;
-	if (queue->tail == lastItemToReturn) {
-		queue->tail = NULL;
-	}
-	lastItemToReturn->next = NULL;
-	return firstItemToReturn;
-}
-
-/******************************/
-void freeTraceBuffer(jvmtiEnv *jvmtienv, TRACEBUFFER *buffer) {
-	IBMRAS_DEBUG(debug, "> freeTraceBuffer");
-	if (buffer != NULL) {
-		jvmtiError rc;
-		rc = jvmtienv->Deallocate(buffer->buffer);
-		if (rc != JVMTI_ERROR_NONE) {
-			IBMRAS_DEBUG(debug,
-					"freeTraceBuffer unable to deallocate memory for trace buffer.");
-		} else {
-			buffer->buffer = NULL;
-			buffer->size = 0;
-		}
-		rc = jvmtienv->Deallocate((unsigned char *) buffer);
-		if (rc != JVMTI_ERROR_NONE) {
-			IBMRAS_DEBUG(debug, "freeTraceBuffer error deallocating memory.");
-		}
-	} IBMRAS_DEBUG(debug, "< freeTraceBuffer");
-}
-
-void* processLoop(ibmras::common::port::ThreadData* param) {
-	running = true;
-	int maxSendBytes = 100000;
-	IBMRAS_DEBUG(info, "Starting tracesubscriber process loop");
-	JNIEnv * env;
-
-	vmData.theVM->AttachCurrentThread((void **) &env, NULL);
-	IBMRAS_DEBUG(info, "tracesubscriber process loop 1");
-	while (running) {
-		// acquire lock, if !running break
-		IBMRAS_DEBUG(info, "tracesubscriber process loop 2");
-		ibmras::common::port::sleep(2);
-		if (!running) {
-			break;
-		} IBMRAS_DEBUG(info, "tracesubscriber process loop 3");
-		sendTraceBuffers(maxSendBytes);
-		// release lock so that stop() can set it needed
-	} IBMRAS_DEBUG(info, "tracesubscriber process loop 4");
-	vmData.theVM->DetachCurrentThread();
-	IBMRAS_DEBUG(info, "Exiting tracesubscriber process loop");
-	return NULL;
-}
-
-void initializeTraceUserData() {
-	IBMRAS_DEBUG(debug, "initializeTraceUserData enter");
-
-	if (vmData.pti == NULL) {
-		IBMRAS_DEBUG(debug, "vmData.pti == NULL");
-	}
-
-	if (JVMTI_ERROR_NONE
-			== vmData.pti->CreateRawMonitor(
-					"Health Center trace buffer queue monitor",
-					&(traceData.monitor))) {
-		IBMRAS_DEBUG(debug, "initializeTraceUserData 1");
-		traceData.droppedBufferCount = 0;
-		traceData.badMaxSizeWarningShown = JNI_FALSE;
-		traceData.traceBufferSize = 0;
-		traceData.traceBufferQueue.head = NULL;
-		traceData.traceBufferQueue.tail = NULL;
-		traceData.freeBufferQueue.head = NULL;
-		traceData.freeBufferQueue.tail = NULL;
-	} else {
-		IBMRAS_DEBUG(debug, "initializeTraceUserData unable to create raw monitor.");
-	} IBMRAS_DEBUG(debug, "initializeTraceUserData exit");
-
-}
 
 monitordata* generateTraceHeader() {
 	return generateData(0, traceMetadata, headerSize);
@@ -1234,126 +968,6 @@ void sendTraceHeader(bool persistent) {
 	delete mdata;
 }
 
-int sendTraceBuffers(int maxSize) {
-	IBMRAS_DEBUG(debug, "> sendTraceBuffers");
-	jvmtiError rc;
-	int droppedBufferCount = 0;
-	TRACEBUFFER *buffersToSend = NULL;
-	TRACEBUFFER *traceBuffer = NULL;
-#if defined(_ZOS)
-#pragma convert("ISO8859-1")
-#endif
-	const char* droppedMsgEyeCatcher = "HCDB";
-#if defined(_ZOS)
-#pragma convert(pop)
-#endif
-	long droppedBuffersMsgSize = 0;
-	int bytesToSendSize = 0;
-
-	/* if we're counting dropped buffers and we haven't already sent back any trace,
-	 * record the number of buffers dropped.
-	 */
-	if (countDroppedBuffers != 0 && firstConnectionMade == 0) {
-		buffersDroppedBeforeFirstConnection = buffersDropped;
-		firstConnectionMade = 1;
-	}
-
-	rc = vmData.pti->RawMonitorEnter(traceData.monitor);
-	if (JVMTI_ERROR_NONE == rc) {
-		// Request ALL buffers
-		int numberOfBuffersToSend = INT_MAX; //(maxSize / traceData.traceBufferSize) + 1;
-		droppedBufferCount = traceData.droppedBufferCount;
-		buffersToSend = queueGet(&(traceData.traceBufferQueue),
-				numberOfBuffersToSend);
-		traceData.droppedBufferCount = 0;
-
-		rc = vmData.pti->RawMonitorExit(traceData.monitor);
-		if (rc != JVMTI_ERROR_NONE) {
-			IBMRAS_DEBUG_1(debug,
-					"sendTraceBuffers unable to exit raw monitor to get buffers rc code is %d.",
-					rc);
-		}
-	} else {
-		IBMRAS_DEBUG_1(debug,
-				"sendTraceBuffers unable to enter raw monitor to get buffers rc code is %d.",
-				rc);
-	}
-
-	/* Total up the number of bytes to send back */
-	if (droppedBufferCount > 0) {
-		droppedBuffersMsgSize = strlen(droppedMsgEyeCatcher) + sizeof(long)
-				+ sizeof(int);
-		bytesToSendSize += droppedBuffersMsgSize;
-	}
-	traceBuffer = buffersToSend;
-	while (traceBuffer != NULL) {
-		bytesToSendSize += traceBuffer->size;
-		traceBuffer = traceBuffer->next;
-	}
-
-	int offset = 0;
-
-	/* Add a dropped buffer message if required */
-	if (droppedBufferCount > 0) {
-#if defined(_ZOS)
-#pragma convert("ISO8859-1")
-#endif
-		const char* droppedMsgEyeCatcher = "HCDB";
-#if defined(_ZOS)
-#pragma convert(pop)
-#endif
-		char buffer[16];
-		jlong length = sizeof(int);
-		jint count = htonl(droppedBufferCount);
-
-		/* Write eye catcher */
-		strcpy(buffer, droppedMsgEyeCatcher);
-		offset += strlen(droppedMsgEyeCatcher);
-
-		/* Convert length to network byte order */
-		length = htonjl(length);
-
-		/* Write length of dropped buffer message body */
-		memcpy(buffer + offset, (char*) &length, sizeof(jlong));
-		offset += sizeof(jlong);
-
-		/* Write out number of dropped buffers */
-		memcpy(buffer + offset, (char*) &count, sizeof(int));
-
-		monitordata *mdata = generateData(0, (char*) buffer, 16);
-		sendDataToAgent(mdata);
-
-		delete mdata;
-	}
-
-	/* Copy across items */
-	traceBuffer = buffersToSend;
-	while (traceBuffer != NULL) {
-		IBMRAS_DEBUG(debug, "sending tracebuffer");
-		sendDataToAgent(
-				generateData(0, (char*) traceBuffer->buffer,
-						traceBuffer->size));
-		traceBuffer = traceBuffer->next;
-	}
-
-	/* Return buffers to the free buffer queue for reuse */
-	rc = vmData.pti->RawMonitorEnter(traceData.monitor);
-	if (JVMTI_ERROR_NONE == rc) {
-		queuePut(&(traceData.freeBufferQueue), buffersToSend);
-
-		rc = vmData.pti->RawMonitorExit(traceData.monitor);
-		if (rc != JVMTI_ERROR_NONE) {
-			IBMRAS_DEBUG_1(debug,
-					"sendTraceBuffers unable to exit raw monitor to queue buffers rc code is %d.",
-					rc);
-		}
-	} else {
-		IBMRAS_DEBUG_1(debug,
-				"sendTraceBuffers unable to enter raw monitor to queue buffers rc code is %d.",
-				rc);
-	} IBMRAS_DEBUG(debug, "< sendTraceBuffers");
-	return 0;
-}
 
 jvmtiError verboseGCSubscriber(jvmtiEnv *env, const char *record, jlong length,
 		void *userData) {

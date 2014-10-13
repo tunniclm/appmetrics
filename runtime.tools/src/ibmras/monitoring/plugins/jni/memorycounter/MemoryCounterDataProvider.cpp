@@ -125,13 +125,16 @@ monitordata* MCPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 		data->sourceID = MC;
 
 		data->data = getMemoryCounters(env);
-		data->size = strlen(data->data);
+		if (data->data) {
+			data->size = strlen(data->data);
+		}
 	}
 	return data;
 
 }
 
 char* getMemoryCounters(JNIEnv *env) {
+
 	jint total_categories;
 	jint written_count = 0;
 	jvmtiMemoryCategory* categories_buffer = NULL;
@@ -142,6 +145,15 @@ char* getMemoryCounters(JNIEnv *env) {
 	char **memcounterarray = NULL;
 	char* category_name = NULL;
 	jvmFunctions* tdpp = getTDPP();
+	if (!enabled) {
+		return NULL;
+	}
+
+	if (tdpp->jvmtiGetMemoryCategories == NULL) {
+		enabled = false;
+		return NULL;
+	}
+
 
 	const char* memCounterFormatString =
 			"memcounterinfo, %s, "JLONG_FMT_STR", "JLONG_FMT_STR", "JLONG_FMT_STR", "JLONG_FMT_STR", %ld, %ld, %ld\n";
