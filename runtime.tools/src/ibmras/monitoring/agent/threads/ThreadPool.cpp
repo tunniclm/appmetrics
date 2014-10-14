@@ -10,7 +10,6 @@
  */
 
 #include "ibmras/monitoring/agent/threads/ThreadPool.h"
-#include "ibmras/monitoring/agent/MonitorDataQueue.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
 

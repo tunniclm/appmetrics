@@ -181,7 +181,7 @@ void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 
 	pool->startAll();
 	while (running) {
-		ibmras::common::port::sleep(2); /* polling interval for thread */
+		ibmras::common::port::sleep(1); /* polling interval for thread */
 		pool->process(); /* process the pull sources */
 	}
 	pool->stopAll();

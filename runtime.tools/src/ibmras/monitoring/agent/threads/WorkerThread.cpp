@@ -6,7 +6,6 @@
  */
 
 #include "ibmras/monitoring/agent/threads/WorkerThread.h"
-#include "ibmras/monitoring/agent/MonitorDataQueue.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
 

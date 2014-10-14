@@ -12,6 +12,7 @@ namespace memory {
 
 class MEMPullSource : public PullSource {
 public:
+	MEMPullSource();
 	pullsource* getDescriptor();
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env);

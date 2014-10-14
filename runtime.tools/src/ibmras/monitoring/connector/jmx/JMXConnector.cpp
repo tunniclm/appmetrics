@@ -263,6 +263,7 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 	ibmras::monitoring::agent::Bucket* bucket = buckets->findBucket(bucketName);
 
 	if (bucket == NULL) {
+		IBMRAS_DEBUG_1(debug, "getData for non-existent bucket %s", bucketName);
 		return NULL;
 	}
 	jni_env->ReleaseStringUTFChars(name, bucketName);
@@ -273,9 +274,17 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 	jint * retID = jni_env->GetIntArrayElements(requestedId, NULL);
 	uint32 id = retID[0];
 
-	id = bucket->getNextData(id, size, (void*&) data);
+	IBMRAS_DEBUG_2(debug, "Getting data for %s, id %d", bucket->getUniqueID().c_str(), id);
+	uint32 droppedCount = 0;
+	id = bucket->getNextData(id, size, (void*&) data, droppedCount);
 	if (size == 0) {
+		IBMRAS_DEBUG_1(debug, "No data returned for %s", bucket->getUniqueID().c_str());
 		return NULL;
+	}
+	IBMRAS_DEBUG_2(debug, "%d bytes of data returned for %s", size, bucket->getUniqueID().c_str());
+
+	if (droppedCount > 0) {
+		IBMRAS_DEBUG_2(warning, "Missed %d data buffers for %s", droppedCount, bucket->getUniqueID().c_str());
 	}
 
 	retID[0] = id;

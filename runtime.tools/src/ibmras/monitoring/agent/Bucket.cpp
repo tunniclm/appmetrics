@@ -137,8 +137,9 @@ bool Bucket::add(BucketDataQueueEntry* entry) {
 	return true; /* data added to bucket */
 }
 
-uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data) {
+uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data, uint32 &droppedCount) {
 	uint32 returnId = id;
+	droppedCount = 0;
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
 			uint32 requestedSize = dataSize;
@@ -147,6 +148,7 @@ uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data) {
 			BucketData* current = head;
 			while (current) {
 				if (current->id > id) {
+					droppedCount = current->id - (id + 1);
 
 					// Calculate size to return
 					BucketData* dataToSend = current;
@@ -160,6 +162,9 @@ uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data) {
 							if (requestedSize > 0
 									&& bufferSize > requestedSize) {
 								break;
+							}
+							if (dataToSend->next) {
+								droppedCount += (dataToSend->next->id - (dataToSend->id + 1));
 							}
 							dataToSend = dataToSend->next;
 						}

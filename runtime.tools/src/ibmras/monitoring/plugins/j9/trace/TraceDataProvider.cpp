@@ -23,6 +23,10 @@
 #include <netinet/in.h>
 #endif
 
+#if defined (_PPC)
+#include <unistd.h>
+#endif
+
 #include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -445,6 +449,13 @@ int Tracestart() {
 #pragma convert("ISO8859-1")
 #endif
 	/* turn off all trace to start with */
+	/* on ppc, it seems we try this before we the trace engine is up so
+	 * adding a sleep 3 seconds pause. This is nasty and we need a better way
+	 *
+	 */
+#if defined (_PPC)
+	sleep(3);
+#endif
 	vmData.setTraceOption(vmData.pti, "none=all,maximal=mt");
 #if defined(_ZOS)
 #pragma convert(pop)
@@ -1092,8 +1103,7 @@ std::string getWriteableDirectory() {
 	std::string userDir = agent->getAgentProperty("output.directory");
 
 	jstring dirJava = env->NewStringUTF(userDir.c_str());
-
-	dir = getString(env, "runtime/tools/java/utils/FileUtils",
+	dir = getString(env, "com/ibm/java/diagnostics/healthcenter/agent/dataproviders/Util",
 			"findWriteableDirectory", "(Ljava/lang/String;)Ljava/lang/String;",
 			dirJava);
 

@@ -301,7 +301,7 @@ int HLConnector::start() {
 
 	IBMRAS_DEBUG(debug, "Discovering HeadlessZipUtils class");
 	jclass localzipJNIclazz = env->FindClass(
-			"runtime/tools/java/connectors/headless/HeadlessZipUtils");
+			"com/ibm/java/diagnostics/healthcenter/agent/utils/HeadlessZipUtils");
 	zipJNIclazz = reinterpret_cast<jclass>(env->NewGlobalRef(localzipJNIclazz));
 	env->DeleteLocalRef(localzipJNIclazz);
 	if (env->ExceptionOccurred()) {

@@ -170,6 +170,7 @@ const std::string TOTAL_PHYSICAL_MEMORY = "totalphysicalmemory"; //$NON-NLS-1$
 
 MEMPullSource* src = NULL;
 bool enabled = true;
+bool available = true;
 
 PullSource* getMEMPullSource() {
 	if (!src) {
@@ -178,13 +179,31 @@ PullSource* getMEMPullSource() {
 	return src;
 }
 
+
+MEMPullSource::MEMPullSource() {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string osName = agent->getProperty("os.name");
+
+	// Avoid crash on System i V5R4
+	if (ibmras::common::util::equalsIgnoreCase(osName, "i5/OS") || ibmras::common::util::equalsIgnoreCase(osName, "OS/400")) {
+	/*
+	 * For now no version of IBM i supports the call we make to get native memory
+	 * information. If this changes in the future we'll need to add a further check for the
+	 * specific os version here
+	 */
+		available = false;
+	}
+}
+
 monitordata* callback() {
 	return src->PullSource::generateData();
 }
 
 bool MEMPullSource::isEnabled() {
-	return enabled;
+	return enabled && available;
 }
+
 
 void MEMPullSource::publishConfig() {
 	ibmras::monitoring::agent::Agent* agent =
@@ -243,7 +262,7 @@ monitordata* MEMPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 		data->sourceID = MEM;
 
 		std::string cp = getString(env,
-				"runtime/tools/java/dataproviders/memory/MemoryDataProviderJNI",
+				"com/ibm/java/diagnostics/healthcenter/agent/dataproviders/memory/MemoryDataProvider",
 				"getJMXData", "()Ljava/lang/String;");
 		std::stringstream ss;
 

@@ -86,7 +86,7 @@ monitordata* TDPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 
 		std::string cp =
 				getString(env,
-						"runtime/tools/java/dataproviders/threads/ThreadDataProviderJNI",
+						"com/ibm/java/diagnostics/healthcenter/agent/dataproviders/threads/ThreadDataProvider",
 						"getJMXData", "()Ljava/lang/String;");
 		int len = cp.length();
 		char* sval = reinterpret_cast<char*>(hc_alloc(len + 1));
