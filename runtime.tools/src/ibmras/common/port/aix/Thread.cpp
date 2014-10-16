@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <sched.h>
 #include <unistd.h>
+#include <threads.h>
 
 namespace ibmras{
 namespace common{
@@ -42,7 +43,10 @@ void exitThread(void *val) {
 }
 
 void sleep(uint32 seconds) {
-	::sleep(seconds);
+	struct timespec t, tleft;
+	t.tv_sec = seconds;		/* configure the sleep interval */
+	t.tv_nsec = 0;
+	thrd_sleep(&t, &tleft);
 }
 
 

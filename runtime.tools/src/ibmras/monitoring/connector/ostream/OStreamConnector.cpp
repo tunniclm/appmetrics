@@ -5,7 +5,6 @@
  *      Author: robbins
  */
 #include "ibmras/monitoring/connector/ostream/OStreamConnector.h"
-#include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
 
 #if defined(_WINDOWS)

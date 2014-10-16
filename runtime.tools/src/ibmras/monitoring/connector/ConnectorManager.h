@@ -47,7 +47,7 @@ private:
 	class ReceivedMessage {
 	public:
 		ReceivedMessage(const std::string &id, uint32 size, void *data);
-		virtual ~ReceivedMessage();
+		virtual ~ReceivedMessage() {}
 
 		const std::string& getId() const {
 			return id;

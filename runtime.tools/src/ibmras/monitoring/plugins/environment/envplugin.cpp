@@ -6,7 +6,6 @@
  */
 
 #include "ibmras/monitoring/Monitoring.h"
-#include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/Logger.h"
 #include <iostream>
 #include <cstring>
@@ -81,12 +80,16 @@ void AppendEnvVars(std::stringstream &ss) {
 	}
 }
 
+static std::string GetBuildDate() {
+	return __DATE__ " " __TIME__;
+}
+
 void AppendSystemInfo(std::stringstream &ss) {
 	ss << "os.arch="     << plugin::arch             << '\n'; // eg "amd64"
 	ss << "os.name="     << plugin::osName           << '\n'; // eg "Windows 7"
 	ss << "os.version="  << plugin::osVersion        << '\n'; // eg "6.1 build 7601 Service Pack 1"
 	ss << "pid="         << plugin::pid              << '\n'; // eg "12345"
-	ss << "native.library.date=" << ibmras::monitoring::agent::Agent::getBuildDate() << '\n'; // eg "Oct 10 2014 11:44:56"
+	ss << "native.library.date=" << GetBuildDate()   << '\n'; // eg "Oct 10 2014 11:44:56"
 	ss << "number.of.processors=" << plugin::nprocs  << '\n'; // eg 8
 	ss << "command.line=" << plugin::commandLine     << '\n';
 }

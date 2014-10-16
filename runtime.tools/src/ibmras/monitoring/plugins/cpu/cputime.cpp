@@ -150,7 +150,7 @@ static bool read_process_cpu_time(unsigned long long* proctime) {
 	FILETIME kernel;
 	FILETIME user;
 	HANDLE process = GetCurrentProcess();
-	bool rc = GetProcessTimes(process, &create, &exit, &kernel, &user);
+	BOOL rc = GetProcessTimes(process, &create, &exit, &kernel, &user);
 	
 	if (!rc) {
 		IBMRAS_DEBUG(warning, "Failed to get process cpu time");
@@ -235,7 +235,6 @@ static bool read_total_cpu_time(unsigned long long* unixtimestamp, unsigned long
 struct CPUTime* getCPUTime() {
 	struct CPUTime* cputime = new CPUTime;
 	SYSTEM_INFO sysinfo;
-	unsigned long long proctime, totaltime, timestamp;
 	
 	GetSystemInfo(&sysinfo);
 	cputime->nprocs = sysinfo.dwNumberOfProcessors;

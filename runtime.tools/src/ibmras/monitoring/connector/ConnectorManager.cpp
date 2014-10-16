@@ -153,9 +153,6 @@ ConnectorManager::ReceivedMessage::ReceivedMessage(const std::string& id,
 	}
 }
 
-ConnectorManager::ReceivedMessage::~ReceivedMessage() {
-}
-
 }
 }
 } /* namespace monitoring */
