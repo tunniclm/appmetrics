@@ -306,6 +306,15 @@ std::string Agent::getConfig(const std::string& name) {
 	return configConn.getConfig(name);
 }
 
+bool Agent::readOnly() {
+	std::string readOnlyMode = getAgentProperty("readonly");
+	if (!readOnlyMode.compare("on")) {
+		return true;
+	}
+	return false;
+}
+
+
 void Agent::start() {
 	int result = 0;
 
@@ -393,6 +402,7 @@ void Agent::startReceivers() {
 }
 
 void Agent::startConnectors() {
+	std::string connectorProperties = properties.toString();
 	for (std::vector<ibmras::monitoring::Plugin*>::iterator i =
 			plugins.begin(); i != plugins.end(); ++i) {
 		IBMRAS_DEBUG_2(info, "Agent::startConnectors %s type is %d", (*i)->name.c_str(),
@@ -402,7 +412,7 @@ void Agent::startConnectors() {
 			if ((*i)->confactory) {
 				IBMRAS_DEBUG_1(info, "Invoking factory method for %s",
 						(*i)->name.c_str());
-				void* instance = (*i)->confactory("");
+				void* instance = (*i)->confactory(connectorProperties.c_str());
 				ibmras::monitoring::connector::Connector* con =
 						reinterpret_cast<ibmras::monitoring::connector::Connector*>(instance);
 				if (con) {

@@ -10,13 +10,16 @@
 
 #include "ibmras/monitoring/connector/mqtt/MQTTConnector.h"
 #include "ibmras/common/logging.h"
-#include "string.h"
+#include <string.h>
+#include <sstream>
 #include "stdlib.h"
 #include "time.h"
-#include "ibmras/monitoring/agent/Agent.h"
-#include "ibmras/common/PropertiesFile.h"
+#include "ibmras/common/Properties.h"
 #include "ibmras/common/util/sysUtils.h"
 #include "ibmras/common/util/strUtils.h"
+#include "ibmras/common/common.h"
+#include "ibmras/common/port/Process.h"
+
 
 #define AGENT_TOPIC_PREFIX "ibm/healthcenter"
 #define CLIENT_IDENTIFY_TOPIC AGENT_TOPIC_PREFIX  "/identify"
@@ -35,7 +38,7 @@ namespace monitoring {
 namespace connector {
 namespace mqttcon {
 
-IBMRAS_DEFINE_LOGGER("MQTTCon")
+IBMRAS_DEFINE_LOGGER("mqtt")
 ;
 
 MQTTConnector::MQTTConnector(const std::string &host, const std::string &port,
@@ -265,13 +268,8 @@ ibmras::monitoring::connector::Receiver* MQTTConnector::returnReceiver() {
 
 int MQTTConnector::start() {
 	IBMRAS_DEBUG(debug, "start");
-	ibmras::monitoring::agent::Agent* agent =
-			ibmras::monitoring::agent::Agent::getInstance();
-	std::string enabledProp = agent->getAgentProperty("mqtt");
-	if (ibmras::common::util::equalsIgnoreCase(enabledProp, "on")) {
-		enabled = true;
-		return connect();
-	}
+	enabled = true;
+	return connect();
 }
 
 int MQTTConnector::stop() {
@@ -333,22 +331,31 @@ MQTT_DECL void* ibmras_monitoring_getConnector(const char* properties) {
 		mqttInitialized = true;
 	}
 
-	ibmras::monitoring::agent::Agent* agent =
-			ibmras::monitoring::agent::Agent::getInstance();
+	ibmras::common::Properties props;
+	props.add(properties);
 
-	std::string brokerHost = agent->getAgentProperty("mqtt.broker.host");
+	std::string enabledProp = props.get("com.ibm.diagnostics.healthcenter.mqtt");
+	if (!ibmras::common::util::equalsIgnoreCase(enabledProp, "on")) {
+		return NULL;
+	}
+
+	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.mqtt");
+	ibmras::common::LogManager::getInstance()->setLevel("mqtt", loggingProp);
+
+
+	std::string brokerHost = props.get("com.ibm.diagnostics.healthcenter.mqtt.broker.host");
 	if (!brokerHost.compare("")) {
 		brokerHost = DEFAULT_HOST;
 	}
 
-	std::string brokerPort = agent->getAgentProperty("mqtt.broker.port");
+	std::string brokerPort = props.get("com.ibm.diagnostics.healthcenter.mqtt.broker.port");
 	if (!brokerPort.compare("")) {
 		brokerPort = DEFAULT_PORT;
 	}
-	std::string brokerUser = agent->getAgentProperty("mqtt.broker.user");
-	std::string brokerPass = agent->getAgentProperty("mqtt.broker.pass");
-	std::string topcNamespace = agent->getAgentProperty("mqtt.topic.namespace");
-	std::string applicationId = agent->getAgentProperty("mqtt.application.id");
+	std::string brokerUser = props.get("com.ibm.diagnostics.healthcenter.mqtt.broker.user");
+	std::string brokerPass = props.get("com.ibm.diagnostics.healthcenter.mqtt.broker.pass");
+	std::string topcNamespace = props.get("com.ibm.diagnostics.healthcenter.mqtt.topic.namespace");
+	std::string applicationId = props.get("com.ibm.diagnostics.healthcenter.mqtt.application.id");
 
 	return new ibmras::monitoring::connector::mqttcon::MQTTConnector(brokerHost,
 			brokerPort, brokerUser, brokerPass, topcNamespace, applicationId);

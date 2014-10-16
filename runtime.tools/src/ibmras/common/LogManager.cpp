@@ -94,6 +94,24 @@ Logger* LogManager::getLogger(const std::string &name) {
 	return logger;
 }
 
+void LogManager::setLevel(const std::string& name, const std::string& value) {
+	logging::Level lev = logging::none;
+	if (value.compare("warning") == 0) {
+		lev = ibmras::common::logging::warning;
+	} else if (value.compare("info") == 0) {
+		lev = ibmras::common::logging::info;
+	} else if (value.compare("fine") == 0) {
+		lev = ibmras::common::logging::fine;
+	} else if (value.compare("finest") == 0) {
+		lev = ibmras::common::logging::finest;
+	} else if (value.compare("debug") == 0) {
+		lev = ibmras::common::logging::debug;
+	} else {
+		lev = ibmras::common::logging::none;
+	}
+	setLevel(name, lev);
+}
+
 Logger* LogManager::findLogger(const std::string &name) {
 
 	for (std::vector<Logger*>::iterator i = loggers.begin(); i != loggers.end();

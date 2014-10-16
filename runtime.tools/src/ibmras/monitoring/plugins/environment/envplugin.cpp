@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <string>
 #include <sstream>
+#include <fstream>
 // #include <thread>
 #if defined(_LINUX) || defined(_AIX)
 #include <sys/utsname.h> // uname()
@@ -21,6 +22,8 @@
 #endif
 #if defined(_AIX)
 #include <sys/systemcfg.h>
+#include <procinfo.h>
+#include <sys/types.h>
 #endif
 #ifdef _WINDOWS
 #include "windows.h"
@@ -51,6 +54,13 @@ namespace plugin {
 	std::string osVersion;
 	std::string nprocs;
 	std::string pid;
+	std::string commandLine;
+}
+
+static char* NewCString(const std::string& s) {
+	char *result = new char[s.length() + 1];
+	std::strcpy(result, s.c_str());
+	return result;
 }
 
 void AppendEnvVars(std::stringstream &ss) {
@@ -78,13 +88,7 @@ void AppendSystemInfo(std::stringstream &ss) {
 	ss << "pid="         << plugin::pid              << '\n'; // eg "12345"
 	ss << "native.library.date=" << ibmras::monitoring::agent::Agent::getBuildDate() << '\n'; // eg "Oct 10 2014 11:44:56"
 	ss << "number.of.processors=" << plugin::nprocs  << '\n'; // eg 8
-}
-
-// Do something akin to C++11 std::to_string()
-std::string ToString(unsigned value) {
-	char buf[32]; // unsigned can have max 10 digits, so should not overrun
-	std::sprintf(buf, "%d", value);
-	return std::string(buf);
+	ss << "command.line=" << plugin::commandLine     << '\n';
 }
 
 monitordata* OnRequestData() {
@@ -99,7 +103,7 @@ monitordata* OnRequestData() {
 	
 	std::string content = contentss.str();
 	data->size = content.length();
-	data->data = strdup(content.c_str());
+	data->data = NewCString(content);
 	data->persistent = false;
 
 	return data;
@@ -115,7 +119,7 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	src->header.name = name;
 	std::string desc("Description for ");
 	desc.append(name);
-	src->header.description = strdup(desc.c_str());
+	src->header.description = NewCString(desc);
 	src->header.sourceID = srcid;
 	src->next = NULL;
 	src->header.capacity = DEFAULT_BUCKET_CAPACITY;
@@ -144,38 +148,87 @@ ENVPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 }
 }
 
-/*
- * Architectures
- */
-static const char* GetArchitecture() {
-/* probably need to replace these with the real predefined macros, or else bake them into our builds */
-/*#ifdef _ARM_
-	return "arm";
-#elif _PPC_
-	return "ppc";
-#elif _MIPS_
-	return "mips";
-#elif _X86_
-	return "x86";
-#elif _AMD64_
-	return "x86_64";
-#elif _S390_
-	return "s390";
-#elif _S390X_
-	return "s390x";
-#else*/
-	return "unknown";
-/*#endif*/
-}
 /* 
- * Linux 
+ * Linux
  */
-#if defined (_LINUX) || defined (_AIX)
+#if defined (_LINUX)
+static std::string GetCommandLine() {
+	std::stringstream filenamess;
+	filenamess << "/proc/" << getpid() << "/cmdline";
+	std::string filename = filenamess.str();
+	
+	std::ifstream filestream(filename.c_str());
+
+	if (!filestream.is_open()) {
+		IBMRAS_DEBUG_1(warning, "Failed to open %s", filename.c_str());
+		return "";
+	}
+
+    std::istreambuf_iterator<char> begin(filestream), end;
+    std::string cmdline(begin, end);
+    filestream.close();
+	
+	for (unsigned i=0; i < cmdline.length(); i++) {
+		if (cmdline[i] == '\0') {
+			cmdline[i] = ' ';
+		}
+	}
+	return cmdline;	
+}
+
 static void initStaticInfo() {
 	struct utsname sysinfo;
 	int rc = uname(&sysinfo);
 	if (rc >= 0) {
-#if defined(_AIX)
+		plugin::arch = std::string(sysinfo.machine);
+		plugin::osName = std::string(sysinfo.sysname);
+		plugin::osVersion = std::string(sysinfo.release) + std::string(sysinfo.version);
+	} else {
+		plugin::arch = "unknown"; // could fallback to compile-time information
+		plugin::osName = "Linux";
+		plugin::osVersion = "";
+	}
+	std::stringstream nprocsss;
+	nprocsss << get_nprocs();
+	plugin::nprocs = nprocsss.str();
+	std::stringstream pidss; 
+	pidss << getpid();
+	plugin::pid = pidss.str();
+	plugin::commandLine = GetCommandLine();	
+}
+
+#endif
+
+/* 
+ * AIX 
+ */
+#if defined (_AIX)
+
+static std::string GetCommandLine() {
+	struct procsinfo proc;
+	char procargs[512]; // Is this a decent length? Should we heap allocate and expand?
+	
+	proc.pi_pid = getpid();
+	int rc = getargs(&proc, sizeof(proc), procargs, sizeof(procargs));
+	if (rc < 0) {
+		IBMRAS_DEBUG_1(warning, "Failed to get command line (%d)", errno);
+		return std::string();
+	}
+	std::stringstream cmdliness;
+	char *current = procargs;
+	int written = 0;
+	while (std::strlen(current) > 0) {
+		if (written++ > 0) cmdliness << ' ';
+		cmdliness << current;
+		current = current + std::strlen(current) + 1;
+	}
+	return cmdliness.str();
+}
+
+static void initStaticInfo() {
+	struct utsname sysinfo;
+	int rc = uname(&sysinfo);
+	if (rc >= 0) {
 		uint64_t architecture = getsystemcfg(SC_ARCH);
 		uint64_t width = getsystemcfg(SC_WIDTH);
 		
@@ -188,24 +241,23 @@ static void initStaticInfo() {
 		} else {
 			plugin::arch = std::string(sysinfo.machine);
 		}
-#else
-		plugin::arch = std::string(sysinfo.machine);
-#endif
 		plugin::osName = std::string(sysinfo.sysname);
 		plugin::osVersion = std::string(sysinfo.release) + std::string(sysinfo.version);
 	} else {
-		plugin::arch = GetArchitecture();
-		plugin::osName = "Linux"; // this fallback may need to change if this function is made more general (eg POSIX rather than just Linux)
+		plugin::arch = "unknown"; // could fallback to compile-time information
+		plugin::osName = "AIX";
 		plugin::osVersion = "";
 	}
-	#if defined (_AIX)
-		// might be _SC_NPROCESSORS_ONLN -https://www.ibm.com/developerworks/community/forums/html/topic?id=77777777-0000-0000-0000-000014250083
-		plugin::nprocs = ToString(sysconf(_SC_NPROCESSORS_CONF));
-	#else
-		plugin::nprocs = ToString(get_nprocs());
-	#endif
-	plugin::pid = ToString(getpid());
+	std::stringstream nprocsss;
+	// might be _SC_NPROCESSORS_ONLN -https://www.ibm.com/developerworks/community/forums/html/topic?id=77777777-0000-0000-0000-000014250083
+	nprocsss << sysconf(_SC_NPROCESSORS_CONF);
+	plugin::nprocs = nprocsss.str();
+	std::stringstream pidss; 
+	pidss << getpid();
+	plugin::pid = pidss.str();
+	plugin::commandLine = GetCommandLine();	
 }
+
 #endif
  
 /*
@@ -324,11 +376,18 @@ static void initStaticInfo() {
 	case PROCESSOR_ARCHITECTURE_ARM: plugin::arch = "arm"; break;
 	case PROCESSOR_ARCHITECTURE_IA64: plugin::arch = "itanium"; break;
 	case PROCESSOR_ARCHITECTURE_INTEL: plugin::arch = "x86"; break;
-	default: plugin::arch = GetArchitecture(); break;
+	default: 
+		plugin::arch = "unknown"; // could fallback to compile-time information 
+		break;
 	}
 	plugin::osName = GetWindowsMajorVersion();
 	plugin::osVersion = GetWindowsBuild();
-	plugin::nprocs = ToString(sysinfo.dwNumberOfProcessors); /* convert DWORD to char* -- will this need a new ToString() ? */
-	plugin::pid = ToString(GetCurrentProcessId()); /* convert DWORD to char* -- will this need a new ToString() ? */	
+	std::stringstream nprocsss;
+	nprocsss << sysinfo.dwNumberOfProcessors;
+	plugin::nprocs = nprocsss.str();
+	std::stringstream pidss;
+	pidss << GetCurrentProcessId();
+	plugin::pid = pidss.str();
+	plugin::commandLine = std::string(GetCommandLine());	
 }
 #endif

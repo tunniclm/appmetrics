@@ -74,6 +74,7 @@ public:
 	bool agentPropertyExists(const std::string &agentProp);
 		
 	std::string getConfig(const std::string& name);
+	bool readOnly();
 
 private:
 	Agent();					/* private constructor */

@@ -8,11 +8,8 @@
 #ifndef ibmras_monitoring_connector_connector_h
 #define ibmras_monitoring_connector_connector_h
 
-#include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/connector/Receiver.h"
-#include "ibmras/monitoring/Monitoring.h"
 
-//extern "C" DECL void* getConnector(const char* properties);		/* factory method for connector instances */
 
 namespace ibmras{
 namespace monitoring {

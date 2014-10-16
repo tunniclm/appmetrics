@@ -29,27 +29,18 @@ namespace trace {
 I_64 htonjl(I_64 l);
 int Tracestart();
 int Tracestop();
-void initializeTraceUserData();
 bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize);
-int sendTraceBuffers(int maxSize);
-void* processLoop(ibmras::common::port::ThreadData* param);
 
 void *traceMeta = NULL;
 I_32 traceMetaLength = 0;
 char *traceMetadata = NULL;
 int headerSize = 0;
 int initialisedTraceBuffers = 0;
-uint buffersDroppedBeforeFirstConnection = 0;
-uint buffersDropped = 0;
-uint buffersNotDropped = 0;
 int firstConnectionMade = 0;
 int countDroppedBuffers = 0;
 bool running = false;
 
-//FILE *outfile;
-//FILE *tobesoutfile;
 
-TRACEDATA traceData;
 uint32 provID;
 PUSH_CALLBACK sendDataToAgent;
 
@@ -89,6 +80,27 @@ pushsource* registerPushSource(void (*callback)(monitordata* data),
 	return src;
 }
 
+monitordata* generateData(uint32 sourceID, char *dataToSend, int size) {
+	monitordata* data = new monitordata;
+	data->persistent = false;
+	data->provID = provID;
+	data->data = dataToSend;
+	data->size = size;
+	data->sourceID = sourceID;
+	return data;
+}
+
+monitordata* generateTraceHeader() {
+	return generateData(0, traceMetadata, headerSize);
+}
+
+void sendTraceHeader(bool persistent) {
+	monitordata* mdata = generateTraceHeader();
+	mdata->persistent = persistent;
+	sendDataToAgent(mdata);
+	delete mdata;
+}
+
 /**
  * The start() method starts the plugin and is the method called from the setup ibmras::monitoring::Plugin* getPlugin()
  * function above
@@ -107,8 +119,6 @@ int Tracestart() {
 	/* this is the eye catcher that tells the health center client trace parser
 	 * that this is a header record */
 	char METADATA_EYE_CATCHER[] = { 'H', 'C', 'T', 'H' };
-
-	initializeTraceUserData();
 
 	if (OMR_ERROR_NONE == rc) {
 		rc = vmData.omrti->BindCurrentThread(vmData.theVm, "HC Tracestart", &vmThread);
@@ -129,8 +139,6 @@ int Tracestart() {
 		IBMRAS_DEBUG(warning,  "failed to get trace header");
 		return -1;
 	}
-
-//	fwrite(tempMeta, tempHeaderSize, 1, outfile);
 
 	I_64 traceHeaderLength = (I_64) tempHeaderSize;
 	traceHeaderLength = htonjl(traceHeaderLength);
@@ -157,7 +165,8 @@ int Tracestart() {
 			traceMetadata + sizeof(METADATA_EYE_CATCHER)
 					+ sizeof(traceHeaderLength), tempMeta, tempHeaderSize);
 
-//	fwrite(traceMetadata, headerSize, 1, tobesoutfile);
+	sendTraceHeader(true);
+
 
 	if (OMR_ERROR_NONE == rc) {
 		rc = vmData.omrti->UnbindCurrentThread(vmThread);
@@ -165,57 +174,12 @@ int Tracestart() {
 
 	startTraceSubscriber(maxCircularBufferSize, bufferSize);
 
-	/* start a loop that will publish the data coming back from the trace subscriber */
-	ibmras::common::port::ThreadData* data =
-			new ibmras::common::port::ThreadData(processLoop);
-	result = ibmras::common::port::createThread(data);
-	if (result) {
-		IBMRAS_DEBUG(warning,  "processLoop thread failed to start");
-		// do something clever as it failed to start
-	} else {
-		IBMRAS_DEBUG(debug,  "processLoop thread started ok");
-	}
-
 	IBMRAS_DEBUG(debug,  "Tracestart exit");
 	return 0;
 }
 
-void* processLoop(ibmras::common::port::ThreadData* param) {
-	running = true;
-	int maxSendBytes = 100000;
-	IBMRAS_DEBUG(info,  "Starting tracesubscriber process loop");
-	int rc = 0;
-	OMR_VMThread *vmThread = NULL;
 
-	rc = vmData.omrti->BindCurrentThread(vmData.theVm, "HC processLoop", &vmThread);
-	if (OMR_ERROR_NONE == rc) {
-		while (true) {
-			// acquire lock, if !running break
-			ibmras::common::port::sleep(2);
-			sendTraceBuffers(maxSendBytes);
-			// release lock so that stop() can set it needed
-		}
-	} else {
-		IBMRAS_DEBUG(warning,  "processloop unable to bindCurrentThread");
-	}
 
-	if (OMR_ERROR_NONE == rc) {
-		rc = vmData.omrti->UnbindCurrentThread(vmThread);
-		IBMRAS_DEBUG(warning,  "Exiting tracesubscriber process loop");
-	}
-
-	return NULL;
-}
-
-monitordata* generateData(uint32 sourceID, char *dataToSend, int size) {
-	monitordata* data = new monitordata;
-	data->persistent = false;
-	data->provID = provID;
-	data->data = dataToSend;
-	data->size = size;
-	data->sourceID = sourceID;
-	return data;
-}
 
 int Tracestop() {
 	return 0;
@@ -235,208 +199,52 @@ TraceDataProvider::TraceDataProvider(
 	recvfactory = NULL;
 }
 
-void queuePut(TRACEBUFFERQUEUE *queue, TRACEBUFFER *buffer) {
-	assert(queue != NULL);
-	IBMRAS_DEBUG(debug,  "queuePut enter");
-	if (buffer == NULL) {
-		IBMRAS_DEBUG(debug,  "queuePut returning as buffer is NULL");
-		return;
-	}
-	/* Append the buffer to the tail of the queue */
-	if (queue->tail == NULL) {
-		queue->head = buffer;
-	} else {
-		queue->tail->next = buffer;
-	}
-	queue->tail = buffer;
-	while (queue->tail->next != NULL) {
-		queue->tail = queue->tail->next;
-	}
-	IBMRAS_DEBUG(debug,  "queuePut exit");
+omr_error_t traceSubscriber(UtSubscription *subscriptionID) {
 
-}
-
-/******************************/
-TRACEBUFFER *
-queueGet(TRACEBUFFERQUEUE *queue, int maxNumberOfItems) {
-	TRACEBUFFER *firstItemToReturn = NULL;
-	TRACEBUFFER *lastItemToReturn = NULL;
-	int items = 0;
-
-	IBMRAS_DEBUG(debug,  "queueGet enter");
-	assert(queue != NULL);
-
-	if (maxNumberOfItems <= 0 || queue->head == NULL) {
-		IBMRAS_DEBUG(debug,  "queueGet exit maxNumberOfItems <= 0 || queue->head == NULL");
-		return NULL;
-	}
-	firstItemToReturn = queue->head;
-	lastItemToReturn = firstItemToReturn;
-	items = 1;
-	while ((items < maxNumberOfItems) && (lastItemToReturn->next != NULL)) {
-//		fwrite(lastItemToReturn, lastItemToReturn->size, 1, tobesoutfile);
-//		IBMRAS_DEBUG(debug,  "queueGet writing %d bytes to tobesoutfile",lastItemToReturn->size );
-
-		lastItemToReturn = lastItemToReturn->next;
-		items++;
-	}
-	queue->head = lastItemToReturn->next;
-	if (queue->tail == lastItemToReturn) {
-		IBMRAS_DEBUG(debug,  "queueGet exit queue->tail == lastItemToReturn ");
-		queue->tail = NULL;
-	}
-	lastItemToReturn->next = NULL;
-	IBMRAS_DEBUG(debug,  "queueGet exit");
-	return firstItemToReturn;
-}
-
-TRACEBUFFER *
-allocateTraceBuffer(I_64 length) {
-	TRACEBUFFER *buffer = new TRACEBUFFER;
-	buffer->buffer = NULL;
-	buffer->next = NULL;
-	buffer->buffer = (unsigned char*) malloc(length);
-	buffer->size = length;
-	return buffer;
-}
-
-TRACEBUFFER *
-allocateTraceBuffers(I_64 maxBufferSize, I_32 bufferSize) {
-	TRACEBUFFER *buffers = NULL;
-	int i, numberOfBuffers;
-	I_64 wrappedBufferLength = 4 + sizeof(I_64) + bufferSize;
-
-	IBMRAS_DEBUG(debug,  "allocateTraceBuffers entry");
-	assert(wrappedBufferLength > 0);
-	numberOfBuffers = (maxBufferSize / wrappedBufferLength);
-
-	/* We need at least one buffer to correctly function */
-	if (numberOfBuffers <= 0) {
-		numberOfBuffers = 1;
-	}
-	for (i = 0; i < numberOfBuffers; i++) {
-		TRACEBUFFER *newBuffer = allocateTraceBuffer(wrappedBufferLength);
-		if (newBuffer == NULL) {
-			continue;
-		}
-		/* Chain allocated buffers to the new one */
-		if (buffers != NULL) {
-			newBuffer->next = buffers;
-		}
-		buffers = newBuffer;
-	}
-	IBMRAS_DEBUG(debug,  "allocateTraceBuffers exit");
-	return buffers;
-
-}
-
-omr_error_t subscribeFunc(UtSubscription *subscriptionID) {
-	TRACEDATA *data = (TRACEDATA *) subscriptionID->userData;
-	TRACEBUFFER *buffer = NULL;
-
-	IBMRAS_DEBUG(debug,  "subscribeFunc entry");
-
-//	fwrite(subscriptionID->data, subscriptionID->dataLength, 1, outfile);
-//	IBMRAS_DEBUG(debug,  "subscribe func writing %d bytes to outfile",subscriptionID->dataLength );
-
-	if (!traceLock->acquire()) {
-		/* Get a free buffer to copy the record into */
-		buffer = queueGet(&(data->freeBufferQueue), 1);
-		if (buffer == NULL) {
-			/* Drop the oldest buffer */
-			buffer = queueGet(&(data->traceBufferQueue), 1);
-			data->droppedBufferCount++;
-			if (countDroppedBuffers != 0) {
-				buffersDropped++;
-			}
-		} else {
-			if (countDroppedBuffers != 0) {
-				buffersNotDropped++;
-			}
-
-		}
-
-		if (traceLock->release()) {
-			IBMRAS_DEBUG(warning,
-					"subscribeFunc unable to release lock to  free buffer.");
-		}
-	} else {
-		IBMRAS_DEBUG(warning,
-				"subscribeFunc unable to get lock to obtain free buffer.");
+	IBMRAS_DEBUG(debug, "entering trace subscriber callback");
+	if (subscriptionID->data == NULL || subscriptionID->dataLength == 0) {
+		IBMRAS_DEBUG(debug, "exiting trace subscriber callback: no buffer");
+		return OMR_ERROR_NONE;
 	}
 
-	/* Copy and queue the trace buffer */
-	if (buffer != NULL) {
-		I_64 payLoadLength = subscriptionID->dataLength;
-		assert(buffer->size == (subscriptionID->dataLength + 4 + sizeof(I_64)));
-		/* Write eye catcher */
-		strcpy((char*) buffer->buffer, "HCTB");
-		/* Convert payload length to network byte order */
-		payLoadLength = htonjl(payLoadLength);
+	unsigned char* buffer = new unsigned char[subscriptionID->dataLength + 4 + sizeof(I_64)];
+	/* Write eye catcher */
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+	/* Write eye catcher */
+	strcpy((char*) buffer, "HCTB");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 
-		/* Write length of trace buffer */
-		memcpy(buffer->buffer + 4, (char*) &payLoadLength, sizeof(I_64));
+	I_64 payLoadLength = subscriptionID->dataLength;
+	/* Convert payload length to network byte order */
+	payLoadLength = htonjl(payLoadLength);
 
-		/* Copy the trace buffer */
-		memcpy(buffer->buffer + 4 + sizeof(I_64), subscriptionID->data,
-				subscriptionID->dataLength);
+	/* Write length of trace buffer */
+	memcpy(buffer + 4, (char*) &payLoadLength, sizeof(I_64));
 
-		/* Queue the copied trace buffer */
-		if (!traceLock->acquire()) {
-			queuePut(&(data->traceBufferQueue), buffer);
+	/* Copy the trace buffer */
+	memcpy(buffer + 4 + sizeof(I_64), subscriptionID->data,
+			subscriptionID->dataLength);
 
-			if (traceLock->release()) {
-				IBMRAS_DEBUG(warning,
-						"subscribeFunc unable to release lock to queue copied buffer.");
-			}
-		} else {
-			IBMRAS_DEBUG(warning,
-					"subscribeFunc unable to acquire lock to queue copied buffer.");
-		}
-	} else {
-		IBMRAS_DEBUG(warning,
-				"subscribeFunc unable to obtain memory to copy trace buffer.");
-	}
-	IBMRAS_DEBUG(debug,  "subscribeFunc exit");
+	monitordata* mdata = generateData(0, (char*) buffer,
+			subscriptionID->dataLength + 4 + sizeof(I_64));
+	sendDataToAgent(mdata);
+	delete[] buffer;
+	delete mdata;
+
+	IBMRAS_DEBUG(debug, "exiting trace subscriber callback");
 
 	return OMR_ERROR_NONE;
 }
 
+
+
 bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 	IBMRAS_DEBUG(debug,  "startTraceSubscriber entry");
-	TRACEBUFFER* traceBufferChain;
 
-	if (initialisedTraceBuffers == 0) {
-		traceBufferChain = allocateTraceBuffers(maxCircularBufferSize,
-				traceBufferSize);
-		initialisedTraceBuffers = 1;
-	} else {
-		IBMRAS_DEBUG(debug,  "startTraceSubscriber exiting as tracebuffers already initialised");
-		return true;
-	}
-
-	/* We need at least one buffer to use the subscriber */
-	if (traceBufferChain == NULL) {
-		IBMRAS_DEBUG(warning,  "startTraceSubscriber exit as unable to allocate buffer memory.");
-		return false;
-	} else {
-
-		traceData.traceBufferSize = traceBufferSize;
-
-		/* Make the buffers available to the subscriber */
-
-		if (!traceLock->acquire()) {
-			queuePut(&(traceData.freeBufferQueue), traceBufferChain);
-
-			if (traceLock->release()) {
-				IBMRAS_DEBUG(warning,  "startTraceSubscriber exit as unable to release lock.");
-				return false;
-			}
-		} else {
-			IBMRAS_DEBUG(warning,  "startTraceSubscriber exit as unable to acquire lock.");
-			return false;
-		}
-	}
 
 	OMR_VMThread *vmThread = NULL;
 	int rc;
@@ -449,7 +257,7 @@ bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 	}
 
 	omr_error_t apiRc = vmData.omrti->RegisterRecordSubscriber(vmThread,
-			"sample", subscribeFunc, NULL, (void *) &traceData,
+			"startTraceSubscriber", traceSubscriber, NULL, NULL,
 			&subscriptionID);
 	if (OMR_ERROR_NONE != apiRc) {
 		IBMRAS_DEBUG(warning,  "startTraceSubscriber exit as unable to register to jvmtiRegisterTraceSubscriber");
@@ -463,18 +271,6 @@ bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 
 }
 
-void initializeTraceUserData() {
-	IBMRAS_DEBUG(debug,  "initializeTraceUserData enter");
-	traceData.droppedBufferCount = 0;
-	traceData.badMaxSizeWarningShown = false;
-	traceData.traceBufferSize = 0;
-	traceData.traceBufferQueue.head = NULL;
-	traceData.traceBufferQueue.tail = NULL;
-	traceData.freeBufferQueue.head = NULL;
-	traceData.freeBufferQueue.tail = NULL;
-	IBMRAS_DEBUG(debug,  "initializeTraceUserData exit");
-
-}
 
 I_64 htonjl(I_64 l) {
 	I_32 byteOrderTest = 0x01020304;
@@ -491,119 +287,6 @@ I_64 htonjl(I_64 l) {
 	}
 }
 
-int sendTraceBuffers(int maxSize) {
-	IBMRAS_DEBUG(debug,  "sendTraceBuffers entry");
-//	jvmtiError rc;
-//	jthrowable exception;
-	int droppedBufferCount = 0;
-	TRACEBUFFER *buffersToSend = NULL;
-	TRACEBUFFER *traceBuffer = NULL;
-
-	const char* droppedMsgEyeCatcher = "HCDB";
-
-	long droppedBuffersMsgSize = 0;
-	int bytesToSendSize = 0;
-
-	/* if we're counting dropped buffers and we haven't already sent back any trace,
-	 * record the number of buffers dropped.
-	 */
-	if (countDroppedBuffers != 0 && firstConnectionMade == 0) {
-		buffersDroppedBeforeFirstConnection = buffersDropped;
-		firstConnectionMade = 1;
-	}
-
-	if (!traceLock->acquire()) {
-		int numberOfBuffersToSend = (maxSize / traceData.traceBufferSize) + 1;
-		droppedBufferCount = traceData.droppedBufferCount;
-		buffersToSend = queueGet(&(traceData.traceBufferQueue),
-				numberOfBuffersToSend);
-		traceData.droppedBufferCount = 0;
-
-		if (traceLock->release()) {
-			IBMRAS_DEBUG(debug,
-					"sendTraceBuffers unable to release lock to get buffers rc code is ");
-		}
-	} else {
-		IBMRAS_DEBUG(debug,
-				"sendTraceBuffers unable to acquire lock to get buffers rc code is ");
-	}
-
-	/* Total up the number of bytes to send back */
-	if (droppedBufferCount > 0) {
-		droppedBuffersMsgSize = strlen(droppedMsgEyeCatcher) + sizeof(long)
-				+ sizeof(int);
-		bytesToSendSize += droppedBuffersMsgSize;
-	}
-	traceBuffer = buffersToSend;
-	while (traceBuffer != NULL) {
-		bytesToSendSize += traceBuffer->size;
-		traceBuffer = traceBuffer->next;
-	}
-
-	int offset = 0;
-
-	/* Add a dropped buffer message if required */
-	if (droppedBufferCount > 0) {
-//		IBMRAS_DEBUG(debug,  "sending traceheader to agent of size %d for dropped buffers",headerSize);
-//		// Send the trace header to the buckets
-//		sendDataToAgent(generateData(0, traceMetadata, headerSize));
-
-		const char* droppedMsgEyeCatcher = "HCDB";
-		char buffer[16];
-		I_64 length = sizeof(int);
-		I_32 count = htonl(droppedBufferCount);
-
-		/* Write eye catcher */
-		strcpy(buffer, droppedMsgEyeCatcher);
-		offset += strlen(droppedMsgEyeCatcher);
-
-		/* Convert length to network byte order */
-		length = htonjl(length);
-
-		/* Write length of dropped buffer message body */
-		memcpy(buffer + offset, (char*) &length, sizeof(I_64));
-		offset += sizeof(I_64);
-
-		/* Write out number of dropped buffers */
-		memcpy(buffer + offset, (char*) &count, sizeof(I_32));
-		IBMRAS_DEBUG(debug,  "sending droppedbuffers to agent");
-		sendDataToAgent(generateData(0, (char*) buffer, 16));
-	}
-
-	/* Copy across items */
-	traceBuffer = buffersToSend;
-	if (traceBuffer != NULL) {
-		// Send the trace header to the buckets
-		IBMRAS_DEBUG_1(debug,  "sending traceheader to agent of size %d",headerSize);
-		sendDataToAgent(generateData(0, traceMetadata, headerSize));
-
-	}
-	while (traceBuffer != NULL) {
-		IBMRAS_DEBUG_1(debug,  "sending tracebuffer to agent of size %d",traceBuffer->size);
-		sendDataToAgent(
-				generateData(0, (char*) traceBuffer->buffer,
-						traceBuffer->size));
-		traceBuffer = traceBuffer->next;
-	}
-
-	/* Return buffers to the free buffer queue for reuse */
-	if (!traceLock->acquire()) {
-		queuePut(&(traceData.freeBufferQueue), buffersToSend);
-
-		if (traceLock->release()) {
-			IBMRAS_DEBUG(warning,
-					"sendTraceBuffers unable to release lock to queue buffers ");
-
-		}
-	} else {
-		IBMRAS_DEBUG(warning,
-				"sendTraceBuffers unable to acquire lock to queue buffers r");
-	}
-
-	IBMRAS_DEBUG(debug,  "sendTraceBuffers exit");
-
-	return 0;
-}
 
 }
 }

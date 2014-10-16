@@ -44,6 +44,12 @@ namespace plugin {
 
 using namespace v8;
 
+static char* NewCString(const std::string& s) {
+	char *result = new char[s.length() + 1];
+	std::strcpy(result, s.c_str());
+	return result;
+}
+
 /*
  * Linux
  */
@@ -123,6 +129,7 @@ void afterGC(GCType type, GCCallbackFlags flags) {
 	data.data = buffer;
 	data.size = strlen(buffer);
 	plugin::callback(&data);
+	delete[] buffer;
 }
 
 pushsource* createPushSource(uint32 srcid, const char* name) {
@@ -130,7 +137,7 @@ pushsource* createPushSource(uint32 srcid, const char* name) {
         src->header.name = name;
         std::string desc("Description for ");
         desc.append(name);
-        src->header.description = desc.c_str();
+        src->header.description = NewCString(desc);
         src->header.sourceID = srcid;
         src->next = NULL;
         src->header.capacity = (DEFAULT_CAPACITY / (srcid+1));

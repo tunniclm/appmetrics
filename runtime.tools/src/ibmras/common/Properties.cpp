@@ -7,6 +7,8 @@
 
 #include "ibmras/common/Properties.h"
 #include <sstream>
+#include <vector>
+#include "ibmras/common/util/strUtils.h"
 
 namespace ibmras {
 namespace common {
@@ -55,9 +57,19 @@ std::list<std::string> Properties::getKeys(const std::string& prefix) {
 	return keys;
 }
 
+void Properties::add(const std::string& propString) {
+	std::vector<std::string> stringProps = ibmras::common::util::split(propString, '\n');
+	for (std::vector<std::string>::iterator it = stringProps.begin(); it != stringProps.end(); ++it ) {
+		std::vector<std::string> propPair = ibmras::common::util::split((*it), '=');
+		if (propPair.size() == 2) {
+			put(propPair[0], propPair[1]);
+		}
+	}
+
+}
+
 std::string Properties::toString() {
 	std::stringstream ss;
-	ss << "Properties: " << std::endl;
 	for (std::map<std::string, std::string>::iterator propsiter = props.begin();
 			propsiter != props.end(); ++propsiter) {
 		ss << propsiter->first << "=" << propsiter->second << std::endl;

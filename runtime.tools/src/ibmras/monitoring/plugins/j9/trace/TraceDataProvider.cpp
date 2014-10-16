@@ -11,6 +11,7 @@
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/plugins/j9/Util.h"
+#include "ibmras/common/port/Process.h"
 
 #if defined(WINDOWS)
 //#include <winsock2.h>
@@ -49,8 +50,7 @@ namespace trace {
 
 uint32 provID;
 PUSH_CALLBACK sendDataToAgent;
-IBMRAS_DEFINE_LOGGER("TraceDataProvider")
-;
+IBMRAS_DEFINE_LOGGER("TraceDataProvider");
 jvmFunctions vmData;
 char *traceMetadata = NULL;
 int headerSize = 0;
@@ -69,7 +69,6 @@ static const char* ALLOCATION_SAMPLING_AVAILABLE =
 		"allocation.sampling.available"; //$NON-NLS-1$
 static const char* ALLOCATION_THRESHOLD_AVAILABLE =
 		"allocation.threshold.available"; //$NON-NLS-1$
-
 
 static const char* LOW_ALLOCATION_THRESHOLD = "lowallocationthreshold"; //$NON-NLS-1$
 static const char* HIGH_ALLOCATION_THRESHOLD = "highallocationthreshold"; //$NON-NLS-1$
@@ -293,7 +292,8 @@ bool isOkConsideringRealtime(int tp) {
 }
 
 bool tracePointExistsInThisVM(const std::string &tp) {
-	std::vector<std::string> tracePoint = ibmras::common::util::split(tp, '.');
+	std::vector < std::string > tracePoint = ibmras::common::util::split(tp,
+			'.');
 	if (tracePoint.size() != 2) {
 		return false;
 	}
@@ -324,7 +324,7 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 
 	bool loaOK = !isLOATracePoint || Util::vmHasLOATracePoints();
 
-	bool isDumpTracePointOK = ((component != "j9dmp") || isDumpTPavailable(tp));
+	bool isDumpTracePointOK = ((component != "j9dmp") || isDumpTPavailable(number));
 
 	bool isJavaTracePoint = ((component == "java")
 			&& (number == "315" || number == "316" || number == "317"
@@ -444,7 +444,6 @@ int Tracestart() {
 	/* start the trace subscriber */
 	startTraceSubscriber(maxCircularBufferSize, bufferSize);
 
-
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
 #endif
@@ -542,7 +541,7 @@ void disableTracePoints(const char* tracePoints[]) {
 
 	for (int i = 0; strlen(tracePoints[i]) > 0; i++) {
 		disableTracePoint(tracePoints[i]);
-	} IBMRAS_DEBUG(debug, "end of turning off tracepoints");
+	}IBMRAS_DEBUG(debug, "end of turning off tracepoints");
 }
 
 void controlSubsystem(const std::string &command, const char* tracePoints[]) {
@@ -714,7 +713,6 @@ void handleSetCommand(const std::vector<std::string> &parameters) {
 
 		IBMRAS_DEBUG_2(debug, "processing: set %s=%s", items[0].c_str(), items[1].c_str());
 
-
 		if (ibmras::common::util::equalsIgnoreCase(items[0], STACKTRACEDEPTH)) {
 			setStackDepth(items[1]);
 
@@ -858,12 +856,12 @@ jlong htonjl(jlong l) {
 		/* big endian */
 		return l;
 	} else {
-		jint hi = (jint) (l >> 32);
-		jint lo = (jint) (l & 0xffffffff);
+		jint hi = (jint)(l >> 32);
+		jint lo = (jint)(l & 0xffffffff);
 		jlong convhi = htonl(hi);
 		jlong convlo = htonl(lo);
 		/* little endian */
-		return (jlong) ((convlo << 32) | (convhi & 0xffffffff));
+		return (jlong)((convlo << 32) | (convhi & 0xffffffff));
 	}
 }
 
@@ -910,10 +908,8 @@ bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 	}
 }
 
-
 jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 		void *userData) {
-
 
 	IBMRAS_DEBUG(debug, "entering trace subscriber callback");
 	if (record == NULL || length == 0) {
@@ -942,7 +938,7 @@ jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 	memcpy(buffer + 4 + sizeof(jlong), record, length);
 
 	monitordata* mdata = generateData(0, (char*) buffer,
-			length+4+sizeof(jlong));
+			length + 4 + sizeof(jlong));
 	sendDataToAgent(mdata);
 	delete[] buffer;
 	delete mdata;
@@ -951,7 +947,6 @@ jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 
 	return JVMTI_ERROR_NONE;
 }
-
 
 monitordata* generateTraceHeader() {
 	return generateData(0, traceMetadata, headerSize);
@@ -979,13 +974,12 @@ void sendTraceHeader(bool persistent) {
 	delete mdata;
 }
 
-
 jvmtiError verboseGCSubscriber(jvmtiEnv *env, const char *record, jlong length,
 		void *userData) {
 	IBMRAS_DEBUG(debug, "> verboseGCSubscriber");
 	if (vgcFile != NULL) {
 		fwrite(record, length, 1, vgcFile);
-	} IBMRAS_DEBUG(debug, "< verboseGCSubscriber");
+	}IBMRAS_DEBUG(debug, "< verboseGCSubscriber");
 	return JVMTI_ERROR_NONE;
 }
 
@@ -1084,7 +1078,7 @@ std::string getWriteableDirectory() {
 
 	JNIEnv* env;
 
-	std::vector<std::string> directories;
+	std::vector < std::string > directories;
 
 	IBMRAS_DEBUG(debug, "Attaching to thread");
 	jint result =
@@ -1093,7 +1087,7 @@ std::string getWriteableDirectory() {
 							(void*) &threadArgs) :
 					-1;
 	if (JNI_OK != result) {
-		IBMRAS_DEBUG(warning, "Cannot set environment"); IBMRAS_DEBUG(debug, "<< Trace [NOATTACH]");
+		IBMRAS_DEBUG(warning, "Cannot set environment");IBMRAS_DEBUG(debug, "<< Trace [NOATTACH]");
 		return dir;
 	}IBMRAS_DEBUG(info, "Environment set");
 
@@ -1103,7 +1097,8 @@ std::string getWriteableDirectory() {
 	std::string userDir = agent->getAgentProperty("output.directory");
 
 	jstring dirJava = env->NewStringUTF(userDir.c_str());
-	dir = getString(env, "com/ibm/java/diagnostics/healthcenter/agent/dataproviders/Util",
+	dir = getString(env,
+			"com/ibm/java/diagnostics/healthcenter/agent/dataproviders/Util",
 			"findWriteableDirectory", "(Ljava/lang/String;)Ljava/lang/String;",
 			dirJava);
 
@@ -1121,14 +1116,14 @@ std::string getString(JNIEnv* env, const std::string& cname,
 	if (!clazz) {
 		IBMRAS_DEBUG_1(warning, "Failed to find %s class", cname.c_str());
 		return "";
-	} IBMRAS_DEBUG_1(debug, "Found %s class", cname.c_str());
+	}IBMRAS_DEBUG_1(debug, "Found %s class", cname.c_str());
 
 	jmethodID method = env->GetStaticMethodID(clazz, mname.c_str(),
 			signature.c_str());
 	if (!method) {
 		IBMRAS_DEBUG_1(warning, "Failed to get %s method ID", mname.c_str());
 		return "";
-	} IBMRAS_DEBUG_1(debug, "%s method loaded, calling thru JNI", mname.c_str());
+	}IBMRAS_DEBUG_1(debug, "%s method loaded, calling thru JNI", mname.c_str());
 
 	jstring jobj = (jstring) env->CallStaticObjectMethod(clazz, method,
 			dirJava);
@@ -1154,63 +1149,65 @@ std::string getString(JNIEnv* env, const std::string& cname,
 
 void handleVerboseGCSetting(std::string value) {
 	IBMRAS_DEBUG_1(debug, ">>> handleVerboseGCSetting(%s)", value.c_str());
-	if (value == "on") {
-		const std::string outputDirectory = getWriteableDirectory();
-		if (!outputDirectory.length()) {
-			IBMRAS_DEBUG(debug, "No writeable dir found");
-			return;
-		}
-
-		std::stringstream vgcFileNamePrefix;
-		vgcFileNamePrefix << "verbosegc_";
-		vgcFileNamePrefix << ibmras::common::port::getProcessId() << "_";
-		std::string vgcFileName = vgcFileNamePrefix.str();
-		int suffix = 0;
-		bool fileAvailable = false;
-		std::fstream* vgcFile;
-		while (!fileAvailable) {
-			std::stringstream ss;
-			ss << outputDirectory;
-#if defined(WINDOWS)
-			ss << "\\";
-#else
-			ss << "/";
-#endif
-			ss << vgcFileNamePrefix.str() << suffix++ << ".log";
-			vgcFileName = ss.str();
-			vgcFile = new std::fstream;
-
-			vgcFile->open(vgcFileName.c_str(), std::ios::out | std::ios::app);
-
-			if (vgcFile->good()) {
-				fileAvailable = true;
-				break;
+	if (!ibmras::monitoring::agent::Agent::getInstance()->readOnly()) {
+		if (value == "on") {
+			const std::string outputDirectory = getWriteableDirectory();
+			if (!outputDirectory.length()) {
+				IBMRAS_DEBUG(debug, "No writeable dir found");
+				return;
 			}
-		}
 
-		int err = 0;
+			std::stringstream vgcFileNamePrefix;
+			vgcFileNamePrefix << "verbosegc_";
+			vgcFileNamePrefix << ibmras::common::port::getProcessId() << "_";
+			std::string vgcFileName = vgcFileNamePrefix.str();
+			int suffix = 0;
+			bool fileAvailable = false;
+			std::fstream * vgcFile;
+			while (!fileAvailable) {
+				std::stringstream ss;
+				ss << outputDirectory;
+#if defined(WINDOWS)
+				ss << "\\";
+#else
+				ss << "/";
+#endif
+				ss << vgcFileNamePrefix.str() << suffix++ << ".log";
+				vgcFileName = ss.str();
+				vgcFile = new std::fstream;
 
-		err = registerVerboseGCSubscriber(vgcFileName);
-		if (err) {
+				vgcFile->open(vgcFileName.c_str(),
+						std::ios::out | std::ios::app);
+
+				if (vgcFile->good()) {
+					fileAvailable = true;
+					break;
+				}
+			}
+
+			int err = 0;
+
+			err = registerVerboseGCSubscriber(vgcFileName);
+			if (err) {
+				config[VERBOSE_GC] = "off";
+				IBMRAS_DEBUG(debug, "Error in registerVerboseGCSubscriber(vgcFileName)");
+			} else {
+				config[VERBOSE_GC] = vgcFileName;
+				IBMRAS_DEBUG(debug, "registerVerboseGCSubscriber(vgcFileName) success");
+			}
+
+		} else {
+			int err = 0;
+			err = deregisterVerboseGCSubscriber();
+			if (err) {
+				IBMRAS_DEBUG(debug, "Error in deregisterVerboseGCSubscriber(vgcFileName)");
+			} else {
+				IBMRAS_DEBUG(debug, "deregisterVerboseGCSubscriber(vgcFileName) success");
+			}
 			config[VERBOSE_GC] = "off";
-			IBMRAS_DEBUG(debug, "Error in registerVerboseGCSubscriber(vgcFileName)");
-		} else {
-			config[VERBOSE_GC] = vgcFileName;
-			IBMRAS_DEBUG(debug, "registerVerboseGCSubscriber(vgcFileName) success");
 		}
-
-	} else {
-		int err = 0;
-		err = deregisterVerboseGCSubscriber();
-		if (err) {
-			IBMRAS_DEBUG(debug, "Error in deregisterVerboseGCSubscriber(vgcFileName)");
-		} else {
-			IBMRAS_DEBUG(debug, "deregisterVerboseGCSubscriber(vgcFileName) success");
-		}
-		config[VERBOSE_GC] = "off";
 	}
 }
-
 
 }
 }

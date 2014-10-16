@@ -83,19 +83,20 @@
 #endif
 #endif
 
-#define	EsOpenRead		1	/* Values for EsFileOpen */
-#define	EsOpenWrite		2
-#define	EsOpenCreate	4
-#define	EsOpenTruncate	8
-#define	EsOpenAppend	16
-#define	EsOpenText		32
-#define	EsOpenCreateNew 64		/* Use this flag with EsOpenCreate, if this flag is specified then trying to create an existing file will fail */
-#define	EsOpenSync		128
-#define EsOpenForMapping 256 /* Required for WinCE for file memory mapping, ignored on other platforms. WINCE is not supported so this flag is obsolete now. */
-#define	EsOpenForInherit 512	/* Use this flag such that returned handle can be inherited by child processes */
-#define	EsOpenCreateAlways 1024	/* Always creates a new file, an existing file will be overwritten */
-#define EsOpenCreateNoTag 2048	/* Used for zOS only, to disable USS file tagging on JVM-generated files */
-#define EsOpenShareDelete 4096  /* used only for windows to allow a file to be renamed while it is still open */
+#define	EsOpenRead			0x1	/* Values for EsFileOpen */
+#define	EsOpenWrite			0x2
+#define	EsOpenCreate		0x4
+#define	EsOpenTruncate		0x8
+#define	EsOpenAppend		0x10
+#define	EsOpenText			0x20
+#define	EsOpenCreateNew 	0x40		/* Use this flag with EsOpenCreate, if this flag is specified then trying to create an existing file will fail */
+#define	EsOpenSync			0x80
+#define EsOpenForMapping	0x100 /* Required for WinCE for file memory mapping, ignored on other platforms. WINCE is not supported so this flag is obsolete now. */
+#define	EsOpenForInherit 	0x200	/* Use this flag such that returned handle can be inherited by child processes */
+#define	EsOpenCreateAlways 	0x400	/* Always creates a new file, an existing file will be overwritten */
+#define EsOpenCreateNoTag 	0x800	/* Used for zOS only, to disable USS file tagging on JVM-generated files */
+#define EsOpenShareDelete 	0x1000  /* used only for windows to allow a file to be renamed while it is still open */
+#define EsOpenAsynchronous 	0x2000  /* used only for windows to allow a file to be opened asynchronously */
 
 #define EsIsDir 	0	/* Return values for EsFileAttr */
 #define EsIsFile 	1
@@ -183,6 +184,17 @@
  */
 #define J9PORT_LIMIT_UNLIMITED_VALUE (J9CONST64(0xffffffffffffffff))
 #define J9PORT_LIMIT_UNKNOWN_VALUE (J9CONST64(0xffffffffffffffff))
+/** @} */
+
+/**
+ * @name Control file unlink status
+ * Flags used to indicate unlink status of control files used by semaphore set or shared memory
+ * These flags are used to store value in J9ControlFileStatus.status
+ * @{
+ */
+#define J9PORT_INFO_CONTROL_FILE_NOT_UNLINKED			0
+#define J9PORT_INFO_CONTROL_FILE_UNLINK_FAILED			1
+#define J9PORT_INFO_CONTROL_FILE_UNLINKED				2
 /** @} */
 
 /**
@@ -392,6 +404,15 @@ typedef struct J9FileStatFilesystem
 	U_64 totalSizeBytes;
 } J9FileStatFilesystem;
 
+/**
+ * Stores information about status of control file used by j9shmem_open() or j9shsem_deprecated_open().
+ */
+typedef struct J9ControlFileStatus {
+	UDATA status;
+	I_32 errorCode;
+	char *errorMsg;
+} J9ControlFileStatus;
+
 /* It is the responsibility of the user to create the storage for J9PortVMemParams. 
  * The structure is only needed for the lifetime of the call to j9vmem_reserve_memory_ex 
  * This structure must be initialized using @ref j9vmem_vmem_params_init
@@ -437,6 +458,10 @@ typedef struct J9PortVmemParams {
 	 * 			- use allocator that exclusively requests memory in 2to32G region if set
 	 * 			- do not use allocator that requests memory exclusively in 2to32G region if not set
 	 * 			- if this flag is set and the 2to32G support is not there j9vmem_reserve_memory_ex will return failure
+	 * \arg J9PORT_VMEM_ALLOC_QUICK
+	 *  		- enabled for Linux only,
+	 *  		- If not set, search memory in linear scan method
+	 *  		- If set, scan memory in a quick way, using memory information in file /proc/self/maps. (still use linear search if failed)
 	 */
 	UDATA options;
 	
@@ -494,6 +519,7 @@ typedef struct J9ProcessHandleStruct *J9ProcessHandle;
 /**
  * @name Virtual Memory Options
  * Flags used to create bitmap indicating vmem options
+ * See J9PortVmemParams.options
  * 
  */
 #define J9PORT_VMEM_ALLOC_DIR_BOTTOM_UP	1
@@ -501,6 +527,7 @@ typedef struct J9ProcessHandleStruct *J9ProcessHandle;
 #define J9PORT_VMEM_STRICT_ADDRESS		4
 #define J9PORT_VMEM_STRICT_PAGE_SIZE	8
 #define J9PORT_VMEM_ZOS_USE2TO32G_AREA 16
+#define J9PORT_VMEM_ALLOC_QUICK 		32
 
 /**
  * @name Virtual Memory Address
@@ -1154,8 +1181,9 @@ typedef struct J9ProcessorDesc {
 #define J9PORT_CTLDATA_ALLOCATE32_COMMIT_SIZE  "ALLOCATE32_COMMIT_SIZE"
 #define J9PORT_CTLDATA_NOSUBALLOC32BITMEM  "NOSUBALLOC32BITMEM"
 #define J9PORT_CTLDATA_VMEM_ADVISE_OS_ONFREE  "VMEM_ADVISE_OS_ONFREE"
+#define J9PORT_CTLDATA_VECTOR_REGS_SUPPORT_ON  "VECTOR_REGS_SUPPORT_ON"
 
-#define J9PORT_MAJOR_VERSION_NUMBER  79
+#define J9PORT_MAJOR_VERSION_NUMBER  81
 #define J9PORT_MINOR_VERSION_NUMBER  0
 
 #define J9PORT_CAPABILITY_BASE  0
@@ -1226,7 +1254,8 @@ typedef struct J9ProcessorDesc {
 #define J9PORT_SIG_CONTROL  3
 #define J9PORT_SIG_FPR  4
 #define J9PORT_SIG_MODULE  5
-#define J9PORT_SIG_NUM_CATEGORIES  (J9PORT_SIG_MODULE + 1)
+#define J9PORT_SIG_VR	6
+#define J9PORT_SIG_NUM_CATEGORIES  (J9PORT_SIG_VR + 1)
 
 #define J9PORT_SIG_SIGNAL_TYPE  -1
 #define J9PORT_SIG_SIGNAL_CODE  -2
@@ -1287,6 +1316,7 @@ typedef struct J9ProcessorDesc {
 #define J9PORT_SIG_VALUE_64  5
 #define J9PORT_SIG_VALUE_FLOAT_64  6
 #define J9PORT_SIG_VALUE_16  7
+#define J9PORT_SIG_VALUE_128 8
 
 #define J9PORT_SIG_OPTIONS_JSIG_NO_CHAIN  1
 #define J9PORT_SIG_OPTIONS_REDUCED_SIGNALS_SYNCHRONOUS  2

@@ -8,6 +8,7 @@
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/monitoring/plugins/j9/trace/TraceReceiver.h"
+#include "ibmras/common/port/ThreadData.h"
 
 
 

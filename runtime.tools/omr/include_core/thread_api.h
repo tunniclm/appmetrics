@@ -29,6 +29,7 @@ extern "C" {
 #endif
 
 #define J9THREAD_RWMUTEX_OK		 	 0
+#define J9THREAD_RWMUTEX_FAIL	 	 1
 #define J9THREAD_RWMUTEX_WOULDBLOCK -1
 
 /* Define conversions for units of time used in thrprof.c */
@@ -584,6 +585,15 @@ j9thread_lib_try_lock(j9thread_t self);
 */
 void 
 j9thread_lib_unlock(j9thread_t self);
+
+#if !defined(WIN32)
+/**
+* @brief
+* @return IDATA
+*/
+IDATA
+j9thread_lib_post_fork_reset(void);
+#endif /* !defined(WIN32) */
 
 /**
 * @brief

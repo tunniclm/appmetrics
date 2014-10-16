@@ -104,11 +104,13 @@ typedef struct OMR_VM {
 	struct OMR_Agent *_hcAgent;
 	j9thread_monitor_t _omrTIAccessMutex;
 	struct OMRTraceEngine *_trcEngine;
+	void *_methodDictionary;
 #endif /* J9VM_RAS_TDF_TRACE */
 } OMR_VM;
 
 typedef struct OMR_VMThread {
 	struct OMR_VM *_vm;
+	U_32 _sampleStackBackoff;
 	void * _language_vmthread;
 	j9thread_t _os_thread;
 	struct OMR_VMThread *_linkNext;

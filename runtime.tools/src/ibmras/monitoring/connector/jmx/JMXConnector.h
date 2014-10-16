@@ -10,9 +10,6 @@
 
 #include "ibmras/monitoring/connector/Connector.h"
 
-#include "ibmras/monitoring/agent/Agent.h"
-#include "ibmras/common/Logger.h"
-
 #include "jni.h"
 
 namespace ibmras {

@@ -39,8 +39,6 @@ private:
 uintptr_t createThread(ThreadData *data);			/* create a thread and start it with specified callback and args */
 void exitThread(void *val);							/* exit current thread with an optional return value */
 void sleep(uint32 seconds);							/* sleep the current thread */
-DECL int getProcessId();                              	/* get hold of the process id */
-DECL std::string getHostName();                        	/* Return the host name*/
 
 }
 }

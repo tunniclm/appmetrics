@@ -14,7 +14,6 @@
 #include "windows.h"
 #include "stdio.h"
 #include "ibmras/common/port/ThreadData.h"
-#include "ibmras/common/port/Lock.h"
 #include "ibmras/common/port/Semaphore.h"
 #include "ibmras/common/logging.h"
 
@@ -51,55 +50,6 @@ void exitThread(void *val) {
 
 void sleep(uint32 seconds) {
 	Sleep(1000 * seconds);
-}
-
-Lock::Lock() {
-	lock = new CRITICAL_SECTION;		/* create a new lock fpr this class */
-	CRITICAL_SECTION* c = reinterpret_cast<CRITICAL_SECTION*>(reinterpret_cast<uintptr_t>(lock));
-	InitializeCriticalSection(c);
-	if(!lock) {
-		lock = NULL;				/* reset lock so that we won't try and release it when the class is destroyed */
-	}
-}
-
-/* acquire a pthread mutex */
-int Lock::acquire() {
-	if(lock) {
-		CRITICAL_SECTION* c = reinterpret_cast<CRITICAL_SECTION*>(reinterpret_cast<uintptr_t>(lock));
-		EnterCriticalSection(c);
-		return 0;
-	} else {
-		IBMRAS_DEBUG(warning,  "Attempted to acquire a previously failed lock");
-		return LOCK_FAIL;
-	}
-}
-
-/* release the mutex */
-int Lock::release() {
-	if(lock) {
-		CRITICAL_SECTION* c = reinterpret_cast<CRITICAL_SECTION*>(reinterpret_cast<uintptr_t>(lock));
-		LeaveCriticalSection(c);
-		return 0;
-	} else {
-		IBMRAS_DEBUG(warning,  "Attempted to release a previously failed lock");
-		return LOCK_FAIL;
-	}
-}
-
-void Lock::destroy() {
-	if(lock) {
-		CRITICAL_SECTION* c = reinterpret_cast<CRITICAL_SECTION*>(reinterpret_cast<uintptr_t>(lock));
-		DeleteCriticalSection(c);
-		lock = NULL;
-	}
-}
-
-bool Lock::isDestroyed() {
-	return lock == NULL;
-}
-
-Lock::~Lock() {
-	destroy();
 }
 
 Semaphore::Semaphore(uint32 initial, uint32 max) {

@@ -12,8 +12,8 @@ namespace ibmras {
 namespace monitoring {
 namespace connector {
 
-ConnectorManager::ConnectorManager() {
-
+ConnectorManager::ConnectorManager() : running(false), threadData(processThread) {
+	threadData.setArgs(this);
 }
 
 ConnectorManager::~ConnectorManager() {
@@ -46,29 +46,63 @@ void ConnectorManager::removeAllReceivers() {
 
 void ConnectorManager::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
-	for (std::set<Receiver*>::iterator it = receivers.begin();
-			it != receivers.end(); ++it) {
-		if (*it) {
-			(*it)->receiveMessage(id, size, data);
+	if (running && !receiveLock.acquire()) {
+		ReceivedMessage msg(id, size, data);
+		receiveQueue.push(msg);
+		receiveLock.release();
+	}
+}
+
+
+void* ConnectorManager::processThread(
+		ibmras::common::port::ThreadData *td) {
+	ConnectorManager* conMan = (ConnectorManager*)td->getArgs();
+	if (conMan) {
+		conMan->processReceivedMessages();
+	}
+
+	return NULL;
+}
+
+void ConnectorManager::processReceivedMessages() {
+	while (running) {
+		if (!receiveLock.acquire()) {
+			while (!receiveQueue.empty()) {
+				ReceivedMessage msg = receiveQueue.front();
+				receiveQueue.pop();
+				for (std::set<Receiver*>::iterator it = receivers.begin();
+						it != receivers.end(); ++it) {
+					if (*it) {
+						(*it)->receiveMessage(msg.getId(),
+								msg.getMessage().size(),
+								(void*) msg.getMessage().c_str());
+					}
+				}
+			}
+			receiveLock.release();
 		}
+		ibmras::common::port::sleep(1);
 	}
 }
 
 int ConnectorManager::sendMessage(const std::string &sourceId, uint32 size,
 		void *data) {
 	int count = 0;
-	try {
-		sendLock.acquire();
+	if (running && !sendLock.acquire()) {
+		try {
 
-		for (std::set<Connector*>::iterator it = connectors.begin();
-				it != connectors.end(); ++it) {
-			if ((*it)->sendMessage(sourceId, size, data) > 0) {
-				count++;
+			for (std::set<Connector*>::iterator it = connectors.begin();
+					it != connectors.end(); ++it) {
+				if ((*it)->sendMessage(sourceId, size, data) > 0) {
+					count++;
+				}
 			}
+
+		} catch (...) {
 		}
-	} catch (...) {
+		sendLock.release();
 	}
-	sendLock.release();
+
 	return count;
 }
 
@@ -84,6 +118,13 @@ Connector* ConnectorManager::getConnector(const std::string &id) {
 }
 
 int ConnectorManager::start() {
+	if (running) {
+		return 0;
+	}
+
+	running = true;
+	ibmras::common::port::createThread(&threadData);
+
 	int rc = 0;
 	for (std::set<Connector*>::iterator it = connectors.begin();
 			it != connectors.end(); ++it) {
@@ -98,8 +139,25 @@ int ConnectorManager::stop() {
 			it != connectors.end(); ++it) {
 		rc += (*it)->stop();
 	}
+	running = false;
 	return rc;
 }
+
+ConnectorManager::ReceivedMessage::ReceivedMessage(const std::string& id,
+		uint32 size, void* data) {
+	this->id = id;
+	if (size > 0 && data != NULL) {
+		message = std::string((const char*)data, size);
+	} else {
+		data = NULL;
+	}
+}
+
+ConnectorManager::ReceivedMessage::~ReceivedMessage() {
+}
+
 }
 }
 } /* namespace monitoring */
+
+

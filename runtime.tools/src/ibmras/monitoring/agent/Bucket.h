@@ -25,6 +25,7 @@ public:
 	std::string getUniqueID();
 	void publish(ibmras::monitoring::connector::Connector &con);				/* publish bucket contents to the connector manager */
 	uint32 getNextData(uint32 id, int32 &size,	void* &data, uint32 &droppedCount);
+	uint32 getNextPersistentData(uint32 id, uint32 &size, void* &data);
 	void republish(const std::string &topicPrefix, ibmras::monitoring::connector::Connector &con);
 private:
 	/* bucket data builds on the monitor data to add control meta-data. It also removes any

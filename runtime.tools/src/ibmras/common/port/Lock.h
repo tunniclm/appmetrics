@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <string>
+#include "ibmras/export.h"
 
 #ifndef NULL
 #define NULL 0

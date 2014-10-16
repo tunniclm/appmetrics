@@ -7,12 +7,13 @@
 
 #include "ibmras/monitoring/connector/jmx/JMXConnector.h"
 #include "ibmras/common/logging.h"
-
+#include "ibmras/monitoring/agent/Agent.h"
 #include "jvmti.h"
 #include "jni.h"
 #include "ibmjvmti.h"
 #include "jniport.h"
 #include "ibmras/common/util/strUtils.h"
+#include "ibmras/common/port/Process.h"
 
 /*
  * This is compiled with convlit(ISO8859-1) so we need to suspend conversion for literals

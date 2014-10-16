@@ -25,7 +25,6 @@
 #include <sys/resource.h>
 
 #include "ibmras/common/port/ThreadData.h"
-#include "ibmras/common/port/Lock.h"
 #include "ibmras/common/port/Semaphore.h"
 #include "ibmras/common/logging.h"
 
@@ -54,54 +53,6 @@ void sleep(uint32 seconds) {
 	sleep(seconds); /* configure the sleep interval */
 }
 
-Lock::Lock() {
-	lock = new pthread_mutex_t;		/* create a new lock fpr this class */
-	pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(lock);
-	pthread_mutex_init(mutex, NULL);
-	if(!lock) {
-		IBMRAS_DEBUG(warning, "Failed to create lock");
-		lock = NULL;				/* reset lock so that we won't try and release it when the class is destroyed */
-	} else {
-		IBMRAS_DEBUG_1(finest, "Mutex created %p", lock);
-	}
-}
-
-/* aquire a pthread mutex */
-int Lock::acquire() {
-
-	if(lock) {
-		return pthread_mutex_lock(reinterpret_cast<pthread_mutex_t*>(lock));
-	} else {
-		IBMRAS_DEBUG(warning, "Attempted to acquire a previously failed lock");
-		return LOCK_FAIL;
-	}
-}
-
-/* release the mutex */
-int Lock::release() {
-
-	if(lock) {
-		return pthread_mutex_unlock(reinterpret_cast<pthread_mutex_t*>(lock));
-	} else {
-		IBMRAS_DEBUG(warning, "Attempted to release a previously failed lock");
-		return LOCK_FAIL;
-	}
-}
-
-void Lock::destroy() {
-	if(lock) {
-		pthread_mutex_destroy(reinterpret_cast<pthread_mutex_t*>(lock));
-		lock = NULL;
-	}
-}
-
-bool Lock::isDestroyed() {
-	return lock == NULL;
-}
-
-Lock::~Lock() {
-	destroy();
-}
 
 int initsem(key_t key, int nsems)
 {

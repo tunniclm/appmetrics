@@ -14,6 +14,7 @@
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
 
+#include "ibmras/monitoring/agent/Agent.h"
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -100,6 +101,7 @@ ClassHistogramProvider::ClassHistogramProvider(jvmFunctions functions) {
 			| ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) ClassHistogramProvider::getInstance;
 	confactory = NULL;
+
 }
 
 ClassHistogramProvider::~ClassHistogramProvider() {
@@ -125,14 +127,18 @@ void* ClassHistogramProvider::getInstance() {
 void ClassHistogramProvider::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
 	// Send the initial empty dictionary
-	if (id == "ClassHistogramSource") {
-
+	if (id == "classhistogram") {
 		std::string data = createHistogramReport();
 		monitordata *mdata = generateData(0, data.c_str(),
 				data.length());
-		sendClassHistogramData(mdata);
+
+		if (!ibmras::monitoring::agent::Agent::getInstance()->readOnly()) {
+			sendClassHistogramData(mdata);
+		}
 	}
 }
+
+
 
 
 monitordata* ClassHistogramProvider::generateData(uint32 sourceID,

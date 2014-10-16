@@ -29,6 +29,7 @@
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/common/Properties.h"
 #include "ibmras/common/util/strUtils.h"
+#include "ibmras/common/port/Process.h"
 
 struct __jdata;
 

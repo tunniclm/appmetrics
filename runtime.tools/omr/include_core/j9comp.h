@@ -513,6 +513,16 @@ typedef signed char				I_8;    /* jdk Bugzilla 117041 : pb : Incorrectly defined
 typedef	double	ESDOUBLE;
 typedef	float		ESSINGLE;
 
+typedef struct U_128 {
+#if defined(J9VM_ENV_LITTLE_ENDIAN)
+	U_64 low64;
+	U_64 high64;
+#else /* J9VM_ENV_LITTLE_ENDIAN */
+	U_64 high64;
+	U_64 low64;
+#endif /* J9VM_ENV_LITTLE_ENDIAN */
+} U_128;
+
 /* helpers for U_64s */
 #define CLEAR_U64(u64)  (u64 = (U_64)0)
 

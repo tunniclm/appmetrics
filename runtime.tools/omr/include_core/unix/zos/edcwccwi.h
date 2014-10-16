@@ -436,7 +436,11 @@ struct  __mcontext
  __pad31         (__mc__11,88)         /* reserved  31-bit         */           
  __pad64         (__mc__11,112)        /* reserved  64-bit         */           
 #endif  /* __EDC_TARGET >= __EDC_LE410A */
-                                       /* +280 End of Resume area  */           
+                                       /* +280 End of Resume area  */
+#if __EDC_TARGET >= __EDC_LE4202
+	int __mc_int_vr_valid;
+	U_128 __mc_vr[32];
+#endif
 } __mcontext_t_;                                                                
                                                                                 
 #endif /* __XPLINK__ */                                                         

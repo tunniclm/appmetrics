@@ -33,6 +33,7 @@
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/util/strUtils.h"
+#include "ibmras/common/port/Process.h"
 
 namespace ibmras {
 namespace monitoring {
@@ -551,10 +552,44 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 
 			} else {
 				if (remove(currentKey.c_str())) {
-					IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
+					IBMRAS_DEBUG_1(debug, "Deletion failed: %s", strerror(errno));
 				} else {
 					currentSource->open(currentKey.c_str(),
-							std::ios::out | std::ios::app);
+							std::ios::out | std::ios::app | std::ios::binary);
+
+					// Get persistent Data eg trace header and write to start of file
+					ibmras::monitoring::agent::Agent* agent =
+							ibmras::monitoring::agent::Agent::getInstance();
+					ibmras::monitoring::agent::Bucket *bucket = agent->getBucketList()->findBucket(sourceId);
+					if (bucket) {
+
+						const char* persistentData = NULL;
+						uint32 persistentDataSize = 0;
+						uint32 id = 0;
+
+						while (true) {
+
+							const char* persistentData = NULL;
+							uint32 persistentDataSize = 0;
+
+							IBMRAS_DEBUG_2(debug, "getting persistent data for %s id %d", sourceId.c_str(), id);
+							id = bucket->getNextPersistentData(id,
+									persistentDataSize,
+									(void*&) persistentData);
+							if (persistentData != NULL && size > 0) {
+								currentSource->write(persistentData,
+										persistentDataSize);
+								if (persistentData) {
+									delete[] persistentData;
+								}
+							} else {
+								break;
+							}
+						};
+					}
+
+					// TODO defect 76480: if sourceId == "trace" get the method names and write them
+
 					currentSource->write(cdata, size);
 				}
 			}

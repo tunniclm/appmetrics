@@ -8,7 +8,8 @@
 #ifndef ibmras_monitoring_connector_receiver_h
 #define ibmras_monitoring_connector_receiver_h
 
-#include "ibmras/common/port/ThreadData.h"
+#include <string>
+#include <ibmras/common/types.h>
 
 namespace ibmras{
 namespace monitoring {

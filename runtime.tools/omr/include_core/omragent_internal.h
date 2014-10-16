@@ -23,6 +23,7 @@
 #endif /* defined(WIN32) */
 
 #include "j9comp.h"
+#include "omragent.h"
 #include "thread_api.h"
 
 #ifdef __cplusplus
@@ -86,10 +87,27 @@ typedef struct OMR_SysInfo {
 #endif /* defined(WIN32) */
 } OMR_SysInfo;
 
+omr_error_t omrtiBindCurrentThread(OMR_VM *vm, const char *threadName, OMR_VMThread **vmThread);
+omr_error_t omrtiUnbindCurrentThread(OMR_VMThread *vmThread);
+omr_error_t omrtiRegisterRecordSubscriber(OMR_VMThread *vmThread, char const *description,
+	utsSubscriberCallback subscriberFunc, utsSubscriberAlarmCallback alarmFunc, void *userData, UtSubscription **subscriptionID);
+omr_error_t omrtiDeregisterRecordSubscriber(OMR_VMThread *vmThread, UtSubscription *subscriptionID);
+omr_error_t omrtiFlushTraceData(OMR_VMThread *vmThread);
+omr_error_t omrtiGetTraceMetadata(OMR_VMThread *vmThread, void **data, I_32 *length);
+omr_error_t omrtiSetTraceOptions(OMR_VMThread *vmThread, char const *opts[]);
+
+omr_error_t omrtiGetSystemCpuLoad(OMR_VMThread *vmThread, double *systemCpuLoad);
+omr_error_t omrtiGetProcessCpuLoad(OMR_VMThread *vmThread, double *processCpuLoad);
+omr_error_t omrtiGetMemoryCategories(OMR_VMThread *vmThread, I_32 max_categories, OMR_TI_MemoryCategory *categories_buffer, I_32 *written_count_ptr, I_32 *total_categories_ptr);
 omr_error_t omrtiGetFreePhysicalMemorySize(OMR_VMThread *vmThread, U_64 *freePhysicalMemorySize);
 omr_error_t omrtiGetProcessVirtualMemorySize(OMR_VMThread *vmThread, U_64 *processVirtualMemorySize);
 omr_error_t omrtiGetProcessPhysicalMemorySize(OMR_VMThread *vmThread, U_64 *processPhysicalMemorySize);
 omr_error_t omrtiGetProcessPrivateMemorySize(OMR_VMThread *vmThread, U_64 *processPrivateMemorySize);
+
+omr_error_t omrtiGetMethodDescriptions(OMR_VMThread *vmThread, void **methodArray, size_t methodArrayCount,
+	OMR_SampledMethodDescription *methodDescriptions, char *nameBuffer, size_t nameBytes,
+	size_t *firstRetryMethod, size_t *nameBytesRemaining);
+omr_error_t omrtiGetMethodProperties(OMR_VMThread *vmThread, size_t *numProperties, const char ***propertyNames, size_t *sizeofSampledMethodDesc);
 
 /* This is an internal API which is subject to change without notice. Agents must not use this API. */
 typedef struct OMR_ThreadAPI {

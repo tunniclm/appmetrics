@@ -26,6 +26,7 @@ extern "C" {
 #define OMR_TI_VERSION_0 0
 
 typedef struct OMR_TI_MemoryCategory OMR_TI_MemoryCategory;
+typedef struct OMR_SampledMethodDescription OMR_SampledMethodDescription;
 
 typedef struct OMR_TI {
 	I_32 version;
@@ -206,6 +207,65 @@ typedef struct OMR_TI {
 	 * @return an OMR error code
 	 */
 	omr_error_t (*GetProcessPhysicalMemorySize)(OMR_VMThread *vmThread, U_64 *processPhysicalMemorySize);
+
+	/**
+	 * Retrieve the descriptions of methods returned from callstack sampling tracepoints.
+	 *
+	 * Method descriptions are returned in the order they are specified in methodArray.
+	 * We will return as many complete method descriptions as possible given the amount of nameBuffer provided.
+	 * We won't return incomplete method descriptions.
+	 * The reasonCode of the method description is set to one of the following values:
+	 * 1) OMR_ERROR_NONE: The method description was successfully retrieved.
+	 * 2) OMR_ERROR_NOT_AVAILABLE: The method description is not available.
+	 * 3) OMR_ERROR_RETRY: The method description could not be retrieved due to lack of space in nameBuffer.
+	 *
+	 * A method's description is deleted from the VM's method dictionary after it is has been been retrieved.
+	 * It can't be retrieved twice.
+	 *
+	 * @param[in] vmThread The current OMR VM thread.
+	 * @param[in] methodArray The methods for which descriptions are requested.
+	 *            Must not be NULL if methodArrayCount is non-zero.
+	 * @param[in] methodArrayCount The number of elements in methodArray.
+	 * @param[out] methodDescriptions A pre-allocated buffer where the requested method descriptions will be written.
+	 *             The buffer size must be at least (methodArrayCount x sizeofSampledMethodDesc) bytes, where
+	 *             sizeofSampledMethodDesc is retrieved using GetMethodProperties().
+	 *             Must not be NULL if methodArrayCount is non-zero.
+	 * @param[out] nameBuffer A preallocated buffer where string data for the requested method descriptions will be written.
+	 *             Must not be NULL if methodArrayCount and nameBytes are non-zero.
+	 * @param[in] nameBytes The size of nameBuffer, in bytes.
+	 * @param[out] firstRetryMethod If the return value is OMR_ERROR_RETRY, the first method that could not be retrieved
+	 *             due to lack of space in nameBuffer.
+	 * @param[out] nameBytesRemaining If the return value is OMR_ERROR_RETRY, the number of nameBuffer bytes needed
+	 *             to fetch the remaining methods.
+	 *
+	 * @return An OMR error code.
+	 * @retval OMR_ERROR_NONE All available method descriptions were successfully retrieved. Some descriptions may have been unavailable.
+	 * @retval OMR_THREAD_NOT_ATTACHED vmThread is NULL.
+	 * @retval OMR_ERROR_RETRY Some method descriptions could not be retrieved because nameBuffer was too small.
+	 * @retval OMR_ERROR_ILLEGAL_ARGUMENT A NULL pointer was passed in for a buffer that has a non-zero size.
+	 * @retval OMR_ERROR_NOT_AVAILABLE The method dictionary has not been enabled.
+	 * @retval OMR_ERROR_INTERNAL An unexpected internal error occurred. firstRetryMethod indicates the
+	 * entry of methodArray where the error occurred.
+	 */
+	omr_error_t (*GetMethodDescriptions)(OMR_VMThread *vmThread, void **methodArray, size_t methodArrayCount,
+		OMR_SampledMethodDescription *methodDescriptions, char *nameBuffer, size_t nameBytes,
+		size_t *firstRetryMethod, size_t *nameBytesRemaining);
+
+	/**
+	 * Retrieve the language-specific method properties.
+	 * 
+	 * @param[in] vmThread The current OMR VM thread.
+	 * @param[out] numProperties The number of method properties.
+	 * @param[out] propertyNames The ordered list of method property names. Don't modify this data.
+	 * @param[out] sizeofSampledMethodDesc The size, in bytes, of a method description returned from GetMethodDescriptions().
+	 *
+	 * @return An OMR error code.
+	 * @retval OMR_ERROR_NONE Success.
+	 * @retval OMR_THREAD_NOT_ATTACHED vmThread is NULL.
+	 * @retval OMR_ERROR_NOT_AVAILABLE The method dictionary has not been enabled.
+	 * @retval OMR_ERROR_ILLEGAL_ARGUMENT A NULL pointer was passed in for an output parameter.
+	 */
+	omr_error_t (*GetMethodProperties)(OMR_VMThread *vmThread, size_t *numProperties, const char ***propertyNames, size_t *sizeofSampledMethodDesc);
 } OMR_TI;
 
 /*
@@ -235,6 +295,26 @@ struct OMR_TI_MemoryCategory {
 
 	/* Pointer to the parent category. (NULL if this node is a root) */
 	struct OMR_TI_MemoryCategory * parent;
+};
+
+/**
+ * Description of a method that was sampled by the profiler, which is retrieved using GetMethodDescriptions() in OMR_TI.
+ * The size of this structure is language-specific. Call GetMethodProperties() to determine its required size.
+ */
+#if defined(_MSC_VER)
+#pragma warning(disable : 4200)
+#endif /* defined(_MSC_VER) */
+struct OMR_SampledMethodDescription {
+	/** See comments for GetMethodDescriptions(). */
+	omr_error_t reasonCode;
+
+	/**
+	 * In the output from GetMethodProperties(), the reasonCode will be followed by
+	 * a flexible array of property values, corresponding to the properties returned
+	 * by GetMethodProperties().
+	 * Some elements of propertyValues[] may be NULL.
+	 */
+	const char *propertyValues[];
 };
 
 /*

@@ -8,6 +8,7 @@
 #include "ibmras/common/logging.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/plugins/j9/Util.h"
+#include "ibmras/common/port/Process.h"
 
 using namespace ibmras::monitoring::plugins::jni;
 

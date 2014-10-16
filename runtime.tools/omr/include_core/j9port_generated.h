@@ -199,6 +199,7 @@ struct j9shsem_handle ; /* Forward struct declaration */
 struct j9NetworkInterfaceArray_struct ; /* Forward struct declaration */
 struct J9PortSysInfoLoadData ; /* Forward struct declaration */
 struct J9FileStatFilesystem ; /* Forward struct declaration */
+struct J9ControlFileStatus ; /* Forward struct declaration */
 typedef struct J9PortLibrary {
 	/** portVersion*/
     struct J9PortLibraryVersion portVersion;
@@ -344,6 +345,18 @@ typedef struct J9PortLibrary {
     I_32  ( *file_stat)(struct J9PortLibrary *portLibrary, const char *path, U_32 flags, struct J9FileStat *buf) ;
 	/** see @ref j9file.c::j9file_stat_filesystem "j9file_stat_filesystem"*/
     I_32  ( *file_stat_filesystem)(struct J9PortLibrary *portLibrary, const char *path, U_32 flags, struct J9FileStatFilesystem *buf) ;
+	/** see @ref j9file_blockingasync.c::j9file_blockingasync_open "j9file_blockingasync_open"*/
+    IDATA  ( *file_blockingasync_open)(struct J9PortLibrary *portLibrary, const char *path, I_32 flags, I_32 mode) ;
+	/** see @ref j9file_blockingasync.c::j9file_blockingasync_close "j9file_blockingasync_close"*/
+    I_32  ( *file_blockingasync_close)(struct J9PortLibrary *portLibrary, IDATA fd) ;
+	/** see @ref j9file_blockingasync.c::j9file_blockingasync_read "j9file_blockingasync_read"*/
+    IDATA  ( *file_blockingasync_read)(struct J9PortLibrary *portLibrary, IDATA fd, void *buf, IDATA nbytes) ;
+	/** see @ref j9file_blockingasync.c::j9file_blockingasync_write "j9file_blockingasync_write"*/
+    IDATA  ( *file_blockingasync_write)(struct J9PortLibrary *portLibrary, IDATA fd, const void *buf, IDATA nbytes) ;
+	/** see @ref j9file_blockingasync.c::j9file_blockingasync_set_length "j9file_blockingasync_set_length"*/
+    I_32  ( *file_blockingasync_set_length)(struct J9PortLibrary *portLibrary, IDATA fd, I_64 newLength) ;
+	/** see @ref j9file_blockingasync.c::j9file_blockingasync_flength "j9file_blockingasync_flength"*/
+    I_64  ( *file_blockingasync_flength)(struct J9PortLibrary *portLibrary, IDATA fd) ;
 	/** see @ref j9sl.c::j9sl_startup "j9sl_startup"*/
     I_32  ( *sl_startup)(struct J9PortLibrary *portLibrary) ;
 	/** see @ref j9sl.c::j9sl_shutdown "j9sl_shutdown"*/
@@ -600,6 +613,10 @@ typedef struct J9PortLibrary {
     I_32  ( *file_lock_bytes)(struct J9PortLibrary *portLibrary, IDATA fd, I_32 lockFlags, U_64 offset, U_64 length) ;
 	/** see @ref j9file.c::j9file_convert_native_fd_to_j9file_fd "j9file_convert_native_fd_to_j9file_fd"*/
     IDATA  ( *file_convert_native_fd_to_j9file_fd)(struct J9PortLibrary *portLibrary, IDATA nativeFD) ;
+	/** see @ref j9file_blockingasync.c::j9file_blockingasync_unlock_bytes "j9file_blockingasync_unlock_bytes"*/
+    I_32  ( *file_blockingasync_unlock_bytes)(struct J9PortLibrary *portLibrary, IDATA fd, U_64 offset, U_64 length) ;
+	/** see @ref j9file_blockingasync.c::j9file_blockingasync_lock_bytes "j9file_blockingasync_lock_bytes"*/
+    I_32  ( *file_blockingasync_lock_bytes)(struct J9PortLibrary *portLibrary, IDATA fd, I_32 lockFlags, U_64 offset, U_64 length) ;
 	/** see @ref j9sock.c::j9sock_htonl "j9sock_htonl"*/
     I_32  ( *sock_htonl)(struct J9PortLibrary *portLibrary, I_32 val) ;
 	/** see @ref j9sock.c::j9sock_bind "j9sock_bind"*/
@@ -765,7 +782,7 @@ typedef struct J9PortLibrary {
 	/** see @ref j9shsem.c::j9shsem_deprecated_shutdown "j9shsem_deprecated_shutdown"*/
     void  ( *shsem_deprecated_shutdown)(struct J9PortLibrary *portLibrary) ;
 	/** see @ref j9shsem.c::j9shsem_deprecated_open "j9shsem_deprecated_open"*/
-    IDATA  ( *shsem_deprecated_open)(struct J9PortLibrary *portLibrary, const char* cacheDirName, UDATA groupPerm, struct j9shsem_handle** handle, const char* semname, int setSize, int permission, UDATA flags) ;
+    IDATA  ( *shsem_deprecated_open)(struct J9PortLibrary *portLibrary, const char* cacheDirName, UDATA groupPerm, struct j9shsem_handle** handle, const char* semname, int setSize, int permission, UDATA flags, J9ControlFileStatus *controlFileStatus) ;
 	/** see @ref j9shsem.c::j9shsem_deprecated_openDeprecated "j9shsem_deprecated_openDeprecated"*/
     IDATA  ( *shsem_deprecated_openDeprecated)(struct J9PortLibrary *portLibrary, const char* cacheDirName, UDATA groupPerm, struct j9shsem_handle** handle, const char* semname, UDATA cacheFileType) ;
 	/** see @ref j9shsem.c::j9shsem_deprecated_post "j9shsem_deprecated_post"*/
@@ -791,7 +808,7 @@ typedef struct J9PortLibrary {
 	/** see @ref j9shmem.c::j9shmem_shutdown "j9shmem_shutdown"*/
     void  ( *shmem_shutdown)(struct J9PortLibrary *portLibrary) ;
 	/** see @ref j9shmem.c::j9shmem_open "j9shmem_open"*/
-    IDATA  ( *shmem_open)(struct J9PortLibrary *portLibrary, const char* cacheDirName, UDATA groupPerm, struct j9shmem_handle **handle, const char* rootname, UDATA size, U_32 perm, U_32 category, UDATA flags) ;
+    IDATA  ( *shmem_open)(struct J9PortLibrary *portLibrary, const char* cacheDirName, UDATA groupPerm, struct j9shmem_handle **handle, const char* rootname, UDATA size, U_32 perm, U_32 category, UDATA flags, J9ControlFileStatus *controlFileStatus) ;
 	/** see @ref j9shmem.c::j9shmem_openDeprecated "j9shmem_openDeprecated"*/
     IDATA  ( *shmem_openDeprecated)(struct J9PortLibrary *portLibrary, const char* cacheDirName, UDATA groupPerm, struct j9shmem_handle **handle, const char* rootname, U_32 perm, UDATA cacheFileType, U_32 category) ;
 	/** see @ref j9shmem.c::j9shmem_attach "j9shmem_attach"*/
@@ -1086,6 +1103,14 @@ extern J9_CFUNC I_32 j9port_isCompatible(struct J9PortLibraryVersion *expectedVe
 #define j9file_fstat(param1,param2) privatePortLibrary->file_fstat(privatePortLibrary,param1,param2)
 #define j9file_stat(param1,param2,param3) privatePortLibrary->file_stat(privatePortLibrary,param1,param2,param3)
 #define j9file_stat_filesystem(param1,param2,param3) privatePortLibrary->file_stat_filesystem(privatePortLibrary,param1,param2,param3)
+#define j9file_blockingasync_open(param1,param2,param3) privatePortLibrary->file_blockingasync_open(privatePortLibrary,param1,param2,param3)
+#define j9file_blockingasync_close(param1) privatePortLibrary->file_blockingasync_close(privatePortLibrary,param1)
+#define j9file_blockingasync_read(param1,param2,param3) privatePortLibrary->file_blockingasync_read(privatePortLibrary,param1,param2,param3)
+#define j9file_blockingasync_write(param1,param2,param3) privatePortLibrary->file_blockingasync_write(privatePortLibrary,param1,param2,param3)
+#define j9file_blockingasync_unlock_bytes(param1,param2,param3) privatePortLibrary->file_blockingasync_unlock_bytes(privatePortLibrary,param1,param2,param3)
+#define j9file_blockingasync_lock_bytes(param1,param2,param3,param4) privatePortLibrary->file_blockingasync_lock_bytes(privatePortLibrary,param1,param2,param3,param4)
+#define j9file_blockingasync_set_length(param1,param2) privatePortLibrary->file_blockingasync_set_length(privatePortLibrary,param1,param2)
+#define j9file_blockingasync_flength(param1) privatePortLibrary->file_blockingasync_flength(privatePortLibrary,param1)
 #define j9sl_startup() privatePortLibrary->sl_startup(privatePortLibrary)
 #define j9sl_shutdown() privatePortLibrary->sl_shutdown(privatePortLibrary)
 #define j9sl_close_shared_library(param1) privatePortLibrary->sl_close_shared_library(privatePortLibrary,param1)
@@ -1294,7 +1319,7 @@ extern J9_CFUNC I_32 j9port_isCompatible(struct J9PortLibraryVersion *expectedVe
 #define j9shsem_destroy(param1) privatePortLibrary->shsem_destroy(privatePortLibrary,param1)
 #define j9shsem_deprecated_startup() privatePortLibrary->shsem_deprecated_startup(privatePortLibrary)
 #define j9shsem_deprecated_shutdown() privatePortLibrary->shsem_deprecated_shutdown(privatePortLibrary)
-#define j9shsem_deprecated_open(param1,param2,param3,param4,param5,param6,param7) privatePortLibrary->shsem_deprecated_open(privatePortLibrary,param1,param2,param3,param4,param5,param6,param7)
+#define j9shsem_deprecated_open(param1,param2,param3,param4,param5,param6,param7,param8) privatePortLibrary->shsem_deprecated_open(privatePortLibrary,param1,param2,param3,param4,param5,param6,param7,param8)
 #define j9shsem_deprecated_openDeprecated(param1,param2,param3,param4,param5) privatePortLibrary->shsem_deprecated_openDeprecated(privatePortLibrary,param1,param2,param3,param4,param5)
 #define j9shsem_deprecated_post(param1,param2,param3) privatePortLibrary->shsem_deprecated_post(privatePortLibrary,param1,param2,param3)
 #define j9shsem_deprecated_wait(param1,param2,param3) privatePortLibrary->shsem_deprecated_wait(privatePortLibrary,param1,param2,param3)
@@ -1307,7 +1332,7 @@ extern J9_CFUNC I_32 j9port_isCompatible(struct J9PortLibraryVersion *expectedVe
 #define j9shsem_deprecated_getid(param1) privatePortLibrary->shsem_deprecated_getid(privatePortLibrary,param1)
 #define j9shmem_startup() privatePortLibrary->shmem_startup(privatePortLibrary)
 #define j9shmem_shutdown() privatePortLibrary->shmem_shutdown(privatePortLibrary)
-#define j9shmem_open(param1,param2,param3,param4,param5,param6,param7,param8) privatePortLibrary->shmem_open(privatePortLibrary,param1,param2,param3,param4,param5,param6,param7,param8)
+#define j9shmem_open(param1,param2,param3,param4,param5,param6,param7,param8,param9) privatePortLibrary->shmem_open(privatePortLibrary,param1,param2,param3,param4,param5,param6,param7,param8,param9)
 #define j9shmem_openDeprecated(param1,param2,param3,param4,param5,param6,param7) privatePortLibrary->shmem_openDeprecated(privatePortLibrary,param1,param2,param3,param4,param5,param6,param7)
 #define j9shmem_attach(param1,param2) privatePortLibrary->shmem_attach(privatePortLibrary,param1,param2)
 #define j9shmem_detach(param1) privatePortLibrary->shmem_detach(privatePortLibrary,param1)

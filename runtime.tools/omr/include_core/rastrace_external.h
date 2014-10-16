@@ -399,6 +399,9 @@ typedef struct OMRTraceEngine {
 
 /**
  * Start tracing support.
+ * omr_trc_startup can only be called once during the life of the process. Restarting trace is
+ * not supported. (Tracing can be disabled and enabled at runtime using the functions on
+ * UtServerInterface.)
  *
  * @param[in]  currentThread The current OMR VM thread
  * @param[in]  languageIntf Language interface (optional)
@@ -418,7 +421,10 @@ omr_error_t omr_trc_startup(OMR_VMThread *currentThread, const OMRTraceLanguageI
 	OMRTraceEngine **trcEngine);
 
 /**
- * Shut down tracing and free the trace engine data.
+ * Shut down tracing and free the trace engine data before exiting the process
+ * when the OMR VM is shutting down.
+ * omr_trc_startup cannot be called to restart trace after omr_trc_shutdown has
+ * been called.
  *
  * @pre Trace must be enabled for the current thread.
  *

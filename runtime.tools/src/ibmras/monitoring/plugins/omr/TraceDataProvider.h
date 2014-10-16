@@ -24,28 +24,6 @@
 #include <netinet/in.h>
 #endif
 
-struct __traceBuffer {
-	long size;
-	unsigned char *buffer;
-	struct __traceBuffer *next;
-};
-typedef struct __traceBuffer TRACEBUFFER;
-
-struct __traceBufferQueue {
-	TRACEBUFFER *head;
-	TRACEBUFFER *tail;
-};
-typedef struct __traceBufferQueue TRACEBUFFERQUEUE;
-
-struct __traceData {
-	TRACEBUFFERQUEUE traceBufferQueue;
-	TRACEBUFFERQUEUE freeBufferQueue;
-	int droppedBufferCount;
-	bool badMaxSizeWarningShown;
-	I_32 traceBufferSize;
-};
-typedef struct __traceData TRACEDATA;
-
 
 
 namespace plugins {

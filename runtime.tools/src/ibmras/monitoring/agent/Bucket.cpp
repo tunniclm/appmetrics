@@ -94,7 +94,7 @@ void Bucket::spill(uint32 entrysize) {
 			}
 			lock->release();
 		}
-	} IBMRAS_DEBUG_1(info, "Removed %d entries from the bucket", i); IBMRAS_DEBUG_4(debug, "Bucket stats [%d:%d] : count = %d, size = %d", provID,
+	}IBMRAS_DEBUG_1(info, "Removed %d entries from the bucket", i);IBMRAS_DEBUG_4(debug, "Bucket stats [%d:%d] : count = %d, size = %d", provID,
 			sourceID, count, size);
 }
 
@@ -131,13 +131,14 @@ bool Bucket::add(BucketDataQueueEntry* entry) {
 			size += entry->size;
 			lock->release();
 		}
-	} IBMRAS_DEBUG_4(debug,
+	}IBMRAS_DEBUG_4(debug,
 			"Bucket data [%s] : data size = %d, bucket size = %d, count = %d",
 			uniqueID.c_str(), entry->size, size, count);
 	return true; /* data added to bucket */
 }
 
-uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data, uint32 &droppedCount) {
+uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data,
+		uint32 &droppedCount) {
 	uint32 returnId = id;
 	droppedCount = 0;
 	if (!lock->acquire()) {
@@ -164,7 +165,8 @@ uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data, uint32 &drop
 								break;
 							}
 							if (dataToSend->next) {
-								droppedCount += (dataToSend->next->id - (dataToSend->id + 1));
+								droppedCount += (dataToSend->next->id
+										- (dataToSend->id + 1));
 							}
 							dataToSend = dataToSend->next;
 						}
@@ -196,6 +198,41 @@ uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data, uint32 &drop
 			lock->release();
 		}
 	}
+
+	return returnId;
+}
+
+/*
+ * NOTE This method has NO locking as it is intended to be called by the thread that
+ * already owns the bucket lock, ie from connectors called by the publish method
+ */
+uint32 Bucket::getNextPersistentData(uint32 id, uint32& dataSize, void*& data) {
+	uint32 returnId = id;
+
+	IBMRAS_DEBUG(debug, "in Bucket::getNextPersistentData()");
+
+	IBMRAS_DEBUG(debug, "in Bucket::getNextPersistentData() lock acquired");
+	uint32 requestedSize = dataSize;
+	dataSize = 0;
+	data = NULL;
+
+
+	BucketData* current = head;
+	while (current && current->id <= lastPublish) {
+		if (current->id > id && current->entry->persistentData) {
+			IBMRAS_DEBUG_1(debug, "in Bucket::getNextPersistentData() persistent entry found id", current->id);
+			// Allocate buffer
+			dataSize = current->entry->size;
+			data = new char[current->entry->size];
+
+			// copy data to buffer
+			memcpy(data, current->entry->data->ptr(), current->entry->size);
+			returnId = current->id;
+			break;
+		}
+		current = current->next;
+	}
+	lock->release();
 
 	return returnId;
 }

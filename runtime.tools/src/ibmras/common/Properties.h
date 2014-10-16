@@ -23,6 +23,7 @@ public:
 	virtual bool exists(const std::string &key);
 	virtual void put(const std::string &key, const std::string &value);
 	virtual void add(const Properties &p);
+	virtual void add(const std::string &propString);
 	virtual std::list<std::string> getKeys(const std::string& prefix = "");
 	virtual std::string toString();
 

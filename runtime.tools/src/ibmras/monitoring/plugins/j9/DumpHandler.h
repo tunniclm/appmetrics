@@ -22,6 +22,7 @@ public:
 	void triggerDumps(const std::vector<std::string> &dumpRequests);
 private:
 	jvmFunctions vmFunctions;
+
 };
 
 }

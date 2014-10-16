@@ -9,6 +9,7 @@
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
 
+
 namespace ibmras {
 namespace monitoring {
 namespace plugins {
@@ -29,7 +30,6 @@ public:
 	static void* getInstance();
 private:
 	jvmFunctions vmFunctions;
-
 
 	static monitordata* generateData(uint32 sourceID, const char *dataToSend, int size);
 	std::string createHistogramReport();

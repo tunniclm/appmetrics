@@ -10,9 +10,10 @@
 
 #include "ibmras/monitoring/connector/Connector.h"
 #include "ibmras/monitoring/connector/Receiver.h"
-
+#include "ibmras/common/port/ThreadData.h"
 #include "ibmras/common/port/Lock.h"
 #include <set>
+#include <queue>
 
 namespace ibmras{
 namespace monitoring {
@@ -40,11 +41,36 @@ public:
 	int stop();
 
 private:
+	bool running;
+	ibmras::common::port::ThreadData threadData;
 
+	class ReceivedMessage {
+	public:
+		ReceivedMessage(const std::string &id, uint32 size, void *data);
+		virtual ~ReceivedMessage();
+
+		const std::string& getId() const {
+			return id;
+		}
+
+		const std::string& getMessage() const {
+			return message;
+		}
+
+	private:
+		std::string id;
+		std::string message;
+	};
+
+	std::queue<ReceivedMessage> receiveQueue;
+	ibmras::common::port::Lock receiveLock;
 	ibmras::common::port::Lock sendLock;
+
 	std::set<Connector*> connectors;
 	std::set<Receiver*> receivers;
 
+	void processReceivedMessages();
+	static void* processThread(ibmras::common::port::ThreadData *td);
 };
 }
 }

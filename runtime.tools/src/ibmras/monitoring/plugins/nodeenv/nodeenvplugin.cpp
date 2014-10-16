@@ -27,13 +27,20 @@ IBMRAS_DEFINE_LOGGER("NodeEnvPlugin");
 
 namespace plugin {
 uint32 provid = 0;
-const char *nodeVersion = NULL;
-const char *nodeTag = NULL;
-const char *nodeVendor = NULL;
-const char *nodeName = NULL;
+std::string nodeVersion;
+std::string nodeTag;
+std::string nodeVendor;
+std::string nodeName;
+std::string commandLineArguments;
 }
 
 using namespace v8;
+
+static char* NewCString(const std::string& s) {
+	char *result = new char[s.length() + 1];
+	std::strcpy(result, s.c_str());
+	return result;
+}
 
 monitordata* OnRequestData() {
 	monitordata *data = new monitordata;
@@ -43,27 +50,28 @@ monitordata* OnRequestData() {
 	data->size = 0;
 	data->data = NULL;
 	
-	if (plugin::nodeVersion != NULL) {
+	if (plugin::nodeVersion != "") {
 		std::stringstream contentss;
 		contentss << "#EnvironmentSource\n";
 		
 		contentss << "runtime.version=" << plugin::nodeVersion;
-		if (plugin::nodeTag != NULL) {
+		if (plugin::nodeTag != "") {
 			contentss << plugin::nodeTag;
 		}
 		contentss << '\n';
 		
-		if (plugin::nodeVendor != NULL) {
+		if (plugin::nodeVendor != "") {
 			contentss << "runtime.vendor=" << plugin::nodeVendor << '\n';
 		}
-		if (plugin::nodeName != NULL) {
+		if (plugin::nodeName != "") {
 			contentss << "runtime.name=" << plugin::nodeName << '\n';
 		}
-		contentss << "jar.version=" << getAgentVersionAndDate() << '\n'; // eg "3.0.0-20141010" (NB: jar.version is a legacy name) 
+		contentss << "command.line.arguments=" << plugin::commandLineArguments << '\n';
+		contentss << "jar.version=" << getAgentVersionAndDate() << '\n'; // eg "3.0.0.20141010" (NB: jar.version is a legacy name) 
 		
 		std::string content = contentss.str();
 		data->size = content.length();
-		data->data = strdup(content.c_str());
+		data->data = NewCString(content.c_str());
 	}		
 	
 	return data;
@@ -79,7 +87,7 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	src->header.name = name;
 	std::string desc("Description for ");
 	desc.append(name);
-	src->header.description = desc.c_str();
+	src->header.description = NewCString(desc);
 	src->header.sourceID = srcid;
 	src->next = NULL;
 	src->header.capacity = DEFAULT_CAPACITY;
@@ -89,48 +97,82 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	return src;
 }
 
-char *NewCString(Local<String> s) {
+static std::string ToStdString(Local<String> s) {
 	char *buf = new char[s->Length() + 1];
 	s->WriteAscii(buf);
-	return buf;
+	std::string result(buf);
+	delete[] buf;
+	return result;
+}
+
+static Local<Object> GetProcessObject() {
+	return Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject();
+}
+
+static Local<Object> GetProcessConfigObject() {
+	return Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject()->Get(String::New("config"))->ToObject();
 }
 	
-char * GetNodeVersion() {
-	Local<String> version = Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject()->Get(String::New("version"))->ToString();
-	return NewCString(version);
+static std::string GetNodeVersion() {
+	Local<String> version = GetProcessObject()->Get(String::New("version"))->ToString();
+	return ToStdString(version);
 }
 
-char * GetNodeTag() {
-	Local<String> tag = Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject()->Get(String::New("config"))->ToObject()->Get(String::New("variables"))->ToObject()->Get(String::New("node_tag"))->ToString();
-	return NewCString(tag);
+static std::string GetNodeTag() {
+	Local<String> tag = GetProcessConfigObject()->Get(String::New("variables"))->ToObject()->Get(String::New("node_tag"))->ToString();
+	return ToStdString(tag);
 }
 
-void PrintComponentVersions() {
+// Notes:
+// process.argv -- array containing strings: 
+//                 [0] contains path to node (as passed)
+//                 [1] contains absolute path to the main module (usually a js file, the entry point to the user app)
+//                 [2+] remaining entries are the args to the main module 
+// process.execPath -- absolute path to node executable
+// process.execArgv -- array containing strings for each argument to node (not including the main module and its args)
+
+static std::string GetNodeArguments(const std::string separator="@@@") {
+	std::stringstream ss;
+	Local<Object> process = GetProcessObject();
+	Local<Object> nodeArgv = process->Get(String::New("execArgv"))->ToObject();
+	int nodeArgc = nodeArgv->Get(String::New("length"))->ToInteger()->Value();
+
+	int written = 0;
+	if (nodeArgc > 0) {
+		for (int i = 0; i < nodeArgc; i++) {
+			if (written++ > 0) ss << separator;
+			ss << ToStdString(nodeArgv->Get(i)->ToString());
+		}
+	}
+	
+	return ss.str();
+}
+
+static void PrintComponentVersions() {
 	Local<Object> versions = Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject()->Get(String::New("versions"))->ToObject();
 	Local<Array> componentNames = versions->GetOwnPropertyNames();
 	unsigned i;
 	for (i=0; i<componentNames->Length(); i++) {
-		char *componentName_cstr = NewCString(componentNames->Get(i)->ToString());
-		char *componentVersion_cstr = NewCString(versions->Get(componentNames->Get(i))->ToString()); 
-		std::cout << componentName_cstr << " = " << componentVersion_cstr << std::endl;
-		delete[] componentName_cstr;
-		delete[] componentVersion_cstr;
+		std::string componentName = ToStdString(componentNames->Get(i)->ToString());
+		std::string componentVersion = ToStdString(versions->Get(componentNames->Get(i))->ToString()); 
+		std::cout << componentName << " = " << componentVersion << std::endl;
 	}
 }
 
 uv_async_t async;
 
-void GetNodeInformation(uv_async_t *handle, int status) {
+static void GetNodeInformation(uv_async_t *handle, int status) {
 	HandleScope scope;
 	plugin::nodeVersion = GetNodeVersion();
 	plugin::nodeTag = GetNodeTag();
-	if (strstr(plugin::nodeTag, "IBMBuild")) {
-		plugin::nodeVendor = "IBM";
-		plugin::nodeName = "IBM SDK for Node.js";
+	if (plugin::nodeTag.find("IBMBuild") != std::string::npos) {
+		plugin::nodeVendor = std::string("IBM");
+		plugin::nodeName = std::string("IBM SDK for Node.js");
 	} else {
-		plugin::nodeName = "Node.js";
+		plugin::nodeName = std::string("Node.js");
 	}
-	PrintComponentVersions();
+	plugin::commandLineArguments = GetNodeArguments();
+	//PrintComponentVersions();
 	uv_close((uv_handle_t*) &async, NULL);
 }
 

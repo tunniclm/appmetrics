@@ -7,6 +7,9 @@
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
 
+#include "ibmras/monitoring/agent/Agent.h"
+
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -62,7 +65,9 @@ DumpHandler* DumpHandler::getInstance() {
 }
 
 void DumpHandler::requestDumps(const std::vector<std::string> &dumpRequests) {
-	getInstance()->triggerDumps(dumpRequests);
+	if (!ibmras::monitoring::agent::Agent::getInstance()->readOnly()) {
+		getInstance()->triggerDumps(dumpRequests);
+	}
 }
 
 void DumpHandler::triggerDumps(const std::vector<std::string> &dumpRequests) {

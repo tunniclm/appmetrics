@@ -32,12 +32,28 @@ namespace plugin {
 	struct CPUTime* current;
 }
 
+static char* NewCString(const std::string& s) {
+	char *result = new char[s.length() + 1];
+	std::strcpy(result, s.c_str());
+	return result;
+}
+
 static double CalculateTotalCPU(struct CPUTime* start, struct CPUTime* finish) {
-	return (double)(finish->total - start->total) / (double)(finish->time - start->time);
+	double cpu = (double)(finish->total - start->total) / (double)(finish->time - start->time);
+	if (cpu > 1.0) {
+		IBMRAS_DEBUG_1(debug, "Total CPU reported > 1.0 (%lf)", cpu);
+		cpu = 1.0;
+	}
+	return cpu;
 }
 
 static double CalculateProcessCPU(struct CPUTime* start, struct CPUTime* finish) {
-	return (double)(finish->process - start->process) / (double)(finish->time - start->time);
+	double cpu = (double)(finish->process - start->process) / (double)(finish->time - start->time);
+	if (cpu > 1.0) {
+		IBMRAS_DEBUG_1(debug, "Process CPU reported > 1.0 (%lf)", cpu);
+		cpu = 1.0;
+	}
+	return cpu;
 }
 
 static void AppendCPUTime(std::stringstream& contentss) {
@@ -60,6 +76,9 @@ monitordata* OnRequestData() {
 	data->data = NULL;
 	data->persistent = false;
 
+	if (plugin::last != NULL) {
+		delete plugin::last;
+	}
 	plugin::last = plugin::current;
 	plugin::current = getCPUTime();
 	
@@ -70,7 +89,7 @@ monitordata* OnRequestData() {
 		
 		std::string content = contentss.str();
 		data->size = content.length();
-		data->data = strdup(content.c_str());
+		data->data = NewCString(content);
 	}
 	
 	return data;
@@ -88,7 +107,7 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	src->header.name = name;
 	std::string desc("Description for ");
 	desc.append(name);
-	src->header.description = desc.c_str();
+	src->header.description = NewCString(desc);
 	src->header.sourceID = srcid;
 	src->next = NULL;
 	src->header.capacity = DEFAULT_CAPACITY;

@@ -32,12 +32,12 @@ COPY_CONNECTOR=cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
 #-------------------------------------------------------------------------------------------
 #Objects files which make up various components
 #-------------------------------------------------------------------------------------------
-COMMON_OBJS = ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/FileUtils.o ${COMMON_OUT}/LibraryUtils.o ${COMMON_OUT}/Thread.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/ThreadData.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/PropertiesFile.o ${COMMON_OUT}/LegacyData.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o 
+COMMON_OBJS = ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/FileUtils.o ${COMMON_OUT}/LibraryUtils.o ${COMMON_OUT}/Thread.o ${COMMON_OUT}/Lock.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/ThreadData.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/PropertiesFile.o ${COMMON_OUT}/LegacyData.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o 
 HL_CONNECTOR_OBJS=${CONNECTOR_OUT}/HLConnector.o ${CONNECTOR_OUT}/HLConnectorPlugin.o
 AGENT_OBJS=${COMMON_OBJS} ${AGENT_OUT}/agent.o ${AGENT_OUT}/PullSourceCounter.o ${AGENT_OUT}/ThreadPool.o ${AGENT_OUT}/WorkerThread.o ${AGENT_OUT}/WorkerThreadControl.o ${AGENT_OUT}/SystemReceiver.o ${AGENT_OUT}/ConnectorManager.o ${AGENT_OUT}/Bucket.o ${AGENT_OUT}/BucketList.o ${AGENT_OUT}/BucketDataQueueEntry.o ${AGENT_OUT}/Plugin.o  ${AGENT_OUT}/ConfigurationConnector.o 
 
 PAHO_ASYNC_OBJS=${PAHO_OUT}/Clients.o ${PAHO_OUT}/Heap.o ${PAHO_OUT}/LinkedList.o ${PAHO_OUT}/Log.o ${PAHO_OUT}/Messages.o ${PAHO_OUT}/MQTTAsync.o ${PAHO_OUT}/MQTTPacket.o ${PAHO_OUT}/MQTTPacketOut.o ${PAHO_OUT}/MQTTPersistence.o ${PAHO_OUT}/MQTTPersistenceDefault.o ${PAHO_OUT}/MQTTProtocolClient.o ${PAHO_OUT}/MQTTProtocolOut.o ${PAHO_OUT}/SocketBuffer.o ${PAHO_OUT}/Socket.o ${PAHO_OUT}/StackTrace.o ${PAHO_OUT}/Thread.o ${PAHO_OUT}/Tree.o ${PAHO_OUT}/utf-8.o
-MQTT_CONNECTOR_OBJS=${CONNECTOR_OUT}/MQTTConnector.o
+MQTT_CONNECTOR_OBJS=${CONNECTOR_OUT}/MQTTConnector.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/Lock.o
 OSTREAM_CONNECTOR_OBJS = ${CONNECTOR_OUT}/OStreamConnector.o 
 TESTPLUGIN_OBJS=${PLUGIN_OUT}/plugin.o
 OSPLUGIN_OBJS=${PLUGIN_OUT}/osplugin.o ${PLUGIN_OUT}/os${OS}.o
@@ -172,8 +172,8 @@ ${PLUGIN_OUT}/libpyplugin.${LIB_EXT}: ${PYPLUGIN_OBJS}
 	${LINK} ${LDFLAGS} ${LIBFLAGS} ${OBJOPT} ${PYPLUGIN_OBJS} ${COMMON_OBJS}
 	@echo "Python plugin lib built"
 
-${CONNECTOR_OUT}/${LIB_PREFIX}hcmqtt.${LIB_EXT}: ${MQTT_CONNECTOR_OBJS} ${PAHO_ASYNC_OBJS}
-	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIBPATH}"${HC_OUT}" ${HC_LIB_USE} ${LIB_OBJOPT} "${MQTT_CONNECTOR_OBJS}" ${PAHO_ASYNC_OBJS} ${MQTT_LIB_OPTIONS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
+${CONNECTOR_OUT}/${LIB_PREFIX}hcmqtt.${LIB_EXT}: ${MQTT_CONNECTOR_OBJS} ${PAHO_ASYNC_OBJS} ${COMMON_OBJS}
+	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} ${MQTT_CONNECTOR_OBJS} ${PAHO_ASYNC_OBJS} ${MQTT_LIB_OPTIONS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
 	@echo "MQTT connector lib built"
 
 ${CONNECTOR_OUT}/libostream.${LIB_EXT}: ${OSTREAM_CONNECTOR_OBJS}
@@ -279,6 +279,9 @@ ${COMMON_OUT}/LogManager.o:
 
 ${COMMON_OUT}/Thread.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/port/${PORTDIR}/Thread.cpp
+
+${COMMON_OUT}/Lock.o: 
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/port/Lock.cpp
 
 ${COMMON_OUT}/Process.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/port/${PORTDIR}/Process.cpp

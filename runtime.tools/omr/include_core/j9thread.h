@@ -91,6 +91,8 @@ or j9thread priority value.
 
 #define j9thread_monitor_set_name(pMon,pName) /* fn on death row */
 
+/* Eye-catcher to identify j9threads that did not survive a fork and should no longer be used. */
+#define J9THREAD_POST_FORK_POISONING_EYECATCHER 0xDEADBEEF 
 
 #ifdef __cplusplus
 }

@@ -235,8 +235,13 @@ public:
 #elif defined(_MSC_VER)
 		_ReadBarrier();
 #elif defined(__GNUC__)
-#if defined(J9X86) || defined(J9HAMMER)
-		asm volatile("mfence":::"memory");
+#if defined(J9X86)
+		asm volatile("lock orl $0x0,(%%esp)" ::: "memory");
+		/* TODO investigate whether or not we should call this instead
+		asm volatile("lfence":::"memory");
+		*/
+#elif defined(J9HAMMER)
+		asm volatile("lock orq $0x0,(%%rsp)" ::: "memory");
 		/* TODO investigate whether or not we should call this instead
 		asm volatile("lfence":::"memory");
 		*/

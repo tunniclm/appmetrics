@@ -34,6 +34,7 @@ namespace ibmras {
 			static Logger* getLogger(const std::string &name); /* return instance of the logger */
 
 			void setLevel(logging::Level level); /* set the log level for all components */
+			void setLevel(const std::string &name, const std::string &level);
 			void setLevel(const std::string &name, logging::Level level); /* set the log level for a named component logger */
 		protected:
 			LogManager();

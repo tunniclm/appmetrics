@@ -16,7 +16,6 @@
 #include <errno.h>
 
 #include "ibmras/common/port/ThreadData.h"
-#include "ibmras/common/port/Lock.h"
 #include "ibmras/common/port/Semaphore.h"
 #include "ibmras/common/logging.h"
 
@@ -49,46 +48,6 @@ void sleep(uint32 seconds) {
 	nanosleep(&t, &tleft);
 }
 
-Lock::Lock() {
-	lock = new pthread_mutex_t;		/* create a new lock fpr this class */
-	pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(lock);
-	pthread_mutex_init(mutex, NULL);
-}
-
-/* acquire a pthread mutex */
-int Lock::acquire() {
-	if(lock) {
-		return pthread_mutex_lock(reinterpret_cast<pthread_mutex_t*>(lock));
-	} else {
-		IBMRAS_DEBUG(warning, "Attempted to acquire a previously failed lock");
-		return LOCK_FAIL;
-	}
-}
-
-/* release the mutex */
-int Lock::release() {
-	if(lock) {
-		return pthread_mutex_unlock(reinterpret_cast<pthread_mutex_t*>(lock));
-	} else {
-		IBMRAS_DEBUG(warning, "Attempted to release a previously failed lock");
-		return LOCK_FAIL;
-	}
-}
-
-void Lock::destroy() {
-	if(lock) {
-		pthread_mutex_destroy(reinterpret_cast<pthread_mutex_t*>(lock));
-		lock = NULL;
-	}
-}
-
-bool Lock::isDestroyed() {
-	return lock == NULL;
-}
-
-Lock::~Lock() {
-	destroy();
-}
 
 Semaphore::Semaphore(uint32 initial, uint32 max) {
 	handle = new sem_t;
