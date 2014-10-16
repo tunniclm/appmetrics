@@ -5,6 +5,8 @@
 # Default value for core.ignore is bin
 #  Changing this value changes check-in behaviour for the local directory.
 #
+# Ignored files and folders will not be committed, but may be modified during
+# accept or update.
 # Ignore properties should contain a space separated list of filename patterns.
 # Each pattern is case sensitive and surrounded by braces ('{' and '}'). 
 # "*" matches zero or more characters, and "?" matches single characters. 
@@ -20,6 +22,7 @@ core.ignore.recursive= \
 core.ignore= \
 	{.autotools} \
 	{.cproject} \
+	{.jazzignore} \
 	{.project} \
 	{.settings} \
 	{Agent.asm} \
@@ -93,6 +96,7 @@ core.ignore= \
 	{Tree.asm} \
 	{WorkerThread.asm} \
 	{WorkerThreadControl.asm} \
+	{agentsrc.zip} \
 	{bin} \
 	{environment} \
 	{healthcenter.asm} \

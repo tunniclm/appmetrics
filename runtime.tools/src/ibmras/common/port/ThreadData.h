@@ -26,7 +26,7 @@ typedef void* (*THREAD_CALLBACK)(ThreadData*);				/* shortcut definition for the
 class ThreadData {
 public:
 	ThreadData(THREAD_CALLBACK callback);
-	~ThreadData();
+	~ThreadData(){}
 	void setArgs(void* args);
 	void* getArgs();
 	THREAD_CALLBACK getCallback();
