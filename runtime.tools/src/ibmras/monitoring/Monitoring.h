@@ -18,7 +18,7 @@ typedef struct monitordata {
 	uint32 provID;				/* provider ID, previously allocated during the source registration */
 	uint32 sourceID;			/* source ID, previously supplied by the source during registration */
 	uint32 size;				/* amount of data being provided */
-	const char *data;					/* char array of the data to store */
+	const char *data;			/* char array of the data to store */
 	bool persistent;            /* persistent data will not be removed from the bucket */
 } monitordata;
 

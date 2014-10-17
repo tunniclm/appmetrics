@@ -170,7 +170,13 @@ void MQTTConnector::onFailure(void* context, MQTTAsync_failureData* response) {
 
 void MQTTConnector::handleOnConnect(MQTTAsync_successData* response) {
 	char *topic = new char[agentTopic.length() + 2];
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 	sprintf(topic, "%s#", agentTopic.c_str());
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
 	IBMRAS_DEBUG_1(debug, "MQTTAsync_subscribe to %s", topic);
 	MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
 	opts.context = this;
@@ -218,7 +224,13 @@ int MQTTConnector::sendMessage(const std::string &sourceId, uint32 size,
 
 	/* topic = <clientId>/sourceId */
 	char *topic = new char[rootTopic.length() + 1 + sourceId.length() + 1];
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 	sprintf(topic, "%s/%s", rootTopic.c_str(), sourceId.c_str());
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
 
 	//	MQTTAsync_deliveryToken token;
 	MQTTAsync_send(mqttClient, topic, size, data, 1, 0, NULL);

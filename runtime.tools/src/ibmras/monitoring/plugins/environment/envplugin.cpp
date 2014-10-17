@@ -355,8 +355,13 @@ static const std::string GetWindowsBuild() {
 	if (NULL == buffer) {
 		return defaultBuild;
 	}
-
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 	position = sprintf(buffer,"%d.%d build %d",
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
 		versionInfo.dwMajorVersion,
 		versionInfo.dwMinorVersion,
 		versionInfo.dwBuildNumber & 0x0000FFFF);

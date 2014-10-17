@@ -13,6 +13,9 @@
 #include "ibmras/monitoring/plugins/j9/Util.h"
 #include "ibmras/common/port/Process.h"
 
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 #if defined(WINDOWS)
 //#include <winsock2.h>
 #define JLONG_FMT_STR "%I64d"
@@ -26,6 +29,10 @@
 
 #if defined (_PPC)
 #include <unistd.h>
+#endif
+
+#if defined(_ZOS)
+#pragma convlit(resume)
 #endif
 
 #include <assert.h>
@@ -444,9 +451,8 @@ int Tracestart() {
 	/* start the trace subscriber */
 	startTraceSubscriber(maxCircularBufferSize, bufferSize);
 
-#if defined(_ZOS)
-#pragma convert("ISO8859-1")
-#endif
+
+
 	/* turn off all trace to start with */
 	/* on ppc, it seems we try this before we the trace engine is up so
 	 * adding a sleep 3 seconds pause. This is nasty and we need a better way
@@ -456,9 +462,6 @@ int Tracestart() {
 	sleep(3);
 #endif
 	vmData.setTraceOption(vmData.pti, "none=all,maximal=mt");
-#if defined(_ZOS)
-#pragma convert(pop)
-#endif
 	/* now enable HC specific trace */
 	enableTracePoints(gc);
 	enableTracePoints(profiling);
@@ -818,9 +821,6 @@ void enableGCTracePoint(const std::string &tp) {
 }
 
 void enableNormalTracePoint(const std::string &tp) {
-#if defined(_ZOS)
-#pragma convert("ISO8859-1")
-#endif
 	std::string command = "maximal=tpnid{" + tp + "}";
 	vmData.setTraceOption(vmData.pti, command.c_str());
 }
@@ -843,9 +843,6 @@ void disableNormalTracePoint(const std::string &tp) {
 	std::string command = "maximal=!tpnid{" + tp + "}";
 	rc = vmData.setTraceOption(vmData.pti, command.c_str());
 }
-#if defined(_ZOS)
-#pragma convert(pop)
-#endif
 
 /*
  * Converts a jlong from host to network byte order (big endian)
@@ -882,15 +879,9 @@ bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 		void *subscriptionID;
 
 		int rc;
-#if defined(_ZOS)
-#pragma convert("ISO8859-1")
-#endif
 		rc = vmData.jvmtiRegisterTraceSubscriber(vmData.pti,
 				"Health Center trace subscriber", traceSubscriber, NULL,
 				NULL, &subscriptionID);
-#if defined(_ZOS)
-#pragma convert(pop)
-#endif
 		IBMRAS_DEBUG_1(debug, "return code from jvmtiRegisterTraceSubscriber %d", rc);
 		if (JVMTI_ERROR_NONE == rc) {
 			IBMRAS_DEBUG(debug,
@@ -921,13 +912,7 @@ jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 
 	unsigned char* buffer = new unsigned char[length + 4 + sizeof(jlong)];
 	/* Write eye catcher */
-#if defined(_ZOS)
-#pragma convert("ISO8859-1")
-#endif
 	strcpy((char*) buffer, "HCTB");
-#if defined(_ZOS)
-#pragma convert(pop)
-#endif
 	/* Convert payload length to network byte order */
 	payLoadLength = htonjl(payLoadLength);
 

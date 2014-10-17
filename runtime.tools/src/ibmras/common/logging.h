@@ -17,6 +17,10 @@ extern "C" {
 #define IBMRAS_ASSIGN_LOGGER(name) {logger = (ibmras::common::Logger*)ibmras_common_LogManager_getLogger( name );}
 #define IBMRAS_DEFINE_LOGGER(name) ibmras::common::Logger* logger = (ibmras::common::Logger*)ibmras_common_LogManager_getLogger( name );
 
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
+
 /* Define logging macros */
 #define IBMRAS_LOG(LOGLEVEL, MSG) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->LOGLEVEL(MSG);}}
 #define IBMRAS_LOG_1(LOGLEVEL, MSG, INSERT1) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->LOGLEVEL(MSG, INSERT1);}}
@@ -39,5 +43,9 @@ extern "C" {
 #define IBMRAS_DEBUG_4(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3, INSERT4)
 
 #endif /* IBMRAS_DEBUG_LOGGING */
+
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
 
 #endif /* ibmras_common_logging_h */

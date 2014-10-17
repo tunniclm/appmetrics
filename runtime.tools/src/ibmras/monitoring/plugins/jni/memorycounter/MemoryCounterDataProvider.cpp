@@ -228,7 +228,9 @@ char* getMemoryCounters(JNIEnv *env) {
 		} else {
 			parentNumber = -1;
 		}
-
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 		sprintf(buffer, memCounterFormatString, categories_buffer[i].name,
 				categories_buffer[i].liveBytesShallow,
 				categories_buffer[i].liveBytesDeep,
@@ -287,6 +289,9 @@ char* getMemoryCounters(JNIEnv *env) {
 			strcpy(report, data.c_str());
 		}
 	}
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 	ibmras::monitoring::plugins::jni::hc_dealloc(
 			(unsigned char**) &finalReport);
 

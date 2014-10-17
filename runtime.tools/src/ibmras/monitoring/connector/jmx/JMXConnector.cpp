@@ -22,7 +22,6 @@
  * be in ISO8859-1 encoding
  */
 #ifdef _ZOS
-#pragma convert("ISO8859-1")
 #include <unistd.h>
 #endif
 
@@ -117,16 +116,12 @@ int JMXConnector::launchMBean() {
 		return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_JVMTI_ERR;
 	}
 
-#ifdef _ZOS
-#pragma convert(pop)
-#endif
+
 	if (NULL == javaHCLaunchMBean) {
 		javaHCLaunchMBean =
 				env->FindClass(
 						"com/ibm/java/diagnostics/healthcenter/agent/mbean/HCLaunchMBean");
-#ifdef _ZOS
-#pragma convert("ISO8859-1")
-#endif
+
 		if (ExceptionCheck(env) || NULL == javaHCLaunchMBean) {
 			IBMRAS_LOG(warning,
 					"launchMBean couldn't find com.ibm.java.diagnostics.healthcenter/agent/mbean/HCLaunchMBean class. Agent not started.");
@@ -134,15 +129,10 @@ int JMXConnector::launchMBean() {
 		}
 	}
 
-#ifdef _ZOS
-#pragma convert(pop)
-#endif
 	if (NULL == mainMethod) {
 		mainMethod = env->GetStaticMethodID(javaHCLaunchMBean, "main",
 				"([Ljava/lang/String;)V");
-#ifdef _ZOS
-#pragma convert("ISO8859-1")
-#endif
+
 		if (ExceptionCheck(env) || NULL == mainMethod) {
 			IBMRAS_LOG(warning,
 					"launchMBean couldn't find main method in HCLaunchMBean class. Agent not started.");
@@ -150,23 +140,22 @@ int JMXConnector::launchMBean() {
 		}
 	}
 
-#ifdef _ZOS
-#pragma convert(pop)
-#endif
 	applicationArgs = env->NewObjectArray(2, env->FindClass("java/lang/String"),
 	NULL);
-#ifdef _ZOS
-#pragma convlit(suspend)
-#endif
 	/* should throw OOM or come back null */
 	if (ExceptionCheck(env) || NULL == applicationArgs) {
 		IBMRAS_LOG(warning,
 				"launchMBean couldn't create object array. Agent not started.");
 		return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
 	}
-
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 	processID = ibmras::common::port::getProcessId();
 	sprintf(args0, "%d", processID);
+#if defined (_ZOS)
+#pragma convlit(resume)
+#endif
 
 #ifdef _ZOS
 	__etoa(args0);
@@ -235,13 +224,9 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_getProviders
 	ibmras::monitoring::agent::Agent::getInstance();
 	ibmras::monitoring::agent::BucketList* buckets = agent->getBucketList();
 	std::vector<std::string> ids = buckets->getIDs();
-#ifdef _ZOS
-#pragma convert("ISO8859-1")
-#endif
+
 	jclass stringClass = jni_env->FindClass("java/lang/String");
-#ifdef _ZOS
-#pragma convert(pop)
-#endif
+
 	jobjectArray stringArray = jni_env->NewObjectArray(ids.size(), stringClass,
 			0);
 	for (uint32 i = 0; i < ids.size(); ++i) {

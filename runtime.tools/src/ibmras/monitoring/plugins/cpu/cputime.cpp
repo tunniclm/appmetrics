@@ -65,8 +65,13 @@ static bool read_process_cpu_time(unsigned long long* proctime, const unsigned N
 	unsigned long long user = 0, kernel = 0;
 	char buffer[128];
 	char statfile[128];
-	
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif	
 	sprintf(statfile, "/proc/%d/stat", getpid()); // FIXME bounds & error handling
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
 	FILE* fp = fopen(statfile, "r");
 	if (!fp) {
 		IBMRAS_DEBUG_1(warning, "Failed to open %s", statfile);
@@ -278,7 +283,13 @@ struct CPUTime* getCPUTime() {
 	}
 	
 	// psid.name is char[IDENTIIFER_LENGTH] (64); see libperfstat.h
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 	sprintf(psid.name, "%d", getpid());
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
 	if (perfstat_process(&psid, &pstats, sizeof(perfstat_process_t), 1) == -1) {
 		delete cputime;
 		return NULL;

@@ -279,6 +279,9 @@ char* monitor_dump_event(JNIEnv *env) {
 	tm_delta = tm_curr - tm_stt;
 
 	/* output interval time */
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 	sprintf(buffer, "IntervalTime, %" _P64 "d,", tm_delta);
 	reportLineArray[reportLineCount] =
 			reinterpret_cast<char*>(ibmras::monitoring::plugins::jni::hc_alloc(
@@ -514,7 +517,9 @@ char* monitor_dump_event(JNIEnv *env) {
 	IBMRAS_DEBUG(debug, "< monitor_dump_event");
 	return finalReport;
 }
-
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
 } /* end namespace locking */
 } /* end namespace jni */
 } /* end namespace plugins */

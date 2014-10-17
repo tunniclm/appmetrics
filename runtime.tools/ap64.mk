@@ -1,9 +1,9 @@
 #include makefile for AIX
 PLATFORM=_AIX
 PORTDIR=aix
-CC=/usr/vacpp/bin/xlC
-LINK=/usr/vacpp/bin/xlC
-GCC=/usr/vacpp/bin/xlC
+CC=/usr/vacpp/bin/xlC_r
+LINK=/usr/vacpp/bin/xlC_r
+GCC=/usr/vacpp/bin/xlC_r
 LINK_OPT=-G -g -q64 -brtl
 LD_OPT=-Wl,-bexpall,-brtllib
 JAVA_PLAT_INCLUDE=${JAVA_SDK_INCLUDE}

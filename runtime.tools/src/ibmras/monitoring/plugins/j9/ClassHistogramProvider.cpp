@@ -4,6 +4,10 @@
  *  Created on: 21 July 2014
  *      Author: stalleyj
  */
+#if defined(_ZOS)
+#define _XOPEN_SOURCE_EXTENDED 1
+#undef _ALL_SOURCE
+#endif
 
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/vm/java/healthcenter.h"
@@ -246,12 +250,23 @@ std::string ClassHistogramProvider::createHistogramReport()
     	IBMRAS_DEBUG_1(debug, "problem iterating over heap, error %d\n",rc);
         goto cleanup;
     }
-
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
     sprintf(buffer,"heapused,%d\n", heapUsed);
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
     report << buffer;
     for (i=0; i < count; i++)
     {
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
         sprintf(buffer,repfmt,classNameArray[i], classSizes[i], classCounts[i]);
+#if defined(_ZOS)
+#pragma convlit(resume)
+#endif
         report << buffer;
     }
 

@@ -209,14 +209,7 @@ omr_error_t traceSubscriber(UtSubscription *subscriptionID) {
 
 	unsigned char* buffer = new unsigned char[subscriptionID->dataLength + 4 + sizeof(I_64)];
 	/* Write eye catcher */
-#if defined(_ZOS)
-#pragma convert("ISO8859-1")
-#endif
-	/* Write eye catcher */
 	strcpy((char*) buffer, "HCTB");
-#if defined(_ZOS)
-#pragma convert(pop)
-#endif
 
 	I_64 payLoadLength = subscriptionID->dataLength;
 	/* Convert payload length to network byte order */
