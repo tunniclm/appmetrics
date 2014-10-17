@@ -137,12 +137,7 @@
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
       ],
-      "dependencies": [ "libhealthcenter" ],
       "conditions": [
-        [ 'OS=="aix"', {
-          "dependencies!": [ "libhealthcenter" ],
-          "dependencies": [ "libhealthcenter-aix" ],
-        }],      
         [ 'node_byteorder=="big"', {
           "defines": [ "REVERSED" ], 
         }],
@@ -153,13 +148,13 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/nodeenv/nodeenvplugin.cpp",
-      ],
-      "dependencies": [ "libhealthcenter" ],
-      "conditions": [
-        [ 'OS=="aix"', {
-          "dependencies!": [ "libhealthcenter" ],
-          "dependencies": [ "libhealthcenter-aix" ],
-        }],
+        "<(srcdir)/common/Logger.cpp",
+        "<(srcdir)/common/LogManager.cpp",
+        "<(srcdir)/common/port/<(portdir)/Process.cpp",
+        "<(srcdir)/common/port/Lock.cpp",
+        "<(srcdir)/common/Properties.cpp",
+        "<(srcdir)/common/util/strUtils.cpp",
+        "<(srcdir)/common/util/sysUtils.cpp",
       ],
     },
     {
@@ -167,13 +162,13 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/nodegc/nodegcplugin.cpp",
-      ],
-      "dependencies": [ "libhealthcenter" ],
-      "conditions": [
-        [ 'OS=="aix"', {
-          "dependencies!": [ "libhealthcenter" ],
-          "dependencies": [ "libhealthcenter-aix" ],
-        }],
+        "<(srcdir)/common/Logger.cpp",
+        "<(srcdir)/common/LogManager.cpp",
+        "<(srcdir)/common/port/<(portdir)/Process.cpp",
+        "<(srcdir)/common/port/Lock.cpp",
+        "<(srcdir)/common/Properties.cpp",
+        "<(srcdir)/common/util/strUtils.cpp",
+        "<(srcdir)/common/util/sysUtils.cpp",
       ],
     },
     {
@@ -182,16 +177,20 @@
       "sources": [
         "<(srcdir)/monitoring/plugins/cpu/cpuplugin.cpp",
         "<(srcdir)/monitoring/plugins/cpu/cputime.cpp",
+        "<(srcdir)/common/Logger.cpp",
+        "<(srcdir)/common/LogManager.cpp",
+        "<(srcdir)/common/port/<(portdir)/Process.cpp",
+        "<(srcdir)/common/port/Lock.cpp",
+        "<(srcdir)/common/Properties.cpp",
+        "<(srcdir)/common/util/strUtils.cpp",
+        "<(srcdir)/common/util/sysUtils.cpp",
       ],
-      "dependencies": [ "libhealthcenter" ],
       "conditions": [
         ['OS=="win"', {
           "libraries": [ "Pdh" ],
         }],
         ['OS=="aix"', {
           "libraries": [ "-lperfstat" ],
-          "dependencies!": [ "libhealthcenter" ],
-          "dependencies": [ "libhealthcenter-aix" ],
         }],
       ],
     },
@@ -200,13 +199,13 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/environment/envplugin.cpp",
-      ],
-      "dependencies": [ "libhealthcenter" ],
-      "conditions": [
-        [ 'OS=="aix"', {
-          "dependencies!": [ "libhealthcenter" ],
-          "dependencies": [ "libhealthcenter-aix" ],
-        }],
+        "<(srcdir)/common/Logger.cpp",
+        "<(srcdir)/common/LogManager.cpp",
+        "<(srcdir)/common/port/<(portdir)/Process.cpp",
+        "<(srcdir)/common/port/Lock.cpp",
+        "<(srcdir)/common/Properties.cpp",
+        "<(srcdir)/common/util/strUtils.cpp",
+        "<(srcdir)/common/util/sysUtils.cpp",
       ],
     },
     {
@@ -214,13 +213,13 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/connector/ostream/OStreamConnector.cpp",
-      ],
-      "dependencies": [ "libhealthcenter" ],
-      "conditions": [
-        [ 'OS=="aix"', {
-          "dependencies!": [ "libhealthcenter" ],
-          "dependencies": [ "libhealthcenter-aix" ],
-        }],
+        "<(srcdir)/common/Logger.cpp",
+        "<(srcdir)/common/LogManager.cpp",
+        "<(srcdir)/common/port/<(portdir)/Process.cpp",
+        "<(srcdir)/common/port/Lock.cpp",
+        "<(srcdir)/common/Properties.cpp",
+        "<(srcdir)/common/util/strUtils.cpp",
+        "<(srcdir)/common/util/sysUtils.cpp",
       ],
     },
 
