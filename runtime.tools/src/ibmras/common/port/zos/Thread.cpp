@@ -50,7 +50,7 @@ void exitThread(void *val) {
 }
 
 void sleep(uint32 seconds) {
-	sleep(seconds); /* configure the sleep interval */
+	::sleep(seconds); /* configure the sleep interval */
 }
 
 

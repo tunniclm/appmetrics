@@ -13,7 +13,7 @@ ARCHIVE_MQTT=ar -r ${MQTT_LIB}
 ARC_EXT=a
 #CFLAGS=-g3 -c -fmessage-length=0 -DAIX -D__BIG_ENDIAN -D_AIX -DAIXPPC -D_64BIT -D__NOLOCK_ON_INPUT -qasm=gcc
 #CFLAGS=-D__BIG_ENDIAN -D_AIX -DAIX -DAIXPPC -D_64BIT -G -qasm_as=/usr/bin/as -mppc64 -q64 -qarch=ppc -qasm=gcc
-CFLAGS=-O -D__BIG_ENDIAN -D_AIX -DAIX -DAIXPPC -D_64BIT -G -qasm_as=/usr/bin/as -q64 -qasm=gcc -DREVERSED -c -DIBMRAS_DEBUG_LOGGING
+CFLAGS=-O -D__BIG_ENDIAN -D_AIX -DAIX -DAIXPPC -D_64BIT -G -qasm_as=/usr/bin/as -q64 -qasm=gcc -DREVERSED -c -DIBMRAS_DEBUG_LOGGING -D__NOLOCK_ON_INPUT
 LIB_EXT=so
 EXE_EXT=
 LIBFLAGS=-G -q64 -G

@@ -17,7 +17,6 @@
 #include <errno.h>
 #include <sched.h>
 #include <unistd.h>
-#include <threads.h>
 
 namespace ibmras{
 namespace common{
@@ -46,7 +45,7 @@ void sleep(uint32 seconds) {
 	struct timespec t, tleft;
 	t.tv_sec = seconds;		/* configure the sleep interval */
 	t.tv_nsec = 0;
-	thrd_sleep(&t, &tleft);
+	::sleep(seconds);
 }
 
 
@@ -72,7 +71,7 @@ bool Semaphore::wait(uint32 timeout) {
 	int result;
 	struct timespec t;
 	while(!handle) {
-		::sleep(timeout);		/* wait for the semaphore to be established */
+		sleep(timeout);		/* wait for the semaphore to be established */
 	}
 	clock_gettime(CLOCK_REALTIME, &t);
 	t.tv_sec++;		/* configure the sleep interval */

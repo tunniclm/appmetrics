@@ -434,7 +434,7 @@ bool HLConnector::createDirectory(std::string& path) {
 		}
 	}
 
-#elif defined(_LINUX)
+#else
 	struct stat dir;
 	IBMRAS_DEBUG_1(debug, "Pathname...%s\n", pathName);
 	if (stat(pathName, &dir)) {
