@@ -12,13 +12,6 @@ var path = require("path")
 var module_dir = path.dirname(module.filename)
 
 var os = require("os")
-if (os.type() == "AIX") {
-    if (process.env.LIBPATH) {
-        process.env.LIBPATH = module_dir + path.delimiter + process.env.LIBPATH
-    } else {
-        process.env.LIBPATH = module_dir
-    }
-}
 
 var agent = require("./healthcenter")
 

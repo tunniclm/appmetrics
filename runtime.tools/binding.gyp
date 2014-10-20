@@ -46,7 +46,6 @@
       }],
       ['OS=="linux"', {
         "defines": [ "_LINUX", "LINUX" ],
-        "libraries": [ "-Wl,-rpath=\$$ORIGIN" ],
       }],
       ['OS=="win"', {
         "defines": [ "_WINDOWS", "WINDOWS"  ],
@@ -65,9 +64,8 @@
 
   "targets": [
     {
-      # Hardcode the "lib" prefix so this target doesn't clash with the "healthcenter" target on Windows
-      "target_name": "libhealthcenter",
-      "type": "shared_library",
+      "target_name": "healthcenter",
+      "include_dirs": [ "<(srcdir)/vm/node" ],
       "sources": [ 
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
@@ -94,17 +92,9 @@
         "<(srcdir)/monitoring/agent/BucketDataQueueEntry.cpp",
         "<(srcdir)/monitoring/Plugin.cpp",
         "<(srcdir)/monitoring/connector/configuration/ConfigurationConnector.cpp",
+        "<(srcdir)/vm/node/nodeagent.cpp", 
+        "<(srcdir)/vm/node/wrapper.cpp"
       ],
-    },
-    {
-      # This target is a workaround for AIX to prevent the value of <(PRODUCT_DIR) being written into the linked binaries
-      "target_name": "libhealthcenter-aix",
-      "type": "none",
-      "dependencies": [ "libhealthcenter" ],
-      "dependencies_traverse": 0,
-      "direct_dependent_settings": {
-        "libraries": [ "-L<(PRODUCT_DIR)", "-lhealthcenter" ],
-      },
     },
     {
       "target_name": "hcmqtt",
@@ -224,26 +214,9 @@
     },
 
     {
-      "target_name": "healthcenter",
-      
-      "include_dirs": [ "<(srcdir)/vm/node" ],
-      "sources": [ 
-        "<(srcdir)/vm/node/nodeagent.cpp", 
-        "<(srcdir)/vm/node/wrapper.cpp"
-      ],
-      "dependencies": [ "libhealthcenter" ],
-      "conditions": [
-        [ 'OS=="aix"', {
-          "dependencies!": [ "libhealthcenter" ],
-          "dependencies": [ "libhealthcenter-aix" ],
-        }],
-      ],
-    },
-    {
       "target_name": "install",
       "type": "none",
       "dependencies": [
-        "libhealthcenter",
         "healthcenter",
         "hcmqtt",
         "cpuplugin",
@@ -262,7 +235,6 @@
           "destination": "<(deploydir)",
           "files": [
             "<(PRODUCT_DIR)/healthcenter.node",
-            "<(PRODUCT_DIR)/libhealthcenter<(SHARED_LIB_SUFFIX)",
             "./src/properties/node/healthcenter.properties",
             "<(srcdir)/vm/node/index.js",
             "<(srcdir)/vm/node/launcher.js",
