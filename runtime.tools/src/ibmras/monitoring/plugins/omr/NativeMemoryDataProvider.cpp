@@ -118,6 +118,20 @@ int NativeMemoryDataProvider::memstop() {
 	return 0;
 
 }
+NativeMemoryDataProvider* instance = NULL;
+NativeMemoryDataProvider* NativeMemoryDataProvider::getInstance(omrRunTimeProviderParameters oRTPP) {
+	if (!instance) {
+		instance = new NativeMemoryDataProvider(oRTPP);
+	}
+	return instance;
+}
+
+NativeMemoryDataProvider* NativeMemoryDataProvider::getInstance() {
+	if (!instance) {
+		return NULL;
+	}
+	return instance;
+}
 
 /* ====================================== */
 /* Native Memory functions                */

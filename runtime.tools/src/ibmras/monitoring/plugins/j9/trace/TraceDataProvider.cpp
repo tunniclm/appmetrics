@@ -458,7 +458,7 @@ int Tracestart() {
 	 * adding a sleep 3 seconds pause. This is nasty and we need a better way
 	 *
 	 */
-#if defined (_PPC)
+#if defined (_PPC) || defined (_390)
 	sleep(3);
 #endif
 	vmData.setTraceOption(vmData.pti, "none=all,maximal=mt");

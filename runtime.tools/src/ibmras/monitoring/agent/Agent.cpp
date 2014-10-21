@@ -44,6 +44,8 @@ static const char* PROPERTIES_PREFIX = "com.ibm.diagnostics.healthcenter.";
 static const char* HEARTBEAT_TOPIC = "heartbeat";
 
 bool running = false;
+bool updateNow = false;
+
 Agent* Agent::instance = new Agent;
 
 IBMRAS_DEFINE_LOGGER("Agent")
@@ -182,13 +184,18 @@ void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 	pool->startAll();
 	while (running) {
 		ibmras::common::port::sleep(1); /* polling interval for thread */
-		pool->process(); /* process the pull sources */
+		pool->process(updateNow); /* process the pull sources */
+		updateNow = false;
 	}
 	pool->stopAll();
 	delete pool; /* clean up */
 	IBMRAS_DEBUG(info, "Exiting agent process pull source loop");
 	agent->threadStop();
 	return NULL;
+}
+
+void Agent::immediateUpdate() {
+	updateNow = true;
 }
 
 void Agent::publish() {
@@ -474,7 +481,7 @@ bool Agent::addData(monitordata* data) {
 		Bucket* b = bucketList.findBucket(data->provID, data->sourceID);
 		if (b) {
 			BucketDataQueueEntry* entry = new BucketDataQueueEntry(data);
-			return b->add(entry); /* found a matching bucket so add the data*/
+			return b->add(entry, &connectionManager); /* found a matching bucket so add the data*/
 		} else {
 			IBMRAS_DEBUG_2(warning, "Attempted to add data to missing bucket [%d:%d]",
 					data->provID, data->sourceID);

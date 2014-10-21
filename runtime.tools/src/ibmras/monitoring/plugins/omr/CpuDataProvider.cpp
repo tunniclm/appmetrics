@@ -119,6 +119,20 @@ int CpuDataProvider::cpustop() {
 
 }
 
+CpuDataProvider* instance = NULL;
+CpuDataProvider* CpuDataProvider::getInstance(omrRunTimeProviderParameters oRTPP) {
+	if (!instance) {
+		instance = new CpuDataProvider(oRTPP);
+	}
+	return instance;
+}
+
+CpuDataProvider* CpuDataProvider::getInstance() {
+	if (!instance) {
+		return NULL;
+	}
+	return instance;
+}
 /* ====================================== */
 /*  getCpuData functions                  */
 /* ====================================== */
@@ -126,7 +140,7 @@ int CpuDataProvider::cpustop() {
 
 char* CpuDataProvider::getCpuData()
 {
-    int err;
+	omr_error_t err;
     double processCpuLoad = 0;
     double systemCpuLoad = 0;
     char * report;

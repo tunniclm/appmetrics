@@ -12,6 +12,9 @@ namespace plugins {
 
 			class NativeMemoryDataProvider : ibmras::monitoring::Plugin {
 			public:
+				static NativeMemoryDataProvider* getInstance(omrRunTimeProviderParameters oRTPP);
+				static NativeMemoryDataProvider* getInstance();
+
 				NativeMemoryDataProvider(omrRunTimeProviderParameters oRTPP);
 				virtual ~NativeMemoryDataProvider() {};  //destructor
 				static int memstart();

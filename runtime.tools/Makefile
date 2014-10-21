@@ -46,7 +46,7 @@ JMXPLUGIN_OBJS=${PLUGIN_OUT}/JMXPullSource.o ${PLUGIN_OUT}/JMXSourceManager.o ${
 JNIPLUGIN_OBJS=${PLUGIN_OUT}/CFacade.o ${PLUGIN_OUT}/ENVMXBean.o ${PLUGIN_OUT}/ThreadDataProvider.o ${PLUGIN_OUT}/MemoryDataProvider.o ${PLUGIN_OUT}/MemoryCounterDataProvider.o  ${PLUGIN_OUT}/LockingDataProvider.o ${PLUGIN_OUT}/JNIReceiver.o
 JAVA_OBJS = ${JAVA_OUT}/DumpHandler.o ${JAVA_OUT}/Util.o ${JAVA_OUT}/ClassHistogramProvider.o ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o ${JAVA_OUT}/MethodLookupProvider.o ${HL_CONNECTOR_OBJS}
 
-OMR_OBJS = ${OMR_OUT}/NativeMemoryDataProvider.o ${OMR_OUT}/CpuDataProvider.o ${OMR_OUT}/TraceDataProvider.o  ${OMR_OUT}/MemoryCountersDataProvider.o ${OMR_OUT}/healthcenter.o
+OMR_OBJS = ${OMR_OUT}/MethodLookupProvider.o ${OMR_OUT}/NativeMemoryDataProvider.o ${OMR_OUT}/CpuDataProvider.o ${OMR_OUT}/TraceDataProvider.o  ${OMR_OUT}/MemoryCountersDataProvider.o ${OMR_OUT}/healthcenter.o
 NODE_SRCS = ${NODE_OUT}/nodeagent.cpp ${NODE_OUT}/wrapper.cpp ${NODE_OUT}/wrapper.h ${NODE_OUT}/binding.gyp
 PYPLUGIN_OBJS=${PLUGIN_OUT}/pyplugin.o
 NODEGC_OBJS=${PLUGIN_OUT}/nodegcplugin.o
@@ -476,6 +476,9 @@ ${OMR_OUT}/CpuDataProvider.o:
 
 ${OMR_OUT}/NativeMemoryDataProvider.o: 
 	${CC} ${INCS} -I${OMR_SRC_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/omr/NativeMemoryDataProvider.cpp
+
+${OMR_OUT}/MethodLookupProvider.o: 
+	${CC} ${INCS} -I${OMR_SRC_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/omr/MethodLookupProvider.cpp
 
 ${OMR_OUT}/TraceDataProvider.o: 
 	${CC} ${INCS} -I${OMR_SRC_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/omr/TraceDataProvider.cpp

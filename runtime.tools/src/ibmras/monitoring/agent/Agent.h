@@ -56,6 +56,7 @@ public:
 
 	void publish();							/* publish messages to connectors */
 	void republish(const std::string &prefix); /* republish history */
+	void immediateUpdate(); /* Signal immediate update from pulssources */
 	void threadStop();						/* fired when an agent processing thread stops */
 	void setLogOutput(ibmras::common::LOCAL_LOGGER_CALLBACK func);
 	void setLogLevels();

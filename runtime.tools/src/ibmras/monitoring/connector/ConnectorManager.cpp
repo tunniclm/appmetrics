@@ -12,7 +12,8 @@ namespace ibmras {
 namespace monitoring {
 namespace connector {
 
-ConnectorManager::ConnectorManager() : running(false), threadData(processThread) {
+ConnectorManager::ConnectorManager() :
+		running(false), threadData(processThread) {
 	threadData.setArgs(this);
 }
 
@@ -34,7 +35,7 @@ void ConnectorManager::removeAllConnectors() {
 
 void ConnectorManager::addReceiver(Receiver *receiver) {
 	receivers.insert(receiver);
- }
+}
 
 void ConnectorManager::removeReceiver(Receiver *receiver) {
 	receivers.erase(receiver);
@@ -53,10 +54,8 @@ void ConnectorManager::receiveMessage(const std::string &id, uint32 size,
 	}
 }
 
-
-void* ConnectorManager::processThread(
-		ibmras::common::port::ThreadData *td) {
-	ConnectorManager* conMan = (ConnectorManager*)td->getArgs();
+void* ConnectorManager::processThread(ibmras::common::port::ThreadData *td) {
+	ConnectorManager* conMan = (ConnectorManager*) td->getArgs();
 	if (conMan) {
 		conMan->processReceivedMessages();
 	}
@@ -66,10 +65,12 @@ void* ConnectorManager::processThread(
 
 void ConnectorManager::processReceivedMessages() {
 	while (running) {
-		if (!receiveLock.acquire()) {
-			while (!receiveQueue.empty()) {
+
+		while (!receiveQueue.empty()) {
+			if (!receiveLock.acquire()) {
 				ReceivedMessage msg = receiveQueue.front();
 				receiveQueue.pop();
+				receiveLock.release();
 				for (std::set<Receiver*>::iterator it = receivers.begin();
 						it != receivers.end(); ++it) {
 					if (*it) {
@@ -79,7 +80,6 @@ void ConnectorManager::processReceivedMessages() {
 					}
 				}
 			}
-			receiveLock.release();
 		}
 		ibmras::common::port::sleep(1);
 	}
@@ -147,7 +147,7 @@ ConnectorManager::ReceivedMessage::ReceivedMessage(const std::string& id,
 		uint32 size, void* data) {
 	this->id = id;
 	if (size > 0 && data != NULL) {
-		message = std::string((const char*)data, size);
+		message = std::string((const char*) data, size);
 	} else {
 		data = NULL;
 	}
@@ -156,5 +156,4 @@ ConnectorManager::ReceivedMessage::ReceivedMessage(const std::string& id,
 }
 }
 } /* namespace monitoring */
-
 

@@ -41,11 +41,11 @@ void Bucket::publish(ibmras::monitoring::connector::Connector &con) {
 			BucketData* current = head;
 			while (current) {
 				if ((current->id > lastPublish) || !lastPublish) {
-					lastPublish = current->id;
 					IBMRAS_DEBUG_2(fine, "publishing message to %s of %d bytes",
 							uniqueID.c_str(), current->entry->size);
 					con.sendMessage(uniqueID, current->entry->size,
 							current->entry->data->ptr());
+					lastPublish = current->id;
 				}
 				current = current->next;
 			}
@@ -54,7 +54,7 @@ void Bucket::publish(ibmras::monitoring::connector::Connector &con) {
 	}
 }
 
-void Bucket::spill(uint32 entrysize) {
+void Bucket::spill(uint32 entrysize, ibmras::monitoring::connector::Connector *con) {
 	BucketData* bdata; /* used to manage the bucket data */
 	uint32 i = 0;
 	IBMRAS_DEBUG_3(debug, "Bucket %s [%d:%d] capacity reached, spilling contents", uniqueID.c_str(), provID,
@@ -72,6 +72,14 @@ void Bucket::spill(uint32 entrysize) {
 					if (cursor->id > lastPublish) {
 						IBMRAS_DEBUG_2(warning, "Bucket %s: spilling unpublished data: %d", uniqueID.c_str(), cursor->id);
 						//TODO why don't we publish here before deletion?
+						if (con) {
+							IBMRAS_DEBUG_2(fine, "publishing message before spill to %s of %d bytes",
+									uniqueID.c_str(), cursor->entry->size);
+							con->sendMessage(uniqueID, cursor->entry->size,
+									cursor->entry->data->ptr());
+							lastPublish = cursor->id;
+
+						}
 					}
 					bdata = cursor;
 					size -= bdata->entry->size;
@@ -98,7 +106,7 @@ void Bucket::spill(uint32 entrysize) {
 			sourceID, count, size);
 }
 
-bool Bucket::add(BucketDataQueueEntry* entry) {
+bool Bucket::add(BucketDataQueueEntry* entry, ibmras::monitoring::connector::Connector *con) {
 	BucketData* bdata; /* used to manage the bucket data */
 	if ((entry->provID != provID) || (entry->sourceID != sourceID)) {
 		IBMRAS_DEBUG_4(info,
@@ -112,7 +120,7 @@ bool Bucket::add(BucketDataQueueEntry* entry) {
 		return false; /* data is larger than capacity */
 	}
 	if (entry->size > (capacity - size)) {
-		spill(entry->size);
+		spill(entry->size, con);
 	}
 	bdata = new BucketData;
 	bdata->id = masterID++;

@@ -17,6 +17,7 @@
 #include "ibmras/monitoring/plugins/omr/MemoryCountersDataProvider.h"
 #include "ibmras/monitoring/plugins/omr/CpuDataProvider.h"
 #include "ibmras/monitoring/plugins/omr/NativeMemoryDataProvider.h"
+#include "ibmras/monitoring/plugins/omr/MethodLookupProvider.h"
 #include "ibmras/vm/omr/healthcenter.h"
 #include "ibmras/common/PropertiesFile.h"
 
@@ -84,13 +85,14 @@ void launchAgent(char const *options) {
 	agent->setLogLevels();
 
 
+	agent->addPlugin((ibmras::monitoring::Plugin*)plugins::omr::trace::TraceDataProvider::getInstance(omrParams));
 	agent->addPlugin(
-			(ibmras::monitoring::Plugin*) new plugins::omr::trace::TraceDataProvider(omrParams));
+			(ibmras::monitoring::Plugin*)plugins::omr::memorycounters::MemoryCountersDataProvider::getInstance(omrParams));
 	agent->addPlugin(
-			(ibmras::monitoring::Plugin*) new plugins::omr::memorycounters::MemoryCountersDataProvider(omrParams));
-	agent->addPlugin(
-			(ibmras::monitoring::Plugin*) new plugins::omr::cpu::CpuDataProvider(omrParams));
-	agent->addPlugin((ibmras::monitoring::Plugin*) new plugins::omr::nativememory::NativeMemoryDataProvider(omrParams));
+			(ibmras::monitoring::Plugin*)plugins::omr::cpu::CpuDataProvider::getInstance(omrParams));
+	agent->addPlugin((ibmras::monitoring::Plugin*)plugins::omr::nativememory::NativeMemoryDataProvider::getInstance(omrParams));
+	agent->addPlugin((ibmras::monitoring::Plugin*)plugins::omr::methods::MethodLookupProvider::getInstance(omrParams));
+
 
 	agent->init();
 	agent->start();

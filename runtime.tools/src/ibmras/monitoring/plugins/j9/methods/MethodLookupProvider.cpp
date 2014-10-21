@@ -13,12 +13,13 @@
 #include "jni.h"
 #include "jvmti.h"
 #include "ibmras/common/util/strUtils.h"
+#include "ibmras/common/logging.h"
 
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <cstring>
-#include<stdlib.h>
+#include <stdlib.h>
 
 #define JNI_VERSION JNI_VERSION_1_4
 
@@ -27,6 +28,9 @@ namespace monitoring {
 namespace plugins {
 namespace j9 {
 namespace methods {
+
+IBMRAS_DEFINE_LOGGER("MethodLookup")
+;
 
 PUSH_CALLBACK sendMethodData;
 uint32 MethodLookupProvider::providerID = 0;
@@ -112,6 +116,8 @@ void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 				}
 			}
 		}
+	} else if (id == "headless") {
+		getAllMethodIDs();
 	}
 }
 
@@ -123,24 +129,19 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 
 	int numberOfMethods = jsMethodIds.size();
 
-	int rc = vmFunctions.theVM->GetEnv((void **) &env, JNI_VERSION);
 	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);
 
 	if (vmFunctions.jvmtiGetMethodAndClassNames != 0 && numberOfMethods > 0) {
 		jvmtiError error;
-		char stringBytes[200000];
-		int stringBytesLength = 200000;
 
 		/* Allocate memory for the method identifiers */
-		ramMethods = (char**) hc_alloc(
-				sizeof(void*) * numberOfMethods);
+		ramMethods = (char**) hc_alloc(sizeof(void*) * numberOfMethods);
 		if (ramMethods == NULL) {
 			goto cleanup;
 		}
 
-		descriptorBuffer =
-				(unsigned char**) hc_alloc(
-						sizeof(jvmtiExtensionRamMethodData) * numberOfMethods);
+		descriptorBuffer = (unsigned char**) hc_alloc(
+				sizeof(jvmtiExtensionRamMethodData) * numberOfMethods);
 		if (descriptorBuffer == NULL) {
 			goto cleanup;
 		}
@@ -156,38 +157,152 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 			i++;
 		}
 
-		error = vmFunctions.jvmtiGetMethodAndClassNames(vmFunctions.pti,
-				ramMethods, numberOfMethods, descriptorBuffer, stringBytes,
-				&stringBytesLength);
-		if (error == JVMTI_ERROR_NONE) {
-			jvmtiExtensionRamMethodData * descriptors =
-					(jvmtiExtensionRamMethodData *) descriptorBuffer;
+		while (numberOfMethods > 0) {
 
-			std::stringstream ss;
-			int j = 0;
-			for (std::vector<std::string>::iterator it = jsMethodIds.begin();
-					it != jsMethodIds.end(); ++it) {
-				if (descriptors[j].reasonCode == JVMTI_ERROR_NONE) {
-					ss << *it << "=" << (char*) descriptors[j].className
-							<< "." << (char*) descriptors[j].methodName<< "\n" ;
+			IBMRAS_DEBUG_1(debug, "%d methods to process", numberOfMethods);
+			/**
+			 * Queries the VM for the method and class names for one or more method identifiers. The results
+			 * of calling this method are only valid if isSupported() returns true.
+			 *
+			 * The methodIds, results, classNameOffsets and methodNameOffsets should all be large enough to
+			 * contain numberOfMethods elements. For these arrays, data at any given index will correspond
+			 * to the the data in the other arrays at the same index.
+			 *
+			 * For each method identifier at index i in the first numberOfMethod elements in methodIds, this
+			 * function will set results[i] to be:
+			 *
+			 * 0 if, and only if, the class and method names were found and written into the stringData
+			 * array. In this case, classNameOffsets[i] will point to the offset into stringData where the
+			 * class name starts and methodNameOffsets[i] will point to the offset into stringData where the
+			 * method name starts.
+			 *
+			 * 23 if, and only if, methodIds[i] is not a valid method identifier.
+			 *
+			 * 110 if, and only if, methodIds[i] is a valid method identifier but there is not enough
+			 * remaining space in stringData to write the method and class names.
+			 *
+			 * @param methodIds
+			 *            An array of longs representing the method identifiers to lookup. This array should
+			 *            be large enough to contain numberOfMethods elements.
+			 * @param results
+			 *            An array of integers that should be large enough to contain numberOfMethods
+			 *            elements.
+			 * @param classNameOffsets
+			 *            An array of integers that should be large enough to contain numberOfMethods
+			 *            elements.
+			 * @param methodNameOffsets
+			 *            An array of integers that should be large enough to contain numberOfMethods
+			 *            elements.
+			 * @param numberOfMethods
+			 *            The number of methods to lookup.
+			 * @param stringData
+			 *            A byte array to contain the returned method and class names in UTF8.
+			 */
+			int stringBytesLength = 200000;
+			char stringBytes[200000];
+
+			error = vmFunctions.jvmtiGetMethodAndClassNames(vmFunctions.pti,
+					ramMethods, numberOfMethods, descriptorBuffer, stringBytes,
+					&stringBytesLength);
+			if (error == JVMTI_ERROR_NONE) {
+				jvmtiExtensionRamMethodData * descriptors =
+						(jvmtiExtensionRamMethodData *) descriptorBuffer;
+
+				std::stringstream ss;
+				int j = 0;
+				i=numberOfMethods;
+				numberOfMethods = 0;
+				for (int k=0; k<i;k++) {
+					if (descriptors[j].reasonCode == JVMTI_ERROR_NONE) {
+
+						std::stringstream ss2;
+						ss2 << ramMethodsPtr[j];
+						std::string method = ss2.str();
+						if (ibmras::common::util::startsWith(method, "0x")) {
+							method = method.substr(2);
+						}
+						ss << method << "=" << (char*) descriptors[j].className
+								<< "." << (char*) descriptors[j].methodName
+								<< "\n";
+					} else if (descriptors[j].reasonCode
+							== JVMTI_ERROR_OUT_OF_MEMORY) {
+						ramMethodsPtr[numberOfMethods] = ramMethodsPtr[j];
+						numberOfMethods++;
+					}
+					j++;
 				}
-				j++;
+
+				std::string data = ss.str();
+				monitordata *mdata = generateData(0, data.c_str(),
+						data.length());
+				sendMethodData(mdata);
+
+				delete mdata;
 			}
-
-			std::string data = ss.str();
-			monitordata *mdata = generateData(0, data.c_str(),
-					data.length());
-			sendMethodData(mdata);
-
-			delete mdata;
 		}
+		IBMRAS_DEBUG_1(debug, "%d methods processed", jsMethodIds.size());
 
 	}
 
-	cleanup: vmFunctions.theVM->DetachCurrentThread();
+	cleanup:
+
+	vmFunctions.theVM->DetachCurrentThread();
 	hc_dealloc((unsigned char**) &ramMethods);
-	hc_dealloc(
-			(unsigned char**) &descriptorBuffer);
+	hc_dealloc((unsigned char**) &descriptorBuffer);
+}
+
+void MethodLookupProvider::getAllMethodIDs() {
+
+	if (!vmFunctions.getJ9method) {
+		return;
+	}
+
+	JNIEnv *env;
+	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);
+
+	jclass *classes = NULL;
+	jint count = 0;
+	jvmtiError err = vmFunctions.pti->GetLoadedClasses(&count, &classes);
+
+	std::vector<std::string> methods;
+	for (int i = 0; i < count; i++) {
+		jint methodcount;
+
+		jmethodID *mids = NULL;
+		err = vmFunctions.pti->GetClassMethods(classes[i], &methodcount, &mids);
+
+		if (err == JVMTI_ERROR_NONE) {
+			jmethodID *midPtr = mids;
+
+
+			for (int j = 0; j < methodcount; j++) {
+				/* Convert the object pointer to a j9methodPtr as that */
+				/* is what health center uses to lookup missing method names */
+
+				void *j9method_ptr;
+				err = vmFunctions.getJ9method(vmFunctions.pti, *midPtr,
+						&j9method_ptr);
+				if (err == JVMTI_ERROR_NONE) {
+					std::stringstream ss;
+					ss << j9method_ptr;
+					std::string method = ss.str();
+					if (ibmras::common::util::startsWith(method, "0x")) {
+						method = method.substr(2);
+					}
+					methods.push_back(method);
+				} else {
+					IBMRAS_DEBUG(fine, "getJ9method failed");
+				}
+				midPtr++;
+			}
+			env->DeleteLocalRef(classes[i]);
+		}
+		hc_dealloc((unsigned char**) &mids);
+	}
+
+	hc_dealloc((unsigned char**) &classes);
+	vmFunctions.theVM->DetachCurrentThread();
+	getMethodIDs(methods);
 }
 
 void MethodLookupProvider::sendMethodDictionary() {
@@ -213,42 +328,36 @@ monitordata* MethodLookupProvider::generateData(uint32 sourceID,
  * MEMORY MANAGEMENT FUNCTIONS *
  *******************************/
 
-unsigned char* MethodLookupProvider::hc_alloc(int size)
-{
-    jvmtiError rc;
-    void* buffer = NULL;
-    rc = (vmFunctions.pti)->Allocate(size, (unsigned char**)&buffer);
-    if (rc != JVMTI_ERROR_NONE)
-    {
-    	//fprintf(stderr,"OutOfMem : hc_alloc failed to allocate %d bytes.", size);
-        return NULL ;
-    } else
-    {
-    	//fprintf(stderr,"hc_alloc: allocated %d bytes at %p", size, buffer);
-        memset(buffer, 0, size);
-        return (unsigned char*)buffer;
-    }
+unsigned char* MethodLookupProvider::hc_alloc(int size) {
+	jvmtiError rc;
+	void* buffer = NULL;
+	rc = (vmFunctions.pti)->Allocate(size, (unsigned char**) &buffer);
+	if (rc != JVMTI_ERROR_NONE) {
+		//fprintf(stderr,"OutOfMem : hc_alloc failed to allocate %d bytes.", size);
+		return NULL;
+	} else {
+		//fprintf(stderr,"hc_alloc: allocated %d bytes at %p", size, buffer);
+		memset(buffer, 0, size);
+		return (unsigned char*) buffer;
+	}
 
 }
 
-void MethodLookupProvider::hc_dealloc(unsigned char** buffer)
-{
-    jvmtiError rc;
+void MethodLookupProvider::hc_dealloc(unsigned char** buffer) {
+	jvmtiError rc;
 
-    if (*buffer == NULL)
-    {
-        //fprintf(stderr,"hc_dealloc buffer == NULL");
-        return;
-    }
-    rc = (vmFunctions.pti)->Deallocate( *buffer);
-    if (rc != JVMTI_ERROR_NONE)
-    {
-        //fprintf(stderr,"hc_dealloc failed to deallocate. rc=%d", rc);
-    } else
-    {
-        *buffer = NULL;
-    }
+	if (*buffer == NULL) {
+		//fprintf(stderr,"hc_dealloc buffer == NULL");
+		return;
+	}
+	rc = (vmFunctions.pti)->Deallocate(*buffer);
+	if (rc != JVMTI_ERROR_NONE) {
+		//fprintf(stderr,"hc_dealloc failed to deallocate. rc=%d", rc);
+	} else {
+		*buffer = NULL;
+	}
 }
+
 }
 }
 }

@@ -32,7 +32,9 @@ namespace plugins {
 
 			class TraceDataProvider : ibmras::monitoring::Plugin {
 			public:
-				TraceDataProvider(omrRunTimeProviderParameters tDPP);
+				static TraceDataProvider* getInstance(omrRunTimeProviderParameters oRTPP);
+				static TraceDataProvider* getInstance();
+				TraceDataProvider(omrRunTimeProviderParameters oRTPP);
 				virtual ~TraceDataProvider() {};  //destructor
 			private:
 

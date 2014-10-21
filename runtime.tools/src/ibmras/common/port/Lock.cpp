@@ -4,6 +4,9 @@
  *  Created on: 15 Oct 2014
  *      Author: robbins
  */
+#if defined(_ZOS)
+#define _OPEN_THREADS
+#endif
 
 #include "ibmras/common/port/Lock.h"
 #include "ibmras/common/logging.h"

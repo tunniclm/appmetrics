@@ -51,10 +51,16 @@ ThreadPool::~ThreadPool() {
 	delete[] threads;
 }
 
-void ThreadPool::process() {
+void ThreadPool::process(bool immediate) {
 	IBMRAS_DEBUG(finest,  "Processing pull sources");
 	for(uint32 i = 0; i < counterSize; i++) {
-		counters[i]--;			/* decrement counters */
+		if (immediate) {
+			while (!counters[i].isExpired()) {
+				counters[i]--;
+			}
+		} else {
+			counters[i]--;			/* decrement counters */
+		}
 		if(!counters[i].isQueued() && counters[i].isExpired()) {
 			/* counter has expired so need to schedule on first free thread */
 			for(uint32 j = 0; j < size; j++) {

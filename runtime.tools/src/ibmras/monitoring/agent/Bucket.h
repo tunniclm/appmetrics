@@ -17,8 +17,7 @@ class DECL Bucket {
 
 public:
 	Bucket(uint32 provID, uint32 sourceID, uint32 capacity, const std::string& uniqueID);
-	bool add(BucketDataQueueEntry* entry);			/* adds monitor data to the bucket */
-	void spill(uint32 size);								/* spill bucket contents until there is the requested space */
+	bool add(BucketDataQueueEntry* entry, ibmras::monitoring::connector::Connector *con = NULL);			/* adds monitor data to the bucket */
 	std::string toString();			/* debug / log string version */
 	uint32 getProvID();
 	uint32 getSourceID();
@@ -28,6 +27,8 @@ public:
 	uint32 getNextPersistentData(uint32 id, uint32 &size, void* &data);
 	void republish(const std::string &topicPrefix, ibmras::monitoring::connector::Connector &con);
 private:
+	void spill(uint32 size, ibmras::monitoring::connector::Connector *con);								/* spill bucket contents until there is the requested space */
+
 	/* bucket data builds on the monitor data to add control meta-data. It also removes any
 	 * unnecessary or repeated data elements
 	 */

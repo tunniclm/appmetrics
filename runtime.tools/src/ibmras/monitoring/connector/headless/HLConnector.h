@@ -23,15 +23,8 @@ public:
 
 	static HLConnector* getInstance(JavaVM* theVM);
 	static HLConnector* getInstance();
-
-	int32 getRunDuration();
-	int32 getRunPause();
-	int32 getNumberOfRuns();
-	int32 getTimesRun();
-	void incrementRuns();
-	int packFiles();
-
 	virtual ~HLConnector();
+
 	virtual std::string getID() {return "HLConnector"; }
 	int sendMessage(const std::string &sourceID, uint32 size, void* data);
 
@@ -39,9 +32,19 @@ public:
 	int stop();
 
 private:
-
+	static void* thread(ibmras::common::port::ThreadData* tData);
+	void processLoop();
+	int32 getRunDuration();
+	int32 getRunPause();
+	int32 getNumberOfRuns();
+	int32 getTimesRun();
+	void incrementRuns();
+	int packFiles();
 
 	bool enabled;
+	bool running;
+	bool filesInitialized;
+
 	JavaVM* vm;
 	JNIEnv* env;
 	jclass zipJNIclazz;

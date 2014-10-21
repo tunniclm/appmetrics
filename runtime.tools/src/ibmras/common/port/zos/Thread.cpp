@@ -12,6 +12,7 @@
 #define _XOPEN_SOURCE
 #define _XOPEN_SOURCE_EXTENDED 1
 #define _OPEN_THREADS
+#define _OPEN_SYS
 #include <sys/types.h>
 #include <pthread.h>
 #include <time.h>
@@ -23,6 +24,7 @@
 #include <limits.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <unistd.h>
 
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/common/port/Semaphore.h"

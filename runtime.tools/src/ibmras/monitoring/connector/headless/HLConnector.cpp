@@ -43,7 +43,6 @@ namespace headless {
 IBMRAS_DEFINE_LOGGER("HeadlessConnector");
 
 static HLConnector* instance = NULL;
-static bool running = true;
 static bool collect = true;
 
 
@@ -62,7 +61,7 @@ HLConnector* HLConnector::getInstance() {
 }
 
 HLConnector::HLConnector(JavaVM* theVM) :
-		enabled(false), vm(theVM), env(NULL), zipJNIclazz(NULL), zipClazzObject(
+		enabled(false), running(false), filesInitialized(false), vm(theVM), env(NULL), zipJNIclazz(NULL), zipClazzObject(
 				NULL), zipMethod(NULL), seqNumber(1), lastPacked(0), times_run(
 				0) {
 
@@ -340,11 +339,6 @@ int HLConnector::start() {
 		return -1;
 	}
 
-	ibmras::common::port::ThreadData* data =
-			new ibmras::common::port::ThreadData(runCounterThread);
-	data->setArgs(this);
-	int tResult = ibmras::common::port::createThread(data);
-
 	std::stringstream ss;
 	ss << userDefinedPath;
 	ss << PATHSEPARATOR;
@@ -358,6 +352,15 @@ int HLConnector::start() {
 
 	hcdName = ss.str();
 
+	running = true;
+	filesInitialized = false;
+
+	ibmras::common::port::ThreadData* data =
+			new ibmras::common::port::ThreadData(thread);
+	data->setArgs(this);
+	int tResult = ibmras::common::port::createThread(data);
+
+
 	IBMRAS_DEBUG(debug, "<<<HLConnector::start()");
 
 	return 0;
@@ -367,16 +370,17 @@ void HLConnector::createFile(const std::string &fileName) {
 	IBMRAS_DEBUG(debug, ">>>HLConnector::createFile()");
 	std::fstream* file = new std::fstream;
 
+	std::string escapedFile = fileName;
+	replace(escapedFile.begin(), escapedFile.end(), '/', '_');
 	std::string fullPath = tmpPath;
 	fullPath.append(PATHSEPARATOR);
-	fullPath.append(fileName);
-
-	file->open(fullPath.c_str(), std::ios::out | std::ios::app | std::ios::binary);
+	fullPath.append(escapedFile);
 
 	createdFiles[fullPath] = file;
 	expandedIDs[fileName] = fullPath;
 	IBMRAS_DEBUG(debug, "<<<HLConnector::createFile()");
 }
+
 
 bool HLConnector::createDirectory(std::string& path) {
 	IBMRAS_DEBUG(debug, ">>>HLConnector::createDirectory");
@@ -464,6 +468,8 @@ bool HLConnector::createDirectory(std::string& path) {
 int HLConnector::stop() {
 	IBMRAS_DEBUG(debug, ">>>HLConnector::stop()");
 
+	running = false;
+
 	if (enabled == false) {
 		return 0;
 	}
@@ -478,30 +484,22 @@ int HLConnector::stop() {
 
 		if (currentSource->is_open()) {
 			currentSource->close();
-			if (remove(fileName.c_str())) {
-				IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
-				delete currentSource;
-				return -1;
-			}
-		} else {
-			if (remove(fileName.c_str())) {
-				IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
-				delete currentSource;
-				return -1;
-			}
+		}
+
+		if (remove(fileName.c_str())) {
+			delete currentSource;
 		}
 
 	}
 #if defined(WINDOWS)
 	if(_rmdir(tmpPath.c_str())) {
-		IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
 	}
 #else
 	if(remove(tmpPath.c_str())) {
 			IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
 	}
 #endif
-	running = false;
+
 
 	IBMRAS_DEBUG(debug, "<<<HLConnector::stop()");
 	return 0;
@@ -510,11 +508,11 @@ int HLConnector::stop() {
 int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 		void* data) {
 
-	if (!collect) {
+	if (!collect || !enabled) {
 		IBMRAS_DEBUG(debug, "<<<HLConnector::sendMessage()[NOT COLLECTING DATA]");
 		return 0;
 	}
-	IBMRAS_DEBUG(debug, ">>>HLConnector::sendMessage()");
+	IBMRAS_DEBUG_1(debug, ">>>HLConnector::sendMessage() %s", sourceId.c_str());
 
 	std::map<std::string, std::string>::iterator it;
 	it = expandedIDs.find(sourceId);
@@ -530,30 +528,26 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
+			if (!filesInitialized) {
+				// Send initialize notification to providers
+				ibmras::monitoring::agent::Agent* agent =
+						ibmras::monitoring::agent::Agent::getInstance();
+				agent->getConnectionManager()->receiveMessage("headless", 0, NULL);
+				filesInitialized = true;
+			}
 			if (currentSource->is_open()) {
-				uint32 length = currentSource->tellg();
-				currentSource->write(cdata, size);
-
 				std::time_t currentTime;
 				time(&currentTime);
-
+				uint32 length = currentSource->tellg();
 				if ((length + size > upper_limit)) {
-						//|| (run_duration
-						//		&& ((currentTime - lastPacked) >= run_duration))) {
-
-					//time(&lastPacked);
-
 					IBMRAS_DEBUG_1(debug,  "SendMessage from = %s", sourceId.c_str());
 					IBMRAS_DEBUG_1(debug,  "MAX_FILE_SIZE = %d", upper_limit);
 					IBMRAS_DEBUG_1(debug,  "Current time = %d", currentTime);
-
 					packFiles();
 				}
+			}
 
-			} else {
-				if (remove(currentKey.c_str())) {
-					IBMRAS_DEBUG_1(debug, "Deletion failed: %s", strerror(errno));
-				} else {
+			if (!currentSource->is_open()) {
 					currentSource->open(currentKey.c_str(),
 							std::ios::out | std::ios::app | std::ios::binary);
 
@@ -563,10 +557,7 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 					ibmras::monitoring::agent::Bucket *bucket = agent->getBucketList()->findBucket(sourceId);
 					if (bucket) {
 
-						const char* persistentData = NULL;
-						uint32 persistentDataSize = 0;
 						uint32 id = 0;
-
 						while (true) {
 
 							const char* persistentData = NULL;
@@ -588,11 +579,13 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 						};
 					}
 
-					// TODO defect 76480: if sourceId == "trace" get the method names and write them
 
-					currentSource->write(cdata, size);
-				}
 			}
+
+			if (currentSource->is_open()) {
+				currentSource->write(cdata, size);
+			}
+
 			lock->release();
 		}
 	}
@@ -600,9 +593,12 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 	return 0;
 }
 
+
+
 int HLConnector::packFiles() {
 	IBMRAS_DEBUG(debug, ">>>HLConnector::packFiles()");
 
+	filesInitialized = false;
 	std::stringstream ss;
 
 	ss << hcdName;
@@ -676,47 +672,56 @@ int HLConnector::packFiles() {
 
 	}
 
+	IBMRAS_DEBUG(debug, "Removing files");
+	for (std::map<std::string, std::fstream*>::iterator it =
+			createdFiles.begin(); it != createdFiles.end(); it++) {
+		if (remove(it->first.c_str())) {
+		}
+	}
 
 	seqNumber++;
 	IBMRAS_DEBUG(debug, "<<<HLConnector::packFiles()");
 	return 0;
 }
 
-void* runCounterThread(ibmras::common::port::ThreadData* tData) {
 
-	IBMRAS_DEBUG(debug, ">>>runCounterThread");
-
-	HLConnector* hlc = HLConnector::getInstance();
-	if (hlc->getNumberOfRuns()) {
-		IBMRAS_DEBUG_1(debug, "Produce HCDs for %d seconds", hlc->getRunDuration());
+void HLConnector::processLoop() {
+	IBMRAS_DEBUG(debug, ">> processLoop");
+	if (getNumberOfRuns()) {
+		IBMRAS_DEBUG_1(debug, "Produce HCDs for %d seconds", getRunDuration());
 		while (running) {
-			if ((hlc->getTimesRun() < hlc->getNumberOfRuns())) {
+			if ((getTimesRun() < getNumberOfRuns())) {
 				collect = true;
-				IBMRAS_DEBUG_2(debug,  "We've run %d times and have to run %d in total", hlc->getTimesRun()+1, hlc->getNumberOfRuns());
-				IBMRAS_DEBUG_1(debug,  "Produce HCDs for %d seconds", hlc->getRunDuration());
-				ibmras::common::port::sleep(hlc->getRunDuration());
-				hlc->incrementRuns();
-				hlc->packFiles();
+				IBMRAS_DEBUG_2(debug,  "We've run %d times and have to run %d in total", getTimesRun(), getNumberOfRuns());
+				IBMRAS_DEBUG_1(debug,  "Produce HCDs for %d seconds", getRunDuration());
+				ibmras::common::port::sleep(getRunDuration());
+				incrementRuns();
+				packFiles();
 			}
 			collect = false;
-			IBMRAS_DEBUG_1(warning, "Not producing HCDs for %d seconds", hlc->getRunPause());
-			ibmras::common::port::sleep(hlc->getRunPause());
+			IBMRAS_DEBUG_1(warning, "Not producing HCDs for %d seconds", getRunPause());
+			ibmras::common::port::sleep(getRunPause());
 
 		}
-	} else if (hlc->getRunDuration() || hlc->getRunPause()) {
+	} else if (getRunDuration() || getRunPause()) {
 		while (running) {
 			collect = true;
-			IBMRAS_DEBUG_1(debug, "Produce HCDs for %d seconds", hlc->getRunDuration());
-			ibmras::common::port::sleep(hlc->getRunDuration());
-			hlc->packFiles();
+			IBMRAS_DEBUG_1(debug, "Produce HCDs for %d seconds", getRunDuration());
+			ibmras::common::port::sleep(getRunDuration());
+			packFiles();
 			collect = false;
-			IBMRAS_DEBUG_1(warning, "Rest for %d seconds", hlc->getRunPause());
-			ibmras::common::port::sleep(hlc->getRunPause());
+			IBMRAS_DEBUG_1(warning, "Rest for %d seconds", getRunPause());
+			ibmras::common::port::sleep(getRunPause());
 		}
 	}
 
-	IBMRAS_DEBUG(debug, "<<<runCounterThread");
+	IBMRAS_DEBUG(debug, "<< processLoop");
+}
 
+void* HLConnector::thread(ibmras::common::port::ThreadData* tData) {
+
+	HLConnector* hlc = HLConnector::getInstance();
+	hlc->processLoop();
 	return NULL;
 }
 

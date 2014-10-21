@@ -25,7 +25,7 @@ public:
 	void setPullSource(uint32 index, pullsource* src);
 	void startAll();			/* start all threads in this pool */
 	void stopAll();				/* stop all threads in this pool */
-	void process();				/* process queue entries */
+	void process(bool immediate);				/* process queue entries */
 	~ThreadPool();
 private:
 	uint32 size;

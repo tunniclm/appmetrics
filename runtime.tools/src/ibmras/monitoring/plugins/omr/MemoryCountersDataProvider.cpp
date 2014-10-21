@@ -124,6 +124,20 @@ int MemoryCountersDataProvider::memstop() {
 
 }
 
+MemoryCountersDataProvider* instance = NULL;
+MemoryCountersDataProvider* MemoryCountersDataProvider::getInstance(omrRunTimeProviderParameters oRTPP) {
+	if (!instance) {
+		instance = new MemoryCountersDataProvider(oRTPP);
+	}
+	return instance;
+}
+
+MemoryCountersDataProvider* MemoryCountersDataProvider::getInstance() {
+	if (!instance) {
+		return NULL;
+	}
+	return instance;
+}
 /* ====================================== */
 /* Memory Counters functions              */
 /* ====================================== */

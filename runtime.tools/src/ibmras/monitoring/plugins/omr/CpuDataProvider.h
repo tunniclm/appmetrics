@@ -12,6 +12,9 @@ namespace plugins {
 
 			class CpuDataProvider : ibmras::monitoring::Plugin {
 			public:
+				static CpuDataProvider* getInstance(omrRunTimeProviderParameters oRTPP);
+				static CpuDataProvider* getInstance();
+
 				CpuDataProvider(omrRunTimeProviderParameters oRTPP);
 				virtual ~CpuDataProvider() {};  //destructor
 				static int cpustart();

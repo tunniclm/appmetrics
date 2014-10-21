@@ -41,6 +41,9 @@ SystemReceiver::~SystemReceiver() {
 void SystemReceiver::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
 
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
 	// If the topic is "datasources" it means we have had a request
 	// to send back the source names and config (one for each bucket) to the client
 	if (id == "datasources") {
@@ -49,9 +52,6 @@ void SystemReceiver::receiveMessage(const std::string &id, uint32 size,
 		}
 		std::string topic((char*)data, size);
 		topic += "/datasource";
-
-		ibmras::monitoring::agent::Agent* agent =
-				ibmras::monitoring::agent::Agent::getInstance();
 
 		ibmras::monitoring::connector::ConnectorManager *conMan =
 				agent->getConnectionManager();
@@ -76,9 +76,10 @@ void SystemReceiver::receiveMessage(const std::string &id, uint32 size,
 	} else if (id == "history") {
 		std::string topic((char*) data, size);
 		topic += "/history/";
-		ibmras::monitoring::agent::Agent* agent =
-				ibmras::monitoring::agent::Agent::getInstance();
 		agent->republish(topic);
+	} else if (id == "headless") {
+		// force immediate update for pull sources
+		agent->immediateUpdate();
 	}
 }
 

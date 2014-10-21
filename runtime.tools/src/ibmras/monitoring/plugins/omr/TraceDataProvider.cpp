@@ -186,6 +186,23 @@ int Tracestop() {
 
 }
 
+
+TraceDataProvider* instance = NULL;
+TraceDataProvider* TraceDataProvider::getInstance(omrRunTimeProviderParameters oRTPP) {
+	if (!instance) {
+		instance = new TraceDataProvider(oRTPP);
+	}
+	return instance;
+}
+
+TraceDataProvider* TraceDataProvider::getInstance() {
+	if (!instance) {
+		return NULL;
+	}
+	return instance;
+}
+
+
 TraceDataProvider::TraceDataProvider(
 		omrRunTimeProviderParameters oRTPP) {
 	vmData = oRTPP;

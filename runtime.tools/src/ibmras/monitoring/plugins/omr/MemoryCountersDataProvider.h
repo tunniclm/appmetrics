@@ -17,6 +17,9 @@ namespace plugins {
 
 			class MemoryCountersDataProvider : ibmras::monitoring::Plugin {
 			public:
+				static MemoryCountersDataProvider* getInstance(omrRunTimeProviderParameters oRTPP);
+				static MemoryCountersDataProvider* getInstance();
+
 				MemoryCountersDataProvider(omrRunTimeProviderParameters oRTPP);
 				virtual ~MemoryCountersDataProvider() {};  //destructor
 				static int memstart();
