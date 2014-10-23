@@ -80,7 +80,7 @@ void MCPullSource::publishConfig() {
 	} else {
 		msg += "off";
 	}
-	conMan->sendMessage("MemoryCountersSourceConfiguration", msg.length(),
+	conMan->sendMessage("configuration/memorycounters", msg.length(),
 			(void*) msg.c_str());
 }
 

@@ -31,6 +31,7 @@ IBMRAS_DEFINE_LOGGER("Plugin")
 ;
 
 /* these names are produced by gcc and may not be the same for all compilers */
+const char* SYM_INIT = "ibmras_monitoring_plugin_init";
 const char* SYM_REGISTER_PUSH_SOURCE = "ibmras_monitoring_registerPushSource";
 const char* SYM_REGISTER_PULL_SOURCE = "ibmras_monitoring_registerPullSource";
 const char* SYM_STOP = "ibmras_monitoring_plugin_stop";
@@ -39,7 +40,7 @@ const char* SYM_CONNECTOR_FACTORY = "ibmras_monitoring_getConnector";
 const char* SYM_RECEIVER_FACTORY = "ibmras_monitoring_getReceiver";
 
 Plugin::Plugin() :
-		name(""), push(NULL), pull(NULL), start(NULL), stop(NULL), confactory(
+		name(""), init(NULL), push(NULL), pull(NULL), start(NULL), stop(NULL), confactory(
 				NULL), recvfactory(NULL), type(0) {
 }
 
@@ -89,7 +90,7 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 				plugins.push_back(plugin);
 			}
 		}
-	} while (FindNextFile(hFind, &ffd) != 0);
+	}while (FindNextFile(hFind, &ffd) != 0);
 
 	dwError = GetLastError();
 
@@ -132,7 +133,6 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 
 }
 
-
 Plugin* Plugin::processLibrary(const std::string &filePath) {
 
 	Plugin* plugin = NULL;
@@ -142,6 +142,8 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 			ibmras::common::util::LibraryUtils::openLibrary(filePath.c_str());
 	if (handle.isValid()) {
 
+		void* init = ibmras::common::util::LibraryUtils::getSymbol(handle,
+				SYM_INIT);
 		void* push = ibmras::common::util::LibraryUtils::getSymbol(handle,
 				SYM_REGISTER_PUSH_SOURCE);
 		void* pull = ibmras::common::util::LibraryUtils::getSymbol(handle,
@@ -164,15 +166,19 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 			plugin->name = filePath;
 			plugin->handle = handle;
 
-			plugin->pull = reinterpret_cast<pullsource* (*)(uint32)>(pull);plugin
-			->push = reinterpret_cast<pushsource* (*)(void (*)(monitordata*),
-					uint32)>(push);plugin
-			->stop = reinterpret_cast<int (*)()>(stop);plugin
-			->start = reinterpret_cast<int (*)()>(start);plugin
-			->confactory =
-					reinterpret_cast<CONNECTOR_FACTORY>(connectorFactory);
-			plugin->recvfactory =
-					reinterpret_cast<RECEIVER_FACTORY>(receiverFactory);
+			plugin->init =reinterpret_cast<PLUGIN_INITIALIZE>(init);
+
+			plugin->pull = reinterpret_cast<pullsource* (*)(uint32)>(pull);
+
+			plugin->push = reinterpret_cast<pushsource* (*)(void (*)(monitordata*), uint32)>(push);
+
+			plugin->stop = reinterpret_cast<int (*)()>(stop);
+
+			plugin->start = reinterpret_cast<int (*)()>(start);
+
+			plugin->confactory = reinterpret_cast<CONNECTOR_FACTORY>(connectorFactory);
+
+			plugin->recvfactory = reinterpret_cast<RECEIVER_FACTORY>(receiverFactory);
 
 			plugin->setType();
 		} else {

@@ -147,7 +147,7 @@ int MQTTConnector::connect() {
 
 		rc = MQTTAsync_connect(mqttClient, &connOpts);
 		if (rc != MQTTASYNC_SUCCESS) {
-			IBMRAS_DEBUG_1(warning, "MQTTAsync_connect failed. rc=%d", rc);
+			IBMRAS_DEBUG_1(fine, "MQTTAsync_connect failed. rc=%d", rc);
 		}
 	}
 	return rc;
@@ -159,16 +159,18 @@ void MQTTConnector::onConnect(void* context, MQTTAsync_successData* response) {
 
 void MQTTConnector::onFailure(void* context, MQTTAsync_failureData* response) {
 	if (response == NULL) {
-		IBMRAS_DEBUG(warning, "MQTTAsync_connect failed");
+		IBMRAS_DEBUG(fine, "MQTTAsync_connect failed");
 	} else {
-		IBMRAS_DEBUG_1(warning, "MQTTAsync_connect failed. rc: %d", response->code);
+		IBMRAS_DEBUG_1(fine, "MQTTAsync_connect failed. rc: %d", response->code);
 		if (response->message != NULL) {
-			IBMRAS_DEBUG_1(warning, "MQTTAsync_connect failure reason: %s", response->message);
+			IBMRAS_DEBUG_1(fine, "MQTTAsync_connect failure reason: %s", response->message);
 		}
 	}
 }
 
 void MQTTConnector::handleOnConnect(MQTTAsync_successData* response) {
+	IBMRAS_LOG_2(info, "Connected to broker %s:%s", brokerHost.c_str(), brokerPort.c_str());
+
 	char *topic = new char[agentTopic.length() + 2];
 #if defined(_ZOS)
 #pragma convlit(suspend)
@@ -182,7 +184,7 @@ void MQTTConnector::handleOnConnect(MQTTAsync_successData* response) {
 	opts.context = this;
 	int rc = MQTTAsync_subscribe(mqttClient, topic, 1, &opts);
 	if (rc != MQTTASYNC_SUCCESS) {
-		IBMRAS_DEBUG_2(warning, "MQTTAsync_subscribe to %s failed. rc=%d", topic, rc);
+		IBMRAS_DEBUG_2(fine, "MQTTAsync_subscribe to %s failed. rc=%d", topic, rc);
 	}
 	delete[] topic;
 
@@ -190,14 +192,14 @@ void MQTTConnector::handleOnConnect(MQTTAsync_successData* response) {
 	IBMRAS_DEBUG_1(debug, "MQTTAsync_subscribe to %s", identifyTopic);
 	rc = MQTTAsync_subscribe(mqttClient, identifyTopic, 1, &opts);
 	if (rc != MQTTASYNC_SUCCESS) {
-		IBMRAS_DEBUG_2(warning, "MQTTAsync_subscribe to %s failed. rc=%d", CLIENT_IDENTIFY_TOPIC, rc);
+		IBMRAS_DEBUG_2(fine, "MQTTAsync_subscribe to %s failed. rc=%d", CLIENT_IDENTIFY_TOPIC, rc);
 	} else {
 		sendIdentityMessage();
 	}
 }
 
 void MQTTConnector::connectionLost(void *context, char *cause) {
-	IBMRAS_DEBUG(warning, "MQTTConnection lost");
+	IBMRAS_LOG_2(warning, "Connection to broker %s:%s has been lost", ((MQTTConnector*) context)->brokerHost.c_str(), ((MQTTConnector*) context)->brokerPort.c_str());
 }
 
 int MQTTConnector::sendMessage(const std::string &sourceId, uint32 size,
@@ -280,6 +282,8 @@ ibmras::monitoring::connector::Receiver* MQTTConnector::returnReceiver() {
 
 int MQTTConnector::start() {
 	IBMRAS_DEBUG(debug, "start");
+
+	IBMRAS_LOG_2(info, "Connecting to broker %s:%s", brokerHost.c_str(), brokerPort.c_str());
 	enabled = true;
 	return connect();
 }
@@ -333,8 +337,7 @@ MQTT_DECL int ibmras_monitoring_plugin_stop() {
 
 bool mqttInitialized = false;
 
-MQTT_DECL void* ibmras_monitoring_getConnector(const char* properties) {
-
+MQTT_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 	if (!mqttInitialized) {
 #if defined(WINDOWS)
 #else
@@ -342,6 +345,10 @@ MQTT_DECL void* ibmras_monitoring_getConnector(const char* properties) {
 #endif
 		mqttInitialized = true;
 	}
+	return 0;
+}
+
+MQTT_DECL void* ibmras_monitoring_getConnector(const char* properties) {
 
 	ibmras::common::Properties props;
 	props.add(properties);
@@ -351,7 +358,9 @@ MQTT_DECL void* ibmras_monitoring_getConnector(const char* properties) {
 		return NULL;
 	}
 
-	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.mqtt");
+	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
+		ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
+	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.mqtt");
 	ibmras::common::LogManager::getInstance()->setLevel("mqtt", loggingProp);
 
 

@@ -121,6 +121,7 @@ struct CPUTime* getCPUTime() {
 	nsEnd = time_microseconds() * 1000;
 	
 	cputime->nprocs = get_nprocs();
+	cputime->total /= cputime->nprocs;
 	cputime->process /= cputime->nprocs;
 	cputime->time = nsStart + ((nsEnd - nsStart) / 2);
 		 
@@ -299,7 +300,7 @@ struct CPUTime* getCPUTime() {
 	
 	cputime->nprocs = stats.ncpus;
 	cputime->total = (stats.user + stats.sys) * NS_PER_CPU_TICK / cputime->nprocs;
-	cputime->process = (pstats.ucpu_time + pstats.scpu_time) * NS_PER_MS;
+	cputime->process = (pstats.ucpu_time + pstats.scpu_time) * NS_PER_MS / cputime->nprocs;
 	cputime->time = nsStart + ((nsEnd - nsStart) / 2);
 		 
 	return cputime;

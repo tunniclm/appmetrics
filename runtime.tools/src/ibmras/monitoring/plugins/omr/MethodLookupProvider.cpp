@@ -124,6 +124,21 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 //	}
 //	called = 1;
 
+//	1:03:59 PM: These are the properties for ruby:
+//	static const char *methodPropertyNames[methodPropertyCount] = {
+//		"methodName",
+//		"className",
+//		"fileName",
+//		"lineNumber"
+//	};
+
+//	2:32:42 PM: Categories for python:
+//	static const char *methodPropertyNames[methodPropertyCount] = {
+//		"methodName",
+//		"fileName",
+//		"lineNumber"
+//	};
+
 	omr_error_t err;
 	void **methodArray = NULL;
 	OMR_SampledMethodDescription *descriptorBuffer = NULL;
@@ -200,15 +215,18 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 		 * and differs between ruby and omr
 		 */
 		if ((*descriptorBufferPtr).reasonCode == OMR_ERROR_NONE) {
-			ss << *it << "=" << "@method@"
-					<< (char*) (*descriptorBufferPtr).propertyValues[0];
-			ss << "@inum@" << getPropertyCount-1;
-			for (int x = 1; x < getPropertyCount; x++) {
-				ss << "@info@"
-						<< (char*) (*descriptorBufferPtr).propertyValues[x];
+			ss << *it << "=" << "@omr@";
+			for (int x = 0; x < getPropertyCount; x++) {
+				if ((char*) (*descriptorBufferPtr).propertyValues[x] != NULL) {
+					ss << (char*) (*descriptorBufferPtr).propertyValues[x];
+				} else {
+					ss << "";
+				}
+				ss << "@@";
 			}
 			ss << "\n";
 		}
+
 		ptr += getSizeof;
 	}
 

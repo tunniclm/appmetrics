@@ -19,7 +19,11 @@ var this_filename = args.shift()
 
 var arg = args.shift()
 while (typeof arg != "undefined") {
-    if (arg.length > 0 && arg.charAt(0) == '-') {
+    if (arg == '-e') {
+        var err = new Error("node-hc does not support -e")
+        throw err;
+    }
+    if (arg.length > 0 && (arg.charAt(0) == '-' || arg == 'debug')) {
         node_args.push(arg)
         arg = args.shift()
     } else {

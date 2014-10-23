@@ -44,7 +44,7 @@ void ENVPullSource::publishConfig() {
 			agent->getConnectionManager();
 
 	std::string msg = "environment_subsystem=on";
-	conMan->sendMessage("EnvironmentSourceConfiguration", msg.length(),
+	conMan->sendMessage("configuration/environment", msg.length(),
 			(void*) msg.c_str());
 }
 

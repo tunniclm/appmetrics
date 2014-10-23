@@ -948,7 +948,7 @@ void publishConfig() {
 	std::string msg = getConfigString();
 	IBMRAS_DEBUG_1(fine, "publishing config: %s", msg.c_str());
 
-	conMan->sendMessage("TRACESubscriberSourceConfiguration", msg.length(),
+	conMan->sendMessage("configuration/trace", msg.length(),
 			(void*) msg.c_str());
 }
 

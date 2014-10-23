@@ -10,53 +10,16 @@
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/common/PropertiesFile.h"
+#include <string>
 #include <fstream>
 #include <cstdlib>
 
 using namespace v8;
 
+static std::string* appDir;
+static std::string* hcDir;
+
 IBMRAS_DEFINE_LOGGER("NodeAgent");
-
-Handle<Value> Start(const Arguments& args) {
-  HandleScope scope;
-	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->init();
-
-	// Force MQTT on for now
-	agent->setAgentProperty("mqtt", "on");
-
-	agent->start();
-	return scope.Close(Undefined());
-}
-
-Handle<Value> Stop(const Arguments& args) {
-  HandleScope scope;
-	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->stop();
-	agent->shutdown();
-	return scope.Close(Undefined());
-}
-
-Handle<Value> spath(const Arguments& args) {
-  HandleScope scope;
-	Local<String> value = args[0]->ToString();
-	String *path = *value;
-	int size = path->Length() + 1;
-	char* buffer = new char[size];
-	path->WriteAscii(buffer,0 , path->Length());
-	buffer[path->Length()] = '\0';
-	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->setAgentProperty("plugin.path", buffer);
-return scope.Close(Undefined());
-}
-
-Handle<Value> setLogLevel(const Arguments& args) {
-	HandleScope scope;
-	Local<Number> level = Local<Number>::Cast(args[0]);
-	ibmras::common::logging::Level lvl = static_cast<ibmras::common::logging::Level>(level->Int32Value());
-	ibmras::common::LogManager::getInstance()->setLevel(lvl); 
-	return scope.Close(Undefined());
-}
 
 static std::string ToStdString(Local<String> s) {
 	char *buf = new char[s->Length() + 1];
@@ -119,7 +82,16 @@ static std::string port_dirname(const std::string& filename) {
 }
 #endif
 
-static bool file_exists(const std::string& filename) {
+static std::string fileJoin(const std::string& path, const std::string& filename) {
+#if defined(_WINDOWS)
+	static const std::string fileSeparator("\\");
+#else
+	static const std::string fileSeparator("/");
+#endif
+	return path + fileSeparator + filename;
+}
+
+static bool FileExists(const std::string& filename) {
 	std::ifstream f(filename.c_str());
 	if (f.good()) {
 		f.close();
@@ -130,14 +102,10 @@ static bool file_exists(const std::string& filename) {
 	}
 }
 
-static Local<Object> GetProcessObject() {
-	return Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject();
-}
-
 static ibmras::common::PropertiesFile* LoadPropertiesFile(const std::string& filename, const char* desc) {
 	ibmras::common::PropertiesFile* props = NULL;
 	IBMRAS_LOG_1(debug, "Attempting to load properties from %s", desc); 
-	if (file_exists(filename)) {
+	if (FileExists(filename)) {
 		IBMRAS_LOG_1(debug, "Loading properties from file '%s'", filename.c_str());
 	 	props = new ibmras::common::PropertiesFile;
 	 	props->load(filename);
@@ -147,20 +115,29 @@ static ibmras::common::PropertiesFile* LoadPropertiesFile(const std::string& fil
 	return props;
 }
 
-static ibmras::common::PropertiesFile* LoadProperties(Handle<Object> module) {
-#if defined(_WINDOWS)
-	static const std::string file_separator("\\");
-#else
-	static const std::string file_separator("/");
-#endif
+static std::string* GetModuleDir(Handle<Object> module) {
+	std::string moduleFilename(ToStdString(module->Get(String::New("filename"))->ToString()));
+	return new std::string(port_dirname(moduleFilename));
+}
+
+static Local<Object> GetProcessObject() {
+	return Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject();
+}
+
+static std::string* FindAppDir() {
+	Handle<Value> mainModule = GetProcessObject()->Get(String::New("mainModule"));
+	if (!mainModule->IsUndefined()) {
+		return GetModuleDir(mainModule->ToObject());
+	}
+	return NULL;
+}
+
+static ibmras::common::PropertiesFile* LoadProperties() {
 	ibmras::common::PropertiesFile* props = NULL;
 	
 	// Load from application directory, if possible
-	Handle<Value> mainModule = GetProcessObject()->Get(String::New("mainModule"));
-	if (!mainModule->IsUndefined()) {
-		std::string mainModuleFilename(ToStdString(mainModule->ToObject()->Get(String::New("filename"))->ToString()));
-		std::string mainModuleDirname(port_dirname(mainModuleFilename));
-		std::string propFilename(mainModuleDirname + file_separator + std::string("healthcenter.properties"));
+	if (appDir != NULL) {
+		std::string propFilename(fileJoin(*appDir, std::string("healthcenter.properties")));
 		props = LoadPropertiesFile(propFilename, "application directory");
 	} else {
 		IBMRAS_LOG(debug, "Cannot load properties from application directory, main module not defined");
@@ -173,14 +150,54 @@ static ibmras::common::PropertiesFile* LoadProperties(Handle<Object> module) {
 	}
 	
 	// Load from module directory
-	if (props == NULL) {
-		std::string moduleFilename(ToStdString(module->Get(String::New("filename"))->ToString()));
-		std::string moduleDirname(port_dirname(moduleFilename));
-		std::string propFilename(moduleDirname + file_separator + std::string("healthcenter.properties"));
+	if (props == NULL && hcDir != NULL) {
+		std::string propFilename(fileJoin(*hcDir, std::string("healthcenter.properties")));
 		props = LoadPropertiesFile(propFilename, "healthcenter directory");
 	}
-	
+
 	return props;
+}
+
+Handle<Value> Start(const Arguments& args) {
+	HandleScope scope;
+	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
+
+	agent->init();
+
+	// Force MQTT on for now
+	agent->setAgentProperty("mqtt", "on");
+
+	agent->start();
+	return scope.Close(Undefined());
+}
+
+Handle<Value> Stop(const Arguments& args) {
+  HandleScope scope;
+	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
+	agent->stop();
+	agent->shutdown();
+	return scope.Close(Undefined());
+}
+
+Handle<Value> spath(const Arguments& args) {
+	HandleScope scope;
+	Local<String> value = args[0]->ToString();
+	String *path = *value;
+	int size = path->Length() + 1;
+	char* buffer = new char[size];
+	path->WriteAscii(buffer,0 , path->Length());
+	buffer[path->Length()] = '\0';
+	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
+	agent->setAgentProperty("plugin.path", buffer);
+	return scope.Close(Undefined());
+}
+
+Handle<Value> setLogLevel(const Arguments& args) {
+	HandleScope scope;
+	Local<Number> level = Local<Number>::Cast(args[0]);
+	ibmras::common::logging::Level lvl = static_cast<ibmras::common::logging::Level>(level->Int32Value());
+	ibmras::common::LogManager::getInstance()->setLevel(lvl); 
+	return scope.Close(Undefined());
 }
 
 void Init(Handle<Object> exports, Handle<Object> module) {
@@ -190,7 +207,6 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	exports->Set(String::NewSymbol("start"), FunctionTemplate::New(Start)->GetFunction());
 	exports->Set(String::NewSymbol("spath"), FunctionTemplate::New(spath)->GetFunction());
 	exports->Set(String::NewSymbol("stop"), FunctionTemplate::New(Stop)->GetFunction());
-
 	exports->Set(String::NewSymbol("setLogLevel"), FunctionTemplate::New(setLogLevel)->GetFunction());
 
 	// Defaults
@@ -198,14 +214,16 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	agent->setAgentProperty("plugin.path", "./plugins");
 
 	if (std::getenv("IBM_HC_NODEAGENT_EARLY_LOGGING") != NULL) {
-		ibmras::common::LogManager::getInstance()->setLevel("Node", "debug");
+		ibmras::common::LogManager::getInstance()->setLevel("NodeAgent", "debug");
 	}
 
-	ibmras::common::PropertiesFile* props = LoadProperties(module);
+	appDir = FindAppDir();
+	hcDir = GetModuleDir(module);
+	ibmras::common::PropertiesFile* props = LoadProperties();
 	if (props != NULL) {
 		agent->setProperties(*props);
 		delete props;
-	}	
+	}
 	agent->setLogLevels();
 }
 

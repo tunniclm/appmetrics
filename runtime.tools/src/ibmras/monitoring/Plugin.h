@@ -38,6 +38,8 @@ public:
 	static Plugin* processLibrary(const std::string &filePath);
 
 	std::string name;										/* name of the library - typically this is the full path */
+
+	int (*init)(const char *properties);				/* Plugin inialization method */
 	pushsource* (*push)(void (*callback)(monitordata*), uint32);	/* push source function pointer or NULL */
 	pullsource* (*pull)(uint32);							/* pull source function pointer or NULL */
 	int (*start)(void);									/* start function to begin data production */

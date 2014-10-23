@@ -34,7 +34,7 @@ LogManager* LogManager::instance = NULL;
 LOCAL_LOGGER_CALLBACK LogManager::localLogFunc = NULL;
 
 LogManager::LogManager() :
-		level(logging::none), localLog(true), lock(NULL) {
+		level(logging::info), localLog(true), lock(NULL) {
 	/* do not create a lock in the constructor as it will create a loop with the logging in the port library */
 }
 
@@ -64,14 +64,25 @@ void LogManager::msgHandler(const std::string &message, ibmras::common::logging:
 
 void LogManager::setLevel(logging::Level newlevel) {
 	LogManager::level = newlevel;
+	for (std::vector<Logger*>::iterator i = loggers.begin(); i != loggers.end();
+			++i) {
+		if ((*i)->level <= level) {
+			(*i)->level = level;
+		}
+	}
 }
 
 void LogManager::setLevel(const std::string &name, logging::Level newlevel) {
-	if (name.compare("global") == 0) {
+	if (name.compare("level") == 0) {
 		setLevel(newlevel);
 	} else {
 		Logger* logger = getLogger(name);
-		logger->level = newlevel;
+		if (level > newlevel) {
+			logger->level = level;
+		} else {
+			logger->level = newlevel;
+		}
+		logger->debugLevel = newlevel;
 	}
 }
 

@@ -42,7 +42,7 @@ void TDPullSource::publishConfig() {
 		msg += "off";
 	}
 
-	conMan->sendMessage("ThreadsSourceConfiguration", msg.length(),
+	conMan->sendMessage("configuration/threads", msg.length(),
 			(void*) msg.c_str());
 }
 

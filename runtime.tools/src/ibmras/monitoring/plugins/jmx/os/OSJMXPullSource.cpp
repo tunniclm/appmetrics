@@ -77,7 +77,7 @@ void OSJMXPullSource::publishConfig() {
 		msg += "off";
 	}
 
-	conMan->sendMessage("CpuSourceConfiguration", msg.length(),
+	conMan->sendMessage("configuration/cpu", msg.length(),
 			(void*) msg.c_str());
 }
 

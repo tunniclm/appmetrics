@@ -34,11 +34,6 @@ public:
 private:
 	static void* thread(ibmras::common::port::ThreadData* tData);
 	void processLoop();
-	int32 getRunDuration();
-	int32 getRunPause();
-	int32 getNumberOfRuns();
-	int32 getTimesRun();
-	void incrementRuns();
 	int packFiles();
 
 	bool enabled;
@@ -67,6 +62,7 @@ private:
 	std::time_t startTime;
 	char startDate[100];
 	std::string hcdName;
+	int startDelay;
 
 	HLConnector(JavaVM* theVM);
 	void createFile(const std::string &fileName);

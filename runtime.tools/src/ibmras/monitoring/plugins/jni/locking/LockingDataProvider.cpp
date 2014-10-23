@@ -82,7 +82,7 @@ void JLAPullSource::publishConfig() {
 		msg += "off";
 	}
 
-	conMan->sendMessage("JLASourceConfiguration", msg.length(),
+	conMan->sendMessage("configuration/locking", msg.length(),
 			(void*) msg.c_str());
 }
 

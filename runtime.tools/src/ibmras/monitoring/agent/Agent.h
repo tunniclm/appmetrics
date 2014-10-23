@@ -36,6 +36,7 @@ class DECL Agent {
 public:
 	static Agent* getInstance();					/* return the singleton instance of the agent */
 	static std::string getBuildDate();
+	static std::string getVersion();
 	void init();							/* invoke to start the agent initialisation lifecycle event */
 	void start();						/* invoke to start the agent start lifecycle event */
 	void stop();							/* invoke to start the agent stop lifecycle event */

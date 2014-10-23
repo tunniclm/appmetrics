@@ -22,19 +22,19 @@ extern "C" {
 #endif
 
 /* Define logging macros */
-#define IBMRAS_LOG(LOGLEVEL, MSG) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->LOGLEVEL(MSG);}}
-#define IBMRAS_LOG_1(LOGLEVEL, MSG, INSERT1) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->LOGLEVEL(MSG, INSERT1);}}
-#define IBMRAS_LOG_2(LOGLEVEL, MSG, INSERT1, INSERT2) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->LOGLEVEL(MSG, INSERT1, INSERT2);}}
-#define IBMRAS_LOG_3(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->LOGLEVEL(MSG, INSERT1, INSERT2, INSERT3);}}
-#define IBMRAS_LOG_4(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3, INSERT4) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->LOGLEVEL(MSG, INSERT1, INSERT2, INSERT3, INSERT4);}}
+#define IBMRAS_LOG(LOGLEVEL, MSG) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->log(ibmras::common::logging::LOGLEVEL, MSG);}}
+#define IBMRAS_LOG_1(LOGLEVEL, MSG, INSERT1) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->log(ibmras::common::logging::LOGLEVEL, MSG, INSERT1);}}
+#define IBMRAS_LOG_2(LOGLEVEL, MSG, INSERT1, INSERT2) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->log(ibmras::common::logging::LOGLEVEL, MSG, INSERT1, INSERT2);}}
+#define IBMRAS_LOG_3(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->log(ibmras::common::logging::LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3);}}
+#define IBMRAS_LOG_4(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3, INSERT4) {if (logger->level >= ibmras::common::logging::LOGLEVEL) { logger->log(ibmras::common::logging::LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3, INSERT4);}}
 
 /* Define debug logging macros */
 #if defined(IBMRAS_DEBUG_LOGGING)
-#define IBMRAS_DEBUG(LOGLEVEL, MSG) {IBMRAS_LOG(LOGLEVEL, MSG);}
-#define IBMRAS_DEBUG_1(LOGLEVEL, MSG, INSERT1) {IBMRAS_LOG_1(LOGLEVEL, MSG, INSERT1);}
-#define IBMRAS_DEBUG_2(LOGLEVEL, MSG, INSERT1, INSERT2) {IBMRAS_LOG_2(LOGLEVEL, MSG, INSERT1, INSERT2);}
-#define IBMRAS_DEBUG_3(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3) {IBMRAS_LOG_3(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3);}
-#define IBMRAS_DEBUG_4(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3, INSERT4) {IBMRAS_LOG_4(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3, INSERT4);}
+#define IBMRAS_DEBUG(LOGLEVEL, MSG) {if (logger->debugLevel >= ibmras::common::logging::LOGLEVEL) { logger->debug(ibmras::common::logging::LOGLEVEL, MSG);}}
+#define IBMRAS_DEBUG_1(LOGLEVEL, MSG, INSERT1) {if (logger->debugLevel >= ibmras::common::logging::LOGLEVEL) { logger->debug(ibmras::common::logging::LOGLEVEL, MSG, INSERT1);}}
+#define IBMRAS_DEBUG_2(LOGLEVEL, MSG, INSERT1, INSERT2) {if (logger->debugLevel >= ibmras::common::logging::LOGLEVEL) { logger->debug(ibmras::common::logging::LOGLEVEL, MSG, INSERT1, INSERT2);}}
+#define IBMRAS_DEBUG_3(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3) {if (logger->debugLevel >= ibmras::common::logging::LOGLEVEL) { logger->debug(ibmras::common::logging::LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3);}}
+#define IBMRAS_DEBUG_4(LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3, INSERT4) {if (logger->debugLevel >= ibmras::common::logging::LOGLEVEL) { logger->debug(ibmras::common::logging::LOGLEVEL, MSG, INSERT1, INSERT2, INSERT3, INSERT4);}}
 #else
 #define IBMRAS_DEBUG(LOGLEVEL, MSG)
 #define IBMRAS_DEBUG_1(LOGLEVEL, MSG, INSERT1)

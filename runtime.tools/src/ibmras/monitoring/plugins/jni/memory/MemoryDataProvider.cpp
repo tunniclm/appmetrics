@@ -219,7 +219,7 @@ void MEMPullSource::publishConfig() {
 		msg += "off";
 	}
 
-	conMan->sendMessage("MemorySourceConfiguration", msg.length(),
+	conMan->sendMessage("configuration/memory", msg.length(),
 			(void*) msg.c_str());
 }
 

@@ -40,6 +40,8 @@ namespace ibmras {
 namespace monitoring {
 namespace agent {
 
+#define AGENT_VERSION "99.99.99.29991231"
+
 static const char* PROPERTIES_PREFIX = "com.ibm.diagnostics.healthcenter.";
 static const char* HEARTBEAT_TOPIC = "heartbeat";
 
@@ -61,6 +63,10 @@ void Agent::setLogOutput(ibmras::common::LOCAL_LOGGER_CALLBACK func) {
 
 std::string Agent::getBuildDate() {
 	return __DATE__ " " __TIME__;
+}
+
+std::string Agent::getVersion() {
+	return AGENT_VERSION;
 }
 
 void Agent::setLogLevels() {
@@ -178,8 +184,11 @@ void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 		DataSource<pullsource> *dsrc = agent->getPullSources().getItem(i);
 		if (dsrc->getSource()->callback && dsrc->getSource()->complete) {
 			pool->setPullSource(--srccount, dsrc->getSource());
+			IBMRAS_DEBUG_2(debug, "pullsource %d is source %s", srccount, dsrc->getSource()->header.name);
 		}
-	}IBMRAS_DEBUG(info, "Starting agent process pull source loop");
+	}
+
+	IBMRAS_DEBUG(info, "Starting agent process pull source loop");
 
 	pool->startAll();
 	while (running) {
@@ -291,14 +300,18 @@ void Agent::init() {
 		plugins.insert(plugins.begin(), found.begin(), found.end());
 	}
 
-
-
 	addSystemPlugins();
+
+	std::string pluginProperties = properties.toString();
+
 	IBMRAS_DEBUG_1(info, "%d plugins found", plugins.size());
 	uint32 provID = 0;
 	for (std::vector<ibmras::monitoring::Plugin*>::iterator i =
 			plugins.begin(); i != plugins.end(); ++i, provID++) {
 		IBMRAS_DEBUG_1(fine, "Library : %s", (*i)->name.c_str());
+		if ((*i)->init) {
+			(*i)->init(pluginProperties.c_str());
+		}
 		if ((*i)->type & ibmras::monitoring::plugin::data) {
 			addPushSource(i, provID);
 			addPullSource(i, provID);

@@ -39,7 +39,7 @@ typedef struct pushsource {
 	pushsource *next;			/* next source or null if this is the last one in the list */
 } pushsource;
 
-
+typedef int (*PLUGIN_INITIALIZE)(const char* properties);
 typedef pushsource* (*PUSH_SOURCE_REGISTER)(void (*callback)(monitordata* data), uint32 provID);
 typedef void (*PUSH_CALLBACK)(monitordata* data);
 

@@ -66,7 +66,7 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach);
 
 static bool agentStarted = false;
 
-IBMRAS_DEFINE_LOGGER("J9VM");
+IBMRAS_DEFINE_LOGGER("java");
 
 ibmras::monitoring::agent::Agent* agent;
 
@@ -419,6 +419,8 @@ void launchAgent(const std::string &options) {
 
 	getHCProperties(options);
 	agent->setLogLevels();
+
+	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
 
 
 	// Add MQTT Connector plugin

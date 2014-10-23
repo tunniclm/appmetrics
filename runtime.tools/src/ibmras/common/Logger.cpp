@@ -14,6 +14,8 @@
 #include <string>
 #include <sstream>
 
+#include <ctime>
+
 #include "ibmras/common/Logger.h"
 #include "ibmras/common/Memory.h"
 
@@ -23,51 +25,83 @@
 #define VPRINT vsnprintf
 #endif
 
-
 namespace ibmras {
 namespace common {
 
-Logger::Logger(const std::string &name, MSG_HANDLER h) :  level(logging::none), component(name), handler(h) {
+Logger::Logger(const std::string &name, MSG_HANDLER h) :
+		level(logging::none), debugLevel(logging::none), component(name), handler(h) {
 }
 
 Logger::~Logger() {
 }
 
+void Logger::header(std::stringstream &str, logging::Level lev, bool debug) {
+	std::time_t time = std::time(NULL);
+	char buffer[100];
+	if (std::strftime(buffer, sizeof(buffer), "%c", std::localtime(&time))) {
+		str << '[' << buffer << ']';
+	}
+	str << " com.ibm.diagnostics.healthcenter." << component;
 
-/*
- * Define a logger using a macro as it is not possible to pass a variable parameter
- * list onto another function - so the macro prevents code duplication.
- */
-#define STR_(x) #x
-#define STR(x) STR_(x)
+	if (debug) {
+		str << ".debug";
+	}
 
-#define LOGGER(lvl) void Logger::lvl(const char* format, ...) \
-{\
-	std::stringstream str; \
-		str << component << " (";\
-		str << STR(logging::lvl);\
-		str << ") : ";\
-		va_list messages;\
-		va_start(messages, format);\
-		char buffer[1024]; \
-		int result = VPRINT(buffer, 1024, format, messages);\
-		if(result > 0) {\
-			str << buffer;\
-		} else {\
-			str << "(warning) failed to write replacements for :" << format;\
-		}\
-		str << std::endl;\
-		std::string msg = str.str(); \
-		handler(msg.c_str(), ibmras::common::logging::lvl, this);\
+	switch (lev) {
+	case logging::info:
+		str << " INFO: ";
+		break;
+	case logging::warning:
+		str << " WARNING: ";
+		break;
+	case logging::fine:
+		str << " FINE: ";
+		break;
+	case logging::finest:
+		str << " FINEST: ";
+		break;
+	case logging::debug:
+		str << " DEBUG: ";
+		break;
+	default:
+		str << " ";
+		break;
+	}
 }
 
+void Logger::log(logging::Level lev, const char* format, ...) {
+	std::stringstream str;
+	header(str, lev);
+	va_list messages;
+	va_start(messages, format);
+	char buffer[1024];
+	int result = VPRINT(buffer, 1024, format, messages);
+	if (result > 0) {
+		str << buffer;
+	} else {
+		str << "(warning) failed to write replacements for :" << format;
+	}
+	str << std::endl;
+	std::string msg = str.str();
+	handler(msg.c_str(), lev, this);
+}
 
-LOGGER(none)
-LOGGER(info)
-LOGGER(fine)
-LOGGER(finest)
-LOGGER(debug)
-LOGGER(warning)
+void Logger::debug(logging::Level lev, const char* format, ...) {
+	std::stringstream str;
+	header(str, lev, true);
+	va_list messages;
+	va_start(messages, format);
+	char buffer[1024];
+	int result = VPRINT(buffer, 1024, format, messages);
+	if (result > 0) {
+		str << buffer;
+	} else {
+		str << "(warning) failed to write replacements for :" << format;
+	}
+	str << std::endl;
+	std::string msg = str.str();
+	handler(msg.c_str(), lev, this);
+}
 
 }
 

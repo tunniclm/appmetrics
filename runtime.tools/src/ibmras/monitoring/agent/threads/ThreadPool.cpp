@@ -63,14 +63,19 @@ void ThreadPool::process(bool immediate) {
 		}
 		if(!counters[i].isQueued() && counters[i].isExpired()) {
 			/* counter has expired so need to schedule on first free thread */
+			bool foundFreeThread = false;
 			for(uint32 j = 0; j < size; j++) {
 				if(!threads[j].getWorker()->isBusy()) {
 					IBMRAS_DEBUG_2(fine,  "Scheduling pull source [%d] for processing on thread [%d]", i, j);
 					counters[i].setQueued(true);
 					threads[j].getWorker()->setSource(&counters[i]);
 					threads[j].signal();
+					foundFreeThread = true;
 					break;			/* scheduled so stop looking for a free thread */
 				}
+			}
+			if (!foundFreeThread) {
+				IBMRAS_DEBUG_1(warning, "No thread available to process pull source %d", i);
 			}
 		}
 	}

@@ -35,16 +35,17 @@ public:
 	Logger(const std::string &name, MSG_HANDLER h);
 	virtual ~Logger();
 
-	void none(const char* format, ...); /* variable number of parameters should be string messages */
-	void info(const char* format, ...); /* variable number of parameters should be string messages */
-	void debug(const char* format, ...); /* variable number of parameters should be string messages */
-	void fine(const char* format, ...);
-	void finest(const char* format, ...);
-	void warning(const char* format, ...);
+	void log(logging::Level lev, const char* format, ...); /* variable number of parameters should be string messages */
+	void debug(logging::Level lev, const char* format, ...); /* variable number of parameters should be string messages */
+
 	logging::Level level; /* level that the logger is operating at */
+	logging::Level debugLevel; /* level that the logger is operating at */
 	std::string component;
+
 private:
 	MSG_HANDLER handler;
+
+	void header(std::stringstream &str, logging::Level lev, bool debug=false);
 };
 
 } /* namespace common */
