@@ -1,14 +1,16 @@
-/*
- * MethodLookupProvider.cpp
- *
- *  Created on: 21 July 2014
- *      Author: stalleyj
+/**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/monitoring/plugins/j9/methods/MethodLookupProvider.h"
-#include "ibmras/common/util/memUtils.h"
 #include "ibmjvmti.h"
 #include "jni.h"
 #include "jvmti.h"
@@ -29,55 +31,41 @@ namespace plugins {
 namespace j9 {
 namespace methods {
 
-IBMRAS_DEFINE_LOGGER("MethodLookup")
+IBMRAS_DEFINE_LOGGER("methodlookup")
 ;
 
-PUSH_CALLBACK sendMethodData;
-uint32 MethodLookupProvider::providerID = 0;
+MethodLookupProvider* MethodLookupProvider::instance = NULL;
 
-int startReceiver() {
-	MethodLookupProvider *mlp =
-			(MethodLookupProvider*) MethodLookupProvider::getInstance();
-	mlp->sendMethodDictionary();
-	return 0;
-}
-
-int stopReceiver() {
-	return 0;
-}
-
-pushsource* MethodLookupProvider::registerPushSource(
-		void (*callback)(monitordata* data), uint32 provID) {
-	pushsource *src = new pushsource();
-	src->header.name = "methoddictionary";
-	src->header.description =
-			"Method lookup data which maps hex value to method data";
-	src->header.sourceID = 0;
-	src->next = NULL;
-	src->header.capacity = 1048576; /* 1MB bucket capacity */
-	MethodLookupProvider::providerID = provID;
-	ibmras::monitoring::plugins::j9::methods::sendMethodData = callback;
-
-	return src;
-}
-
-MethodLookupProvider::MethodLookupProvider(jvmFunctions functions) {
+MethodLookupProvider::MethodLookupProvider(jvmFunctions functions) :
+		providerID(0), sendHeader(true), initialHeaderSent(false) {
 	vmFunctions = functions;
 	name = "Method Lookup";
-	pull = NULL;
-	push = registerPushSource;
-	start = ibmras::monitoring::plugins::j9::methods::startReceiver;
-	stop = ibmras::monitoring::plugins::j9::methods::stopReceiver;
+	pull = registerPullSource;
 	type = ibmras::monitoring::plugin::data
 			| ibmras::monitoring::plugin::receiver;
-	recvfactory = (RECEIVER_FACTORY) MethodLookupProvider::getInstance;
-	confactory = NULL;
+	recvfactory = (RECEIVER_FACTORY) getReceiver;
 }
 
 MethodLookupProvider::~MethodLookupProvider() {
 }
 
-MethodLookupProvider* instance = NULL;
+pullsource* MethodLookupProvider::registerPullSource(uint32 provID) {
+	instance->providerID = provID;
+
+	pullsource *src = new pullsource();
+	src->header.name = "methoddictionary";
+	src->header.description =
+			"Method lookup data which maps hex value to method data";
+	src->header.sourceID = 0;
+	src->header.capacity = 1048576; /* 1MB bucket capacity */
+
+	src->callback = getData;
+	src->complete = complete;
+	src->pullInterval = 5;
+	src->next = NULL;
+
+	return src;
+}
 
 MethodLookupProvider* MethodLookupProvider::getInstance(
 		jvmFunctions functions) {
@@ -87,7 +75,7 @@ MethodLookupProvider* MethodLookupProvider::getInstance(
 	return instance;
 }
 
-void* MethodLookupProvider::getInstance() {
+void* MethodLookupProvider::getReceiver() {
 	if (!instance) {
 		return NULL;
 	}
@@ -96,70 +84,155 @@ void* MethodLookupProvider::getInstance() {
 
 void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
-	// Send the initial empty dictionary
-	if (id == "methoddictionary") {
-		if (size == 0 || data == NULL) {
-			sendMethodDictionary();
-		} else {
-			std::string message((const char*) data, size);
-			std::size_t found = message.find(',');
-			if (found != std::string::npos) {
-				std::string command = message.substr(0, found);
-				std::string rest = message.substr(found + 1);
-				std::vector<std::string> parameters =
-						ibmras::common::util::split(rest, ',');
 
-				if (parameters.size() > 0) {
-					getMethodIDs(parameters);
-				} else {
-					sendMethodDictionary();
+	if (!methodSetLock.acquire() && !methodSetLock.isDestroyed()) {
+
+		IBMRAS_DEBUG(debug, "receiveMessage got lock");
+
+		IBMRAS_DEBUG(debug, "processing received message");
+		if (id == "methoddictionary") {
+			if (size == 0 || data == NULL) {
+				sendHeader = true;
+			} else {
+				std::string message((const char*) data, size);
+				std::size_t found = message.find(',');
+				if (found != std::string::npos) {
+					std::string command = message.substr(0, found);
+					std::string rest = message.substr(found + 1);
+					std::vector<std::string> parameters =
+							ibmras::common::util::split(rest, ',');
+
+					if (parameters.size() > 0) {
+
+						char * pEnd;
+						for (std::vector<std::string>::iterator it =
+								parameters.begin(); it != parameters.end();
+								++it) {
+							methodsToLookup.insert(
+									(void*) strtol((*it).c_str(), &pEnd, 16));
+						}
+					} else {
+						sendHeader = true;
+					}
 				}
 			}
+		} else if (id == "headless") {
+			getAllMethodIDs();
 		}
-	} else if (id == "headless") {
-		getAllMethodIDs();
+		IBMRAS_DEBUG(debug, "receiveMessage releasing lock");
+		methodSetLock.release();
+		IBMRAS_DEBUG(debug, "receiveMessage lock released");
 	}
+
 }
 
-void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
+void MethodLookupProvider::getAllMethodIDs() {
+
+	IBMRAS_DEBUG(debug, "in getAllMethodIDs");
+	if (!vmFunctions.getJ9method) {
+		return;
+	}
+
+	JNIEnv *env;
+	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);
+
+	jclass *classes = NULL;
+	jint count = 0;
+	jvmtiError err = vmFunctions.pti->GetLoadedClasses(&count, &classes);
+
+	for (int i = 0; i < count; i++) {
+		jint methodcount;
+
+		jmethodID *mids = NULL;
+		err = vmFunctions.pti->GetClassMethods(classes[i], &methodcount, &mids);
+
+		if (err == JVMTI_ERROR_NONE) {
+			jmethodID *midPtr = mids;
+
+			for (int j = 0; j < methodcount; j++) {
+				/* Convert the object pointer to a j9methodPtr as that */
+				/* is what health center uses to lookup missing method names */
+
+				void *j9method_ptr;
+				err = vmFunctions.getJ9method(vmFunctions.pti, *midPtr,
+						&j9method_ptr);
+				if (err == JVMTI_ERROR_NONE) {
+					methodsToLookup.insert(j9method_ptr);
+				} else {
+					IBMRAS_DEBUG(fine, "getJ9method failed");
+				}
+				midPtr++;
+			}
+			env->DeleteLocalRef(classes[i]);
+		}
+		hc_dealloc((unsigned char**) &mids);
+	}
+
+	hc_dealloc((unsigned char**) &classes);
+	vmFunctions.theVM->DetachCurrentThread();
+}
+
+monitordata* MethodLookupProvider::getData() {
+	return instance->getMethodData();
+}
+
+monitordata* MethodLookupProvider::getMethodData() {
+	IBMRAS_DEBUG(debug, "in getMethodData");
 	JNIEnv *env;
 	void *ramMethods = NULL;
 	void **ramMethodsPtr = NULL;
 	void *descriptorBuffer = NULL;
+	std::stringstream ss;
 
-	int numberOfMethods = jsMethodIds.size();
+	if (sendHeader) {
+		sendHeader = false;
+		ss << "#MethodDictionarySource\n";
+
+		IBMRAS_DEBUG(debug, "header added");
+		if (!initialHeaderSent) {
+			IBMRAS_DEBUG(debug, "Sending persistent header");
+			std::string mdheader = ss.str();
+			initialHeaderSent = true;
+			return generateData(0, mdheader.c_str(), mdheader.size(), true );
+		}
+	}
+
 
 	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);
+	if (!methodSetLock.acquire() && !methodSetLock.isDestroyed()) {
 
-	if (vmFunctions.jvmtiGetMethodAndClassNames != 0 && numberOfMethods > 0) {
-		jvmtiError error;
+		IBMRAS_DEBUG(debug, "getMethodData got lock");
+		int numberOfMethods = methodsToLookup.size();
 
-		/* Allocate memory for the method identifiers */
-		ramMethods = (char**) hc_alloc(sizeof(void*) * numberOfMethods);
-		if (ramMethods == NULL) {
-			goto cleanup;
-		}
+		IBMRAS_DEBUG_1(debug, "%d methods to lookup", numberOfMethods);
 
-		descriptorBuffer = (unsigned char**) hc_alloc(
-				sizeof(jvmtiExtensionRamMethodData) * numberOfMethods);
-		if (descriptorBuffer == NULL) {
-			goto cleanup;
-		}
+		if (vmFunctions.jvmtiGetMethodAndClassNames != 0
+				&& numberOfMethods > 0) {
+			jvmtiError error;
 
-		/* Set up the array of method identifierss */
-		ramMethodsPtr = (void**) ramMethods;
-		char * pEnd;
-		int i = 0;
-		for (std::vector<std::string>::iterator it = jsMethodIds.begin();
-				it != jsMethodIds.end(); ++it) {
-			ramMethodsPtr[i] = (void*) strtol(((std::string) *it).c_str(),
-					&pEnd, 16);
-			i++;
-		}
+			/* Allocate memory for the method identifiers */
+			ramMethods = (char**) hc_alloc(sizeof(void*) * numberOfMethods);
+			if (ramMethods == NULL) {
+				goto cleanup;
+			}
 
-		while (numberOfMethods > 0) {
+			descriptorBuffer = (unsigned char**) hc_alloc(
+					sizeof(jvmtiExtensionRamMethodData) * numberOfMethods);
+			if (descriptorBuffer == NULL) {
+				goto cleanup;
+			}
 
-			IBMRAS_DEBUG_1(debug, "%d methods to process", numberOfMethods);
+			/* Set up the array of method identifier */
+			ramMethodsPtr = (void**) ramMethods;
+			int i = 0;
+			for (std::set<void*>::iterator it = methodsToLookup.begin();
+					it != methodsToLookup.end(); ++it) {
+				ramMethodsPtr[i] = (*it);
+				i++;
+			}
+
+			methodsToLookup.clear();
+
 			/**
 			 * Queries the VM for the method and class names for one or more method identifiers. The results
 			 * of calling this method are only valid if isSupported() returns true.
@@ -208,11 +281,8 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 				jvmtiExtensionRamMethodData * descriptors =
 						(jvmtiExtensionRamMethodData *) descriptorBuffer;
 
-				std::stringstream ss;
 				int j = 0;
-				i=numberOfMethods;
-				numberOfMethods = 0;
-				for (int k=0; k<i;k++) {
+				for (int k = 0; k < numberOfMethods; k++) {
 					if (descriptors[j].reasonCode == JVMTI_ERROR_NONE) {
 
 						std::stringstream ss2;
@@ -226,101 +296,59 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 								<< "\n";
 					} else if (descriptors[j].reasonCode
 							== JVMTI_ERROR_OUT_OF_MEMORY) {
-						ramMethodsPtr[numberOfMethods] = ramMethodsPtr[j];
-						numberOfMethods++;
+						methodsToLookup.insert(ramMethodsPtr[j]);
 					}
 					j++;
 				}
 
-				std::string data = ss.str();
-				monitordata *mdata = generateData(0, data.c_str(),
-						data.length());
-				sendMethodData(mdata);
-
-				delete mdata;
 			}
 		}
-		IBMRAS_DEBUG_1(debug, "%d methods processed", jsMethodIds.size());
-
 	}
 
 	cleanup:
 
-	vmFunctions.theVM->DetachCurrentThread();
+	IBMRAS_DEBUG(debug, "getMethodData releasing lock");
+	methodSetLock.release();
+
+
+	IBMRAS_DEBUG(debug, "getMethodData lock released");
+
 	hc_dealloc((unsigned char**) &ramMethods);
 	hc_dealloc((unsigned char**) &descriptorBuffer);
-}
 
-void MethodLookupProvider::getAllMethodIDs() {
-
-	if (!vmFunctions.getJ9method) {
-		return;
-	}
-
-	JNIEnv *env;
-	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);
-
-	jclass *classes = NULL;
-	jint count = 0;
-	jvmtiError err = vmFunctions.pti->GetLoadedClasses(&count, &classes);
-
-	std::vector<std::string> methods;
-	for (int i = 0; i < count; i++) {
-		jint methodcount;
-
-		jmethodID *mids = NULL;
-		err = vmFunctions.pti->GetClassMethods(classes[i], &methodcount, &mids);
-
-		if (err == JVMTI_ERROR_NONE) {
-			jmethodID *midPtr = mids;
-
-
-			for (int j = 0; j < methodcount; j++) {
-				/* Convert the object pointer to a j9methodPtr as that */
-				/* is what health center uses to lookup missing method names */
-
-				void *j9method_ptr;
-				err = vmFunctions.getJ9method(vmFunctions.pti, *midPtr,
-						&j9method_ptr);
-				if (err == JVMTI_ERROR_NONE) {
-					std::stringstream ss;
-					ss << j9method_ptr;
-					std::string method = ss.str();
-					if (ibmras::common::util::startsWith(method, "0x")) {
-						method = method.substr(2);
-					}
-					methods.push_back(method);
-				} else {
-					IBMRAS_DEBUG(fine, "getJ9method failed");
-				}
-				midPtr++;
-			}
-			env->DeleteLocalRef(classes[i]);
-		}
-		hc_dealloc((unsigned char**) &mids);
-	}
-
-	hc_dealloc((unsigned char**) &classes);
 	vmFunctions.theVM->DetachCurrentThread();
-	getMethodIDs(methods);
+
+	monitordata *mdata = NULL;
+	std::string datastring = ss.str();
+	if (datastring.length() > 0) {
+		mdata = generateData(0, datastring.c_str(), datastring.length(), false);
+		IBMRAS_DEBUG_2(debug, " provider %d size %d", mdata->provID, mdata->size);
+	}
+	return mdata;
 }
 
-void MethodLookupProvider::sendMethodDictionary() {
-	const char header[] = "#MethodDictionarySource\n";
-	monitordata *mdata = generateData(0, header, strlen(header));
-	mdata->persistent = true;
-	sendMethodData(mdata);
+void MethodLookupProvider::complete(monitordata *mdata) {
+	IBMRAS_DEBUG(debug, "complete")
+	if (mdata->data) {
+		delete mdata->data;
+	}
 	delete mdata;
 }
 
 monitordata* MethodLookupProvider::generateData(uint32 sourceID,
-		const char *dataToSend, int size) {
+		const char *dataToSend, int size, bool persistentData) {
 	monitordata* data = new monitordata;
-	data->provID = MethodLookupProvider::providerID;
-	data->data = dataToSend;
+	data->provID = providerID;
+	if (dataToSend && size > 0) {
+		char *buffer = new char[size];
+		memcpy(buffer, dataToSend, size);
+	data->data = buffer;
+	} else {
+		data->data = NULL;
+	}
 	data->size = size;
 	data->sourceID = sourceID;
-	data->persistent = false;
+	data->persistent = persistentData;
 	return data;
 }
 

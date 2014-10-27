@@ -1,15 +1,22 @@
-/*
- * MethodLookupProvider.h
- *
- *  Created on: 21 July 2014
- *      Author: stalleyj
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
+
 
 #ifndef ibmras_monitoring_plugins_j9_methods
 #define ibmras_monitoring_plugins_j9_methods
 
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
+#include "ibmras/common/port/Lock.h"
+#include <set>
+
 
 namespace ibmras{
 namespace monitoring {
@@ -21,24 +28,38 @@ namespace methods {
 
 class MethodLookupProvider: public ibmras::monitoring::connector::Receiver, public ibmras::monitoring::Plugin {
 public:
-	MethodLookupProvider(jvmFunctions functions);
+
 	virtual ~MethodLookupProvider();
-	int startReceiver();
-	int stopReceiver();
-	void receiveMessage(const std::string &id, uint32 size, void *data);
-	static pushsource* registerPushSource(void (*callback)(monitordata* data), uint32 provID);
-	static uint32 providerID;
+
 	static MethodLookupProvider* getInstance(jvmFunctions functions);
-	static void* getInstance();
-	void getMethodIDs(std::vector<std::string> &parameters);
-	void getAllMethodIDs();
-	static void sendMethodDictionary();
+
+	static void* getReceiver();
+	void receiveMessage(const std::string &id, uint32 size, void *data);
+
+	static pullsource* registerPullSource(uint32 provID);
+
+
+	static monitordata* getData(void);			/* shortcut definition for the pull source callback */
+	static void complete(monitordata*);	/* callback to indicate when the data source can free / re-use the memory */
+
 private:
+	MethodLookupProvider(jvmFunctions functions);
+	static MethodLookupProvider* instance;
+
+	void getAllMethodIDs();
+	monitordata* getMethodData(void);
+
+	uint32 providerID;
 	jvmFunctions vmFunctions;
 	unsigned char* hc_alloc(int size);
 	void hc_dealloc(unsigned char** buffer);
 
-	static monitordata* generateData(uint32 sourceID, const char *dataToSend, int size);
+	monitordata* generateData(uint32 sourceID, const char *dataToSend, int size, bool persistentData);
+
+	std::set<void*> methodsToLookup;
+	ibmras::common::port::Lock methodSetLock;
+	bool sendHeader;
+	bool initialHeaderSent;
 };
 }
 }

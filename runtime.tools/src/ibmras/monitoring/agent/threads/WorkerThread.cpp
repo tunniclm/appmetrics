@@ -1,9 +1,13 @@
-/*
- * WorkerThread.cpp
- *
- *  Created on: 25 Feb 2014
- *      Author: adam
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
+
 
 #include "ibmras/monitoring/agent/threads/WorkerThread.h"
 #include "ibmras/monitoring/agent/Agent.h"
@@ -44,9 +48,8 @@ void* WorkerThread::osentry(ibmras::common::port::ThreadData* args) {
 				if (data->size > 0) {
 					IBMRAS_DEBUG_1(finest, "%d bytes of data pulled from source", data->size);
 					agent->addData(data); /* put pulled data on queue for processing */
-					delete[] data->data;
 				}
-				delete data;
+				source->complete;
 			}
 			busy = false; /* thread no longer busy */
 			source->setQueued(false); /* pull source no longer queued */

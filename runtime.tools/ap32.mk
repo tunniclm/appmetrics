@@ -13,7 +13,7 @@ ARCHIVE=ar -r
 ARC_EXT=a
 #CFLAGS=-g3 -c -fmessage-length=0 -DAIX -D__BIG_ENDIAN -D_AIX -DAIXPPC -D_32BIT -D__NOLOCK_ON_INPUT -qasm=gcc
 #CFLAGS=-D__BIG_ENDIAN -D_AIX -DAIX -DAIXPPC -G -qasm_as=/usr/bin/as -mcpu=powerpc -qasm=gcc -q32 -DREVERSED -D__NOLOCK_ON_INPUT -D__NOLOCK_ON_OUTPUT
-CFLAGS=-D__BIG_ENDIAN -D_AIX -DAIX -DAIXPPC -G  -g -qpic -qasm_as=/usr/bin/as -qasm=gcc -c -q32 -DREVERSED
+CFLAGS=-D__BIG_ENDIAN -D_AIX -DAIX -DAIXPPC -G  -g -qpic -qasm_as=/usr/bin/as -qasm=gcc -c -q32 -DREVERSED -DIBMRAS_DEBUG_LOGGING
 LIB_EXT=so
 EXE_EXT=
 LIBFLAGS=-G -q32 

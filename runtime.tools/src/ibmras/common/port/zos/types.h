@@ -1,15 +1,20 @@
-/* types.h
- *
- *  Created on: 31 Jan 2014
- *      Author: adam
+/**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
+
 
 #include <stdint.h>
 #include <limits.h>
 #include <inttypes.h>
 
-#ifndef TYPES_H_
-#define TYPES_H_
+#ifndef ibmras_common_port_zos_types_h
+#define ibmras_common_port_zos_types_h
 
     typedef signed int          INT;
     typedef unsigned int        UINT;
@@ -39,5 +44,5 @@
     typedef uint64_t            uint64;
 
 
-#endif /* TYPES_H_ */
+#endif /* ibmras_common_port_zos_types_h */
 

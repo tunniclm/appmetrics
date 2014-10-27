@@ -1,12 +1,16 @@
-/*
- * osplugin.h
- *
- *  Created on: 28 Feb 2014
- *      Author: adam
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
-#ifndef PLUGIN_H_
-#define PLUGIN_H_
+
+#ifndef ibmras_monitoring_plugins_os_plugin_h
+#define ibmras_monitoring_plugins_os_plugin_h
 
 /* declarations for the plugin that will provide OS metrics */
 
@@ -76,4 +80,4 @@ protected:
 }	/* end of namespace osplugin */
 
 
-#endif /* PLUGIN_H_ */
+#endif /* ibmras_monitoring_plugins_os_plugin_h */

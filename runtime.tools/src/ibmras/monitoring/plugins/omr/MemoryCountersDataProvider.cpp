@@ -1,6 +1,17 @@
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
+ */
+
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include <string.h>
+#include <sstream>
 #include "ibmras/common/logging.h"
 #include "ibmras/vm/omr/healthcenter.h"
 #include "ibmras/monitoring/plugins/omr/MemoryCountersDataProvider.h"
@@ -269,32 +280,45 @@ char* MemoryCountersDataProvider::getMemoryCounters()
     dealloc_report_lines(memcounterarray, written_count);
     hc_dealloc((char*)memcounterarray);
 
+
+	if (finalReport != NULL) {
+
+		unsigned long long millisecondsSinceEpoch; // = ibmras::common::util::getMilliseconds();
+#if defined(WINDOWS)
+
+		SYSTEMTIME st;
+		GetSystemTime(&st);
+
+		millisecondsSinceEpoch = time(NULL)*1000+st.wMilliseconds;
+
+#else
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+
+		millisecondsSinceEpoch = (unsigned long long) (tv.tv_sec) * 1000
+				+ (unsigned long long) (tv.tv_usec) / 1000;
+#endif
+		char tstamp[20];
+		sprintf(tstamp, "%llu", millisecondsSinceEpoch);
+		std::stringstream ss;
+		ss << "smc\ntime stamp=";
+		ss << tstamp << "\n";
+		ss << finalReport;
+		ss << "emc\n";
+
+		std::string data = ss.str();
+			report = reinterpret_cast<char*>(malloc(data.length() + 1));
+			if (report) {
+				strcpy(report, data.c_str());
+			}
+	}
+	hc_dealloc(finalReport);
 	if (OMR_ERROR_NONE == rc) {
 		rc = vmData.omrti->UnbindCurrentThread(vmThread);
 	}
 
-	int length = strlen("smc")+1+24+1+strlen(finalReport)+strlen("emc")+1;
-	report = new char[length];
-
-	unsigned long long millisecondsSinceEpoch;
-#if defined(WINDOWS)
-	// work out how to get windows time
-#else
-		struct timeval tv;
-	gettimeofday(&tv, NULL);
-
-	millisecondsSinceEpoch =
-	    (unsigned long long)(tv.tv_sec) * 1000 +
-	    (unsigned long long)(tv.tv_usec) / 1000;
-#endif
-	//time stamp=1401370060775
-	sprintf(report,"smc\ntime stamp=%llu\n%semc\n",millisecondsSinceEpoch,finalReport);
-	IBMRAS_DEBUG_1(debug, "%s", report);
-
-	hc_dealloc(finalReport);
-
 	IBMRAS_DEBUG(debug, "getMemoryCounters exit");
-    return report;
+	return report;
 }
 
 

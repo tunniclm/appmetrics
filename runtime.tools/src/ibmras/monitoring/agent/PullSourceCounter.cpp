@@ -1,8 +1,11 @@
-/*
- * PullSourceCounter.cpp
- *
- *  Created on: 25 Feb 2014
- *      Author: adam
+/**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
 #include "ibmras/monitoring/agent/PullSourceCounter.h"
@@ -12,7 +15,8 @@ namespace ibmras {
 namespace monitoring {
 namespace agent {
 
-PullSourceCounter::PullSourceCounter(uint32 interval, PULL_CALLBACK callback, PULL_CALLBACK_COMPLETE complete) {
+PullSourceCounter::PullSourceCounter(uint32 interval, PULL_CALLBACK callback,
+		PULL_CALLBACK_COMPLETE complete) {
 	this->interval = interval;
 	this->callback = callback;
 	this->complete = complete;
@@ -30,7 +34,7 @@ void PullSourceCounter::setQueued(bool value) {
 }
 
 bool PullSourceCounter::isExpired() {
-	return current == 0;		/* counter has expired when the current value = 0 */
+	return current == 0; /* counter has expired when the current value = 0 */
 }
 
 void PullSourceCounter::reset() {
@@ -38,39 +42,31 @@ void PullSourceCounter::reset() {
 }
 
 PullSourceCounter PullSourceCounter::operator --(int x) {
-	if(current) {
+	if (current) {
 		current--;
 	} else {
-		missed++;		/* indicate that we have missed a callback */
+		missed++; /* indicate that we have missed a callback */
 	}
 	return *this;
 }
 
 monitordata* PullSourceCounter::getData() {
 	monitordata* result = callback();
-	monitordata* copy = new monitordata;		/* where we are going to copy the pull data to */
-	copy->provID = result->provID;
-	copy->sourceID = result->sourceID;
-	copy->size = result->size;
-	copy->persistent = result->persistent;
-	char* buffer = new char[copy->size];
-	memcpy(buffer, result->data, copy->size);
-	copy->data = buffer;
-	current = interval;		/* reset the countdown timer */
-	missed = 0;				/* reset missed counter */
-	complete(result);
-	return copy;
+	current = interval; /* reset the countdown timer */
+	missed = 0; /* reset missed counter */
+	return result;
+
 }
 
-void PullSourceCounter::init(uint32 value, PULL_CALLBACK callback, PULL_CALLBACK_COMPLETE complete) {
+void PullSourceCounter::init(uint32 value, PULL_CALLBACK callback,
+		PULL_CALLBACK_COMPLETE complete) {
 	interval = value;
 	this->callback = callback;
 	this->complete = complete;
 	current = 0;
 }
 
-
 }
 }
-}	/* end of namespace agent */
+} /* end of namespace agent */
 

@@ -5,10 +5,20 @@
  *      Author: adam
  */
 
-#ifndef WRAPPER_H_
-#define WRAPPER_H_
+#ifndef ibmras_vm_node_wrapper_h
+#define ibmras_vm_node_wrapper_h
 
 #ifndef BUILDING_NODE_EXTENSION
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
+ */
+
 #define BUILDING_NODE_EXTENSION
 #endif
 
@@ -41,4 +51,4 @@ namespace monitoring {
 }
 
 
-#endif /* WRAPPER_H_ */
+#endif /* ibmras_vm_node_wrapper_h */

@@ -1,9 +1,14 @@
 /*
- * Logger.cpp
- *
- *  Created on: 23 Jun 2014
- *      Author: robbins
+  /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
+
 
 #if defined (_ZOS)
 #define _ISOC99_SOURCE
@@ -23,6 +28,9 @@
 #define VPRINT vsnprintf_s
 #else
 #define VPRINT vsnprintf
+#endif
+#if defined(_ZOS)
+#include <unistd.h>
 #endif
 
 namespace ibmras {
@@ -83,7 +91,14 @@ void Logger::log(logging::Level lev, const char* format, ...) {
 	}
 	str << std::endl;
 	std::string msg = str.str();
+#if defined(_ZOS) 
+    char * z_str = new char [msg.length()+1];
+    std::strcpy (z_str, msg.c_str());
+    __a2e_s(z_str);
+    handler(z_str, lev, this);
+#else
 	handler(msg.c_str(), lev, this);
+#endif
 }
 
 void Logger::debug(logging::Level lev, const char* format, ...) {
@@ -100,7 +115,14 @@ void Logger::debug(logging::Level lev, const char* format, ...) {
 	}
 	str << std::endl;
 	std::string msg = str.str();
+#if defined(_ZOS) 
+    char * z_str = new char [msg.length()+1];
+    std::strcpy (z_str, msg.c_str());
+    __a2e_s(z_str);
+    handler(z_str, lev, this);
+#else
 	handler(msg.c_str(), lev, this);
+#endif
 }
 
 }

@@ -1,11 +1,15 @@
-/*
- * plugin.cpp
- *
- *  Created on: 02 Jul 2014
- *      Author: Mike Tunnicliffe
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
-#include "ibmras/monitoring/plugins/nodeenv/agent_version.h"
+
+#include "ibmras/vm/node/agent_version.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/logging.h"
 #include <iostream>
@@ -26,7 +30,9 @@
 IBMRAS_DEFINE_LOGGER("NodeEnvPlugin");
 
 namespace plugin {
+void (*callback)(monitordata*);
 uint32 provid = 0;
+
 std::string nodeVersion;
 std::string nodeTag;
 std::string nodeVendor;
@@ -42,48 +48,8 @@ static char* NewCString(const std::string& s) {
 	return result;
 }
 
-monitordata* OnRequestData() {
-	monitordata *data = new monitordata;
-	data->persistent = false;
-	data->provID = plugin::provid;
-	data->sourceID = 0;
-	data->size = 0;
-	data->data = NULL;
-	
-	if (plugin::nodeVersion != "") {
-		std::stringstream contentss;
-		contentss << "#EnvironmentSource\n";
-		
-		contentss << "runtime.version=" << plugin::nodeVersion;
-		if (plugin::nodeTag != "") {
-			contentss << plugin::nodeTag;
-		}
-		contentss << '\n';
-		
-		if (plugin::nodeVendor != "") {
-			contentss << "runtime.vendor=" << plugin::nodeVendor << '\n';
-		}
-		if (plugin::nodeName != "") {
-			contentss << "runtime.name=" << plugin::nodeName << '\n';
-		}
-		contentss << "command.line.arguments=" << plugin::commandLineArguments << '\n';
-		contentss << "jar.version=" << getAgentVersionAndDate() << '\n'; // eg "3.0.0.20141010" (NB: jar.version is a legacy name) 
-		
-		std::string content = contentss.str();
-		data->size = content.length();
-		data->data = NewCString(content.c_str());
-	}		
-	
-	return data;
-}
-
-void OnComplete(monitordata* data) {
-	delete[] data->data;
-	delete data;
-}
-
-pullsource* createPullSource(uint32 srcid, const char* name) {
-	pullsource *src = new pullsource();
+pushsource* createPushSource(uint32 srcid, const char* name) {
+	pushsource *src = new pushsource();
 	src->header.name = name;
 	std::string desc("Description for ");
 	desc.append(name);
@@ -91,9 +57,6 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	src->header.sourceID = srcid;
 	src->next = NULL;
 	src->header.capacity = DEFAULT_CAPACITY;
-	src->callback = OnRequestData;
-	src->complete = OnComplete;
-	src->pullInterval = 20*60;
 	return src;
 }
 
@@ -174,12 +137,44 @@ static void GetNodeInformation(uv_async_t *handle, int status) {
 	plugin::commandLineArguments = GetNodeArguments();
 	//PrintComponentVersions();
 	uv_close((uv_handle_t*) &async, NULL);
+	
+	if (plugin::nodeVersion != "") {
+		std::stringstream contentss;
+		contentss << "#EnvironmentSource\n";
+		
+		contentss << "runtime.version=" << plugin::nodeVersion;
+		if (plugin::nodeTag != "") {
+			contentss << plugin::nodeTag;
+		}
+		contentss << '\n';
+		
+		if (plugin::nodeVendor != "") {
+			contentss << "runtime.vendor=" << plugin::nodeVendor << '\n';
+		}
+		if (plugin::nodeName != "") {
+			contentss << "runtime.name=" << plugin::nodeName << '\n';
+		}
+		contentss << "command.line.arguments=" << plugin::commandLineArguments << '\n';
+		contentss << "jar.version=" << getAgentVersionAndDate() << '\n'; // eg "3.0.0.20141010" (NB: jar.version is a legacy name) 
+		
+		std::string content = contentss.str();
+		monitordata data;
+		data.persistent = false;
+		data.provID = plugin::provid;
+		data.sourceID = 0;
+		data.size = content.length();
+		data.data = content.c_str();
+		plugin::callback(&data);
+	} else {
+		IBMRAS_LOG(debug, "Unable to get Node.js environment information");
+	}
 }
 
 extern "C" {
-NODEENVPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(uint32 provID) {
-	IBMRAS_DEBUG(info,  "Registering pull sources");
-	pullsource *head = createPullSource(0, "environment_node");
+NODEENVPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(void (*callback)(monitordata*), uint32 provID) {
+	IBMRAS_DEBUG(info,  "Registering push sources");
+	pushsource *head = createPushSource(0, "environment_node");
+	plugin::callback = callback;
 	plugin::provid = provID;
 	return head;
 }

@@ -1,12 +1,13 @@
-/*
+ /**
  * IBM Confidential
  * OCO Source Materials
- * IBM Monitoring and Diagnostic Tools for Java\u2122 - Health Center
- * (C) Copyright IBM Corp. 2008, 2014
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
  * The source code for this program is not published or otherwise
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
  */
+
 
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/agent/Agent.h"
@@ -458,10 +459,8 @@ int Tracestart() {
 	 * adding a sleep 3 seconds pause. This is nasty and we need a better way
 	 *
 	 */
-#if defined (_PPC) || defined (_390)
-	sleep(3);
-#endif
-	vmData.setTraceOption(vmData.pti, "none=all,maximal=mt");
+	vmData.setTraceOption(vmData.pti, "none=all");
+	vmData.setTraceOption(vmData.pti, "maximal=mt");
 	/* now enable HC specific trace */
 	enableTracePoints(gc);
 	enableTracePoints(profiling);

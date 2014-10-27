@@ -1,9 +1,20 @@
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
+ */
+
 #ifndef BUILDING_NODE_EXTENSION
 #define BUILDING_NODE_EXTENSION
 #endif
 
 #include "node.h"
 #include "uv.h"
+#include "ibmras/vm/node/agent_version.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/Logger.h"
@@ -18,8 +29,9 @@ using namespace v8;
 
 static std::string* appDir;
 static std::string* hcDir;
+static bool running = false;
 
-IBMRAS_DEFINE_LOGGER("NodeAgent");
+IBMRAS_DEFINE_LOGGER("node");
 
 static std::string ToStdString(Local<String> s) {
 	char *buf = new char[s->Length() + 1];
@@ -162,20 +174,27 @@ Handle<Value> Start(const Arguments& args) {
 	HandleScope scope;
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
 
-	agent->init();
-
-	// Force MQTT on for now
-	agent->setAgentProperty("mqtt", "on");
-
-	agent->start();
+	if (!running) {
+		running = true;
+		agent->init();
+	
+		// Force MQTT on for now
+		agent->setAgentProperty("mqtt", "on");
+	
+		agent->start();
+	}
+	
 	return scope.Close(Undefined());
 }
 
 Handle<Value> Stop(const Arguments& args) {
-  HandleScope scope;
+	HandleScope scope;
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->stop();
-	agent->shutdown();
+	if (running) {
+		running = false;
+		agent->stop();
+		agent->shutdown();
+	}
 	return scope.Close(Undefined());
 }
 
@@ -213,8 +232,8 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
 	agent->setAgentProperty("plugin.path", "./plugins");
 
-	if (std::getenv("IBM_HC_NODEAGENT_EARLY_LOGGING") != NULL) {
-		ibmras::common::LogManager::getInstance()->setLevel("NodeAgent", "debug");
+	if (std::getenv("IBM_HC_NODE_EARLY_LOGGING") != NULL) {
+		ibmras::common::LogManager::getInstance()->setLevel("node", "debug");
 	}
 
 	appDir = FindAppDir();
@@ -225,6 +244,9 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 		delete props;
 	}
 	agent->setLogLevels();
+
+	//IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
+	IBMRAS_LOG_1(info, "Health Center %s", getAgentVersionAndDate().c_str());
 }
 
 NODE_MODULE(healthcenter, Init)

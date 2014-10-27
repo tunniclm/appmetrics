@@ -1,12 +1,13 @@
-/*******************************************************************************
- * Licensed Materials - Property of IBM
- * "Restricted Materials of IBM"
- *
- * (c) Copyright IBM Corp. 2014, 2014 All Rights Reserved
- *
- * US Government Users Restricted Rights - Use, duplication or disclosure
- * restricted by GSA ADP Schedule Contract with IBM Corp.
- *******************************************************************************/
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
+ */
+
 #include <stdio.h>
 #include "ibmras/common/logging.h"
 #include "ibmras/common/port/ThreadData.h"

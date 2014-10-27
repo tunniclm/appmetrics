@@ -1,5 +1,15 @@
-#ifndef MEMORYDATAPROVIDER_H_
-#define MEMORYDATAPROVIDER_H_
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
+ */
+
+#ifndef ibmras_monitoring_plugins_jni_memory_memorydataprovider_h
+#define ibmras_monitoring_plugins_jni_memory_memorydataprovider_h
 
 #include "ibmras/monitoring/plugins/jni/CFacade.h"
 #include "ibmras/vm/java/healthcenter.h"
@@ -28,4 +38,4 @@ public:
 }	/* end namespace monitoring */
 } 	/* end namespace ibmras */
 
-#endif /*MEMORYDATAPROVIDER_H_*/
+#endif /*ibmras_monitoring_plugins_jni_memory_memorydataprovider_h*/

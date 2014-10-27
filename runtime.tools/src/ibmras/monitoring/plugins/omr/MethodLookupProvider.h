@@ -1,12 +1,16 @@
-/*
- * MethodLookupProvider.h
- *
- *  Created on: 21 July 2014
- *      Author: stalleyj
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
-#ifndef METHODLOOKUPPROVIDER_H_
-#define METHODLOOKUPPROVIDER_H_
+
+#ifndef ibmras_monitoring_plugins_omr_methodlookupprovider_h
+#define ibmras_monitoring_plugins_omr_methodlookupprovider_h
 
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
@@ -39,4 +43,4 @@ private:
 }
 }
 }/* namespace monitoring */
-#endif /* METHODLOOKUPPROVIDER_H_ */
+#endif /* ibmras_monitoring_plugins_omr_methodlookupprovider_h */

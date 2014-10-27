@@ -1,9 +1,13 @@
-/*
- * threadpool.cpp
- *
- *  Created on: 25 Feb 2014
- *      Author: adam
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
+
 
 /*
  * Thread pool and associated worker threads
@@ -54,14 +58,8 @@ ThreadPool::~ThreadPool() {
 void ThreadPool::process(bool immediate) {
 	IBMRAS_DEBUG(finest,  "Processing pull sources");
 	for(uint32 i = 0; i < counterSize; i++) {
-		if (immediate) {
-			while (!counters[i].isExpired()) {
-				counters[i]--;
-			}
-		} else {
-			counters[i]--;			/* decrement counters */
-		}
-		if(!counters[i].isQueued() && counters[i].isExpired()) {
+		counters[i]--;			/* decrement counters */
+		if(!counters[i].isQueued() && (counters[i].isExpired() || immediate)) {
 			/* counter has expired so need to schedule on first free thread */
 			bool foundFreeThread = false;
 			for(uint32 j = 0; j < size; j++) {

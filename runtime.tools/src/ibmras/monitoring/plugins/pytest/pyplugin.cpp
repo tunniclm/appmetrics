@@ -1,3 +1,13 @@
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
+ */
+
 #include "Python.h"//When extending or using Python API this ALWAYS has to be the first include
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/Monitoring.h"

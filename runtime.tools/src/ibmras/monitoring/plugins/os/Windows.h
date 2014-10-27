@@ -1,12 +1,16 @@
-/*
- * osWindows.h
- *
- *  Created on: 3 Apr 2014
- *      Author: adam
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
-#ifndef OSWindows_H_
-#define OSWindows_H_
+
+#ifndef ibmras_monitoring_plugins_os_windows_h
+#define ibmras_monitoring_plugins_os_windows_h
 
 #include "ibmras/monitoring/plugins/os/Plugin.h"
 #include <pdh.h>
@@ -32,4 +36,4 @@ public:
 } /* end namespace osplugin */
 
 
-#endif /* OSWindows_H_ */
+#endif /* ibmras_monitoring_plugins_os_windows_h */

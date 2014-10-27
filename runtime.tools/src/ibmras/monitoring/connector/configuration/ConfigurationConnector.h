@@ -1,12 +1,16 @@
-/*
- * ConfigurationConnector.h
- *
- *  Created on: 7 Oct 2014
- *      Author: robbins
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
-#ifndef CONFIGURATIONCONNECTOR_H_
-#define CONFIGURATIONCONNECTOR_H_
+
+#ifndef ibmras_monitoring_connector_configurationconnector_h
+#define ibmras_monitoring_connector_configurationconnector_h
 
 
 #include "ibmras/monitoring/connector/Connector.h"
@@ -36,4 +40,4 @@ private:
 } /* namespace connector */
 } /* namespace monitoring */
 } /* namespace ibmras */
-#endif /* CONFIGURATIONCONNECTOR_H_ */
+#endif /* ibmras_monitoring_connector_configurationconnector_h */

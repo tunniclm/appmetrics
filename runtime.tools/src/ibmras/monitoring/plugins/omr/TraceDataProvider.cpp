@@ -1,12 +1,13 @@
-/*
+ /**
  * IBM Confidential
  * OCO Source Materials
- * IBM Monitoring and Diagnostic Tools for Java\u2122 - Health Center
- * � Copyright IBM Corp. 2008, 2014
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
  * The source code for this program is not published or otherwise
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
  */
+
 
 #include <assert.h>
 #include <ctype.h>

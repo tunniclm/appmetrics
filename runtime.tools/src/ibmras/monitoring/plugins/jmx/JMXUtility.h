@@ -1,12 +1,16 @@
-/*
- * osplugin.h
- *
- *  Created on: 28 Feb 2014
- *      Author: adam
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
-#ifndef JMXSOURCES_H_
-#define JMXSOURCES_H_
+
+#ifndef ibmras_monitoring_plugins_jmx_jmxutility_h
+#define ibmras_monitoring_plugins_jmx_jmxutility_h
 
 /* declarations for the plugin that will provide OS metrics */
 #include <jni.h>
@@ -67,4 +71,4 @@ jlong getTimestamp(JNIEnv* env);
 }	/* end namespace ibmras */
 
 
-#endif /* JMXSOURCES_H_ */
+#endif /* ibmras_monitoring_plugins_jmx_jmxutility_h */

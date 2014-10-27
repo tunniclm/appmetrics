@@ -1,12 +1,16 @@
-/*
- * nodeconnector.h
- *
- *  Created on: 6 Mar 2014
- *      Author: adam
+ /**
+ * IBM Confidential
+ * OCO Source Materials
+ * IBM Monitoring and Diagnostic Tools - Health Center
+ * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * The source code for this program is not published or otherwise
+ * divested of its trade secrets, irrespective of what has
+ * been deposited with the U.S. Copyright Office.
  */
 
-#ifndef NODECONNECTOR_H_
-#define NODECONNECTOR_H_
+
+#ifndef ibmras_vm_node_nodeconnector_h
+#define ibmras_vm_node_nodeconnector_h
 
 #ifndef BUILDING_NODE_EXTENSION
 #define BUILDING_NODE_EXTENSION
@@ -61,4 +65,4 @@ private:
 }	/* end of namespace monitoring */
 
 
-#endif /* NODECONNECTOR_H_ */
+#endif /* ibmras_vm_node_nodeconnector_h */
