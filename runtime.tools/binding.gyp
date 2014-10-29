@@ -4,6 +4,8 @@
     "pahodir%": "../Paho/org.eclipse.paho.mqtt.c",
     "pahosrcdir%": "../Paho/org.eclipse.paho.mqtt.c/src",
     "deploydir%": "<(PRODUCT_DIR)/deploy/healthcenter",
+    'build_id%': '<!(["python", "./src/ibmras/vm/node/generate_build_id.py"])',
+    'version%': '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/ibmras/vm/node/package.json", "version"])',
   },
   "conditions": [
     ['OS=="aix"', {
@@ -80,7 +82,7 @@
         "<(srcdir)/common/data/legacy/LegacyData.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
-        "<(srcdir)/monitoring/agent/Agent.cpp",
+        "<(INTERMEDIATE_DIR)/monitoring/agent/Agent.cpp",
         "<(srcdir)/monitoring/agent/PullSourceCounter.cpp",
         "<(srcdir)/monitoring/agent/threads/ThreadPool.cpp",
         "<(srcdir)/monitoring/agent/threads/WorkerThread.cpp",
@@ -95,6 +97,20 @@
         "<(srcdir)/vm/node/nodeagent.cpp", 
         "<(srcdir)/vm/node/wrapper.cpp"
       ],
+      'actions': [{
+        'action_name': 'Set version',
+        'inputs': [ "<(srcdir)/monitoring/agent/Agent.cpp" ],
+        'outputs': [ "<(INTERMEDIATE_DIR)/monitoring/agent/Agent.cpp" ],
+        'action': [
+          'python',
+          '<(srcdir)/vm/node/replace_in_file.py',
+          '<(srcdir)/monitoring/agent/Agent.cpp',
+          '<(INTERMEDIATE_DIR)/monitoring/agent/Agent.cpp',
+          '--from="99\.99\.99\.29991231"',
+          '--to=<(version).<(build_id)'
+          '-v'
+         ],
+      }],
     },
     {
       "target_name": "hcmqtt",

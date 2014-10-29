@@ -1,7 +1,7 @@
 {
   "name": "healthcenter",
-  "version": "1.0.0",
-  "description": "IBM Health Center agent",  
+  "version": "3.0.0",
+  "description": "IBM Monitoring and Diagnostic Tools - Health Center agent",  
   "private": "true",
   "bin": { "node-hc": "bin/healthcenter-cli.js" }
 }
