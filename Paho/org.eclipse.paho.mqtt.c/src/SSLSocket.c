@@ -449,7 +449,7 @@ void SSLSocket_terminate()
 int SSLSocket_createContext(networkHandles* net, MQTTClient_SSLOptions* opts)
 {
 	int rc = 1;
-	char* ciphers = NULL;
+	const char* ciphers = NULL;
 	
 	FUNC_ENTRY;
 	if (net->ctx == NULL)
@@ -573,6 +573,8 @@ int SSLSocket_connect(SSL* ssl, int sock)
 		error = SSLSocket_error("SSL_connect", ssl, sock, rc);
 		if (error == SSL_FATAL)
 			rc = error;
+		if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE)
+			rc = TCPSOCKET_INTERRUPTED;
 	}
 
 	FUNC_EXIT_RC(rc);

@@ -52,8 +52,8 @@ BE*/
  */
 typedef struct ListElementStruct
 {
-	struct ListElementStruct *prev, /**< pointer to previous list element */
-							*next;	/**< pointer to next list element */
+	struct ListElementStruct *prev; /**< pointer to previous list element */
+	struct ListElementStruct *next;	/**< pointer to next list element */
 	void* content;					/**< pointer to element content */
 } ListElement;
 
