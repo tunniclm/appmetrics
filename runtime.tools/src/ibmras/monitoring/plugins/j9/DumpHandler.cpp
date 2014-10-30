@@ -108,7 +108,7 @@ void DumpHandler::triggerDumps(const std::vector<std::string> &dumpRequests) {
 
 	}
 
-	cleanup: vmFunctions.theVM->DetachCurrentThread();
+	vmFunctions.theVM->DetachCurrentThread();
 }
 
 }

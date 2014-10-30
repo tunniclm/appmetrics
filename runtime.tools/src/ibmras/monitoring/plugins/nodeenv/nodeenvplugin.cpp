@@ -9,7 +9,6 @@
  */
 
 
-#include "ibmras/vm/node/agent_version.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/logging.h"
 #include <iostream>
@@ -155,7 +154,6 @@ static void GetNodeInformation(uv_async_t *handle, int status) {
 			contentss << "runtime.name=" << plugin::nodeName << '\n';
 		}
 		contentss << "command.line.arguments=" << plugin::commandLineArguments << '\n';
-		contentss << "jar.version=" << getAgentVersionAndDate() << '\n'; // eg "3.0.0.20141010" (NB: jar.version is a legacy name) 
 		
 		std::string content = contentss.str();
 		monitordata data;

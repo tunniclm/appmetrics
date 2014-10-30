@@ -133,7 +133,7 @@ char* getString(JNIEnv* env, jobject* obj, const char* cname, const char* mname,
 	jstring jobj = jc ? (jstring)env->CallStaticObjectMethod(*jc, method, NULL) : (jstring)env->CallObjectMethod(*obj, method, NULL);
 	const char* value = env->GetStringUTFChars(jobj, NULL);
 	jsize len = env->GetStringLength(jobj);
-	char* sval = (char*)malloc(len + 1);
+	char* sval = new char[len + 1];
 	if(sval) {
 		memccpy(sval, value, 0, len);
 		*(sval + len) = '\0';		/* ensure string is null terminated */

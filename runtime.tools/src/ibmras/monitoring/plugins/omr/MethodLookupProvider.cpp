@@ -38,7 +38,7 @@ uint32 MethodLookupProvider::providerID = 0;
 int startReceiver() {
 	MethodLookupProvider *mlp =
 			(MethodLookupProvider*) MethodLookupProvider::getInstance();
-	mlp->sendMethodDictionary();
+	mlp->sendMethodDictionary(true);
 	return 0;
 }
 
@@ -100,9 +100,11 @@ void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 	// Send the initial empty dictionary
 	if (id == "methoddictionary") {
 		if (size == 0 || data == NULL) {
-			sendMethodDictionary();
+			IBMRAS_DEBUG_1(debug, "Received request %s", id.c_str());
+			sendMethodDictionary(false);
 		} else {
 			std::string message((const char*) data, size);
+			IBMRAS_DEBUG_2(debug, "Received request %s %s", id.c_str(), message.c_str());
 			std::size_t found = message.find(',');
 			if (found != std::string::npos) {
 				std::string command = message.substr(0, found);
@@ -113,7 +115,7 @@ void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 				if (parameters.size() > 0) {
 					getMethodIDs (parameters);
 				} else {
-					sendMethodDictionary();
+					sendMethodDictionary(false);
 				}
 			}
 		}
@@ -165,81 +167,92 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 	int calc = sizeof(OMR_SampledMethodDescription)
 			+ (getPropertyCount * sizeof(char*));
 
-	descriptorBuffer = (OMR_SampledMethodDescription*) malloc(
-			(sizeof(OMR_SampledMethodDescription)
-					+ (getPropertyCount * sizeof(char*))) * numberOfMethods);
+	int allocSize = (sizeof(OMR_SampledMethodDescription)
+							+ (getPropertyCount * sizeof(char*))) * numberOfMethods;
+	descriptorBuffer = (OMR_SampledMethodDescription*) malloc(allocSize);
 	if (descriptorBuffer == NULL) {
-		return;
-	}
+		IBMRAS_DEBUG_1(warning, "failed to allocate descriptor buffer of size %d", allocSize);
+	} else {
 
-	/* Allocate memory for the method identifiers */
-	methodArray = (void**) malloc(sizeof(void*) * numberOfMethods);
-	if (methodArray == NULL) {
-		return;
-	}
+		/* Allocate memory for the method identifiers */
+		allocSize = sizeof(void*) * numberOfMethods;
+		methodArray = (void**) malloc(allocSize);
+		if (methodArray == NULL) {
+			IBMRAS_DEBUG_1(warning, "failed to allocate method buffer of size %d", allocSize);
+		} else {
 
-	size_t firstRetryMethod = 0;
-	size_t nameBytesRemaining = 0;
+			size_t firstRetryMethod = 0;
+			size_t nameBytesRemaining = 0;
 
-	char * pEnd;
-	int i = 0;
-	for (std::vector<std::string>::iterator it = jsMethodIds.begin();
-			it != jsMethodIds.end(); ++it) {
-		methodArray[i] = (void*) strtol(((std::string) * it).c_str(), &pEnd,
-				16);
-		i++;
-	}
-
-	/* NULL name buffer. All available methods should be marked RETRY. */
-	/* the nameBytesRemaining field returns with the amount of data needed in the nameBuffer
-	 * array.  My making an initial call with an initial size of 0, we can get told the exact
-	 * size we need.  We can then call it a second time with the real sized buffer
-	 */
-	char nameBuffer[0];
-	vmData.omrti->GetMethodDescriptions(vmThread, methodArray, numberOfMethods,
-			descriptorBuffer, nameBuffer, sizeof(nameBuffer), &firstRetryMethod,
-			&nameBytesRemaining);
-	char *newNameBuffer = (char*) malloc(nameBytesRemaining);
-	vmData.omrti->GetMethodDescriptions(vmThread, methodArray, numberOfMethods,
-			descriptorBuffer, newNameBuffer, nameBytesRemaining,
-			&firstRetryMethod, &nameBytesRemaining);
-
-	std::stringstream ss;
-
-	char* ptr = (char*) descriptorBuffer;
-	for (std::vector<std::string>::iterator it = jsMethodIds.begin();
-			it != jsMethodIds.end(); ++it) {
-
-		OMR_SampledMethodDescription* descriptorBufferPtr =
-				(OMR_SampledMethodDescription*) ptr;
-
-		/*
-		 * return is going to be
-		 * method name followed by list of extra info which is variable
-		 * and differs between ruby and omr
-		 */
-		if ((*descriptorBufferPtr).reasonCode == OMR_ERROR_NONE) {
-			ss << *it << "=" << "@omr@";
-			for (int x = 0; x < getPropertyCount; x++) {
-				if ((char*) (*descriptorBufferPtr).propertyValues[x] != NULL) {
-					ss << (char*) (*descriptorBufferPtr).propertyValues[x];
-				} else {
-					ss << "";
-				}
-				ss << "@@";
+			char * pEnd;
+			int i = 0;
+			for (std::vector<std::string>::iterator it = jsMethodIds.begin();
+					it != jsMethodIds.end(); ++it) {
+				methodArray[i] = (void*) strtol(((std::string) *it).c_str(),
+						&pEnd, 16);
+				i++;
 			}
-			ss << "\n";
+
+			/* NULL name buffer. All available methods should be marked RETRY. */
+			/* the nameBytesRemaining field returns with the amount of data needed in the nameBuffer
+			 * array.  My making an initial call with an initial size of 0, we can get told the exact
+			 * size we need.  We can then call it a second time with the real sized buffer
+			 */
+			char nameBuffer[0];
+			vmData.omrti->GetMethodDescriptions(vmThread, methodArray,
+					numberOfMethods, descriptorBuffer, nameBuffer,
+					sizeof(nameBuffer), &firstRetryMethod, &nameBytesRemaining);
+			char *newNameBuffer = (char*) malloc(nameBytesRemaining);
+			if (newNameBuffer == NULL) {
+				IBMRAS_DEBUG_1(warning, "failed to allocate name buffer of size %d", nameBytesRemaining);
+			} else {
+				vmData.omrti->GetMethodDescriptions(vmThread, methodArray,
+						numberOfMethods, descriptorBuffer, newNameBuffer,
+						nameBytesRemaining, &firstRetryMethod,
+						&nameBytesRemaining);
+
+				std::stringstream ss;
+
+				char* ptr = (char*) descriptorBuffer;
+				for (std::vector<std::string>::iterator it =
+						jsMethodIds.begin(); it != jsMethodIds.end(); ++it) {
+
+					OMR_SampledMethodDescription* descriptorBufferPtr =
+							(OMR_SampledMethodDescription*) ptr;
+
+					/*
+					 * return is going to be
+					 * method name followed by list of extra info which is variable
+					 * and differs between ruby and omr
+					 */
+					if ((*descriptorBufferPtr).reasonCode == OMR_ERROR_NONE) {
+						ss << *it << "=" << "@omr@";
+						for (int x = 0; x < getPropertyCount; x++) {
+							if ((char*) (*descriptorBufferPtr).propertyValues[x]
+									!= NULL) {
+								ss << (char*) (*descriptorBufferPtr).propertyValues[x];
+							}
+							ss << "@@";
+						}
+						ss << "\n";
+					}
+
+					ptr += getSizeof;
+				}
+
+				if (newNameBuffer != NULL) {
+					free(newNameBuffer);
+				}
+
+				std::string data = ss.str();
+				monitordata *mdata = generateData(0, data.c_str(),
+						data.length());
+				sendMethodData(mdata);
+
+				delete mdata;
+			}
 		}
-
-		ptr += getSizeof;
 	}
-
-	std::string data = ss.str();
-	monitordata *mdata = generateData(0, data.c_str(), data.length());
-	sendMethodData(mdata);
-
-	delete mdata;
-
 	err = vmData.omrti->UnbindCurrentThread(vmThread);
 	if (methodArray != NULL) {
 		free(methodArray);
@@ -250,10 +263,12 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 
 }
 
-void MethodLookupProvider::sendMethodDictionary() {
+void MethodLookupProvider::sendMethodDictionary(bool persistent) {
+
+	IBMRAS_DEBUG_1(debug, "sendMethodDictionary %d", persistent);
 	const char header[] = "#MethodDictionarySource\n";
 	monitordata *mdata = generateData(0, header, strlen(header));
-	mdata->persistent = true;
+	mdata->persistent = persistent;
 	sendMethodData(mdata);
 	delete mdata;
 }

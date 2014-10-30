@@ -18,7 +18,6 @@
 #pragma convlit(suspend)
 #endif
 #if defined(WINDOWS)
-//#include <winsock2.h>
 #define JLONG_FMT_STR "%I64d"
 #else /* Unix platforms */
 #define _OE_SOCKETS
@@ -372,7 +371,7 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 void setCapabilities() {
 	std::string capability;
 	if (vmData.verboseGCsubscribe) {
-		config[CAPABILITY_PREFIX + VERBOSE_GC_AVAILABLE] = "on";
+		config[CAPABILITY_PREFIX + VERBOSE_GC_AVAILABLE] = "off";
 	}
 
 	if (gcTracepointAvailableInThisVM(395)) {

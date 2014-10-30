@@ -120,7 +120,6 @@ DataSourceList<pushsource> Agent::getPushSources() {
 DataSource<pullsource>* Agent::getPullSource(std::string uniqueID) {
 	Agent* agent = Agent::getInstance();
 	uint32 pullcount = agent->getPullSources().getSize();
-	uint32 srccount = pullcount;
 	for (uint32 i = 0; i < pullcount; i++) {
 		DataSource<pullsource> *dsrc = agent->getPullSources().getItem(i);
 		if (dsrc->getUniqueID().compare(uniqueID) == 0) {
@@ -132,9 +131,8 @@ DataSource<pullsource>* Agent::getPullSource(std::string uniqueID) {
 
 DataSource<pushsource>* Agent::getPushSource(std::string uniqueID) {
 	Agent* agent = Agent::getInstance();
-	uint32 pullcount = agent->getPushSources().getSize();
-	uint32 srccount = pullcount;
-	for (uint32 i = 0; i < pullcount; i++) {
+	uint32 pushcount = agent->getPushSources().getSize();
+	for (uint32 i = 0; i < pushcount; i++) {
 		DataSource<pushsource> *dsrc = agent->getPushSources().getItem(i);
 		if (dsrc->getUniqueID().compare(uniqueID) == 0) {
 			return dsrc;
@@ -494,7 +492,7 @@ Agent* Agent::getInstance() {
 }
 
 bool Agent::addData(monitordata* data) {
-	if (data != NULL & (data->size > 0 && data->data != NULL)) {
+	if (data != NULL && (data->size > 0 && data->data != NULL)) {
 		Bucket* b = bucketList.findBucket(data->provID, data->sourceID);
 		if (b) {
 			BucketDataQueueEntry* entry = new BucketDataQueueEntry(data);

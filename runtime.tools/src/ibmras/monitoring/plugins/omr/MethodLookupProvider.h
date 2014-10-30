@@ -34,7 +34,7 @@ public:
 	static MethodLookupProvider* getInstance(omrRunTimeProviderParameters oRTPP);
 	static void* getInstance();
 	void getMethodIDs(std::vector<std::string> &parameters);
-	static void sendMethodDictionary();
+	static void sendMethodDictionary(bool persistent);
 private:
 	omrRunTimeProviderParameters vmData;
 

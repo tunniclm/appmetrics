@@ -11,7 +11,7 @@
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/export.h"
 
-#include <winsock2.h>
+#include <windows.h>
 #include <process.h>
 
 namespace ibmras {

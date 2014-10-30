@@ -114,7 +114,6 @@ int Tracestart() {
 	int bufferSize = 0;
 	OMR_VMThread *vmThread = NULL;
 	int rc = 0;
-	int result = 0;
 
 	long maxCircularBufferSize = DEFAULT_MAX_CIRCULAR_BUFFER_SIZE;
 	/* this is the eye catcher that tells the health center client trace parser
@@ -173,7 +172,7 @@ int Tracestart() {
 		rc = vmData.omrti->UnbindCurrentThread(vmThread);
 	}
 
-	startTraceSubscriber(maxCircularBufferSize, bufferSize);
+	running = startTraceSubscriber(maxCircularBufferSize, bufferSize);
 
 	IBMRAS_DEBUG(debug,  "Tracestart exit");
 	return 0;
@@ -183,6 +182,26 @@ int Tracestart() {
 
 
 int Tracestop() {
+	IBMRAS_DEBUG(debug,  "Tracestop enter");
+	if (running) {
+		running = false;
+
+		OMR_VMThread *vmThread = NULL;
+		int rc;
+
+		rc = vmData.omrti->BindCurrentThread(vmData.theVm,
+				"HC startTraceSubscriber", &vmThread);
+		if (OMR_ERROR_NONE == rc) {
+			IBMRAS_DEBUG(debug,  "DeregisterRecordSubscriber");
+			omr_error_t apiRc = vmData.omrti->DeregisterRecordSubscriber(
+					vmThread, subscriptionID);
+			if (OMR_ERROR_NONE != apiRc) {
+				IBMRAS_DEBUG(warning, "DeregisterRecordSubscriber failed");
+			}
+			vmData.omrti->UnbindCurrentThread(vmThread);
+		}
+	}
+	IBMRAS_DEBUG(debug,  "Tracestop exit");
 	return 0;
 
 }
@@ -220,6 +239,9 @@ TraceDataProvider::TraceDataProvider(
 omr_error_t traceSubscriber(UtSubscription *subscriptionID) {
 
 	IBMRAS_DEBUG(debug, "entering trace subscriber callback");
+	if (!running) {
+		return OMR_ERROR_NONE;
+	}
 	if (subscriptionID->data == NULL || subscriptionID->dataLength == 0) {
 		IBMRAS_DEBUG(debug, "exiting trace subscriber callback: no buffer");
 		return OMR_ERROR_NONE;

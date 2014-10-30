@@ -49,7 +49,7 @@ void* WorkerThread::osentry(ibmras::common::port::ThreadData* args) {
 					IBMRAS_DEBUG_1(finest, "%d bytes of data pulled from source", data->size);
 					agent->addData(data); /* put pulled data on queue for processing */
 				}
-				source->complete;
+				source->complete(data);
 			}
 			busy = false; /* thread no longer busy */
 			source->setQueued(false); /* pull source no longer queued */

@@ -174,7 +174,7 @@ std::string ClassHistogramProvider::createHistogramReport()
     jclass *classes = NULL;
     jint count;
     int i;
-    char* repfmt = "@@chd@@,%s,"JLONG_FMT_STR","JLONG_FMT_STR"\n";
+    const char* repfmt = "@@chd@@,%s,"JLONG_FMT_STR","JLONG_FMT_STR"\n";
     char** classNameArray = NULL;
     char ** classHistLineArray = NULL;
 

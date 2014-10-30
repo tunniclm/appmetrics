@@ -21,7 +21,7 @@ namespace common {
 
 class DECL PropertiesFile: public Properties {
 public:
-	void load(const std::string &inputFile);
+	int load(const std::string &inputFile);
 
 protected:
 

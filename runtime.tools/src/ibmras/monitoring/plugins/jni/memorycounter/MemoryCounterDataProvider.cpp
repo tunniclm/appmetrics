@@ -37,7 +37,6 @@
 
 #if defined(WINDOWS)
 #include <windows.h>
-//#include <winsock2.h>
 #include <Psapi.h>
 #elif defined(LINUX)
 #include <sys/time.h>

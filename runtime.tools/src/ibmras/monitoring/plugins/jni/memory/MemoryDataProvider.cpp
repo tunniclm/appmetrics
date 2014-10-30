@@ -34,7 +34,6 @@
 
 #if defined(WINDOWS)
 #include <windows.h>
-//#include <winsock2.h>
 #include <Psapi.h>
 #else /* Unix platforms */
 #define _OE_SOCKETS

@@ -161,7 +161,6 @@ char* NativeMemoryDataProvider::getNativeMemoryData()
 	report = new char[200];
 	int rc;
 	OMR_VMThread *vmThread = NULL;
-	char * memoryFormatString = "MemorySource,%llu,physicalmemory=%llu,privatememory=%llu,virtualmemory=%llu,freephysicalmemory=%llu,totalphysicalmemory=0\n";
 	unsigned long long millisecondsSinceEpoch;
 
     IBMRAS_DEBUG(debug, "getNativeMemoryData start\n");
@@ -213,7 +212,13 @@ char* NativeMemoryDataProvider::getNativeMemoryData()
 	    (unsigned long long)(tv.tv_usec) / 1000;
 #endif
 
-	sprintf(report,memoryFormatString,millisecondsSinceEpoch,freePhysicalMemorySize,processVirtualMemorySize,processPrivateMemorySize,processPhysicalMemorySize,totalPhysicalMemorySize);
+	sprintf(report,
+//			"MemorySource,%llu,physicalmemory=%llu,privatememory=%llu,virtualmemory=%llu,freephysicalmemory=%llu,totalphysicalmemory=%llu\n",
+			"MemorySource,%llu,physicalmemory=%llu,privatememory=%llu,virtualmemory=%llu,freephysicalmemory=%llu\n",
+			millisecondsSinceEpoch, processPhysicalMemorySize,
+			processPrivateMemorySize, processVirtualMemorySize,
+			freePhysicalMemorySize); //, totalPhysicalMemorySize);
+
 	IBMRAS_DEBUG_1(debug, "%s", report);
 
     cleanup:

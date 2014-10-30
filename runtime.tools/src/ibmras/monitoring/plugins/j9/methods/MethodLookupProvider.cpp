@@ -182,6 +182,7 @@ monitordata* MethodLookupProvider::getMethodData() {
 	void *ramMethods = NULL;
 	void **ramMethodsPtr = NULL;
 	void *descriptorBuffer = NULL;
+	unsigned char *stringBytes = NULL;
 	std::stringstream ss;
 
 	if (sendHeader) {
@@ -272,7 +273,11 @@ monitordata* MethodLookupProvider::getMethodData() {
 			 *            A byte array to contain the returned method and class names in UTF8.
 			 */
 			int stringBytesLength = 200000;
-			char stringBytes[200000];
+
+			stringBytes = hc_alloc(sizeof(char) * stringBytesLength);
+			if (stringBytes == NULL) {
+				goto cleanup;
+			};
 
 			error = vmFunctions.jvmtiGetMethodAndClassNames(vmFunctions.pti,
 					ramMethods, numberOfMethods, descriptorBuffer, stringBytes,
@@ -313,6 +318,7 @@ monitordata* MethodLookupProvider::getMethodData() {
 
 	IBMRAS_DEBUG(debug, "getMethodData lock released");
 
+	hc_dealloc((unsigned char**) &stringBytes);
 	hc_dealloc((unsigned char**) &ramMethods);
 	hc_dealloc((unsigned char**) &descriptorBuffer);
 

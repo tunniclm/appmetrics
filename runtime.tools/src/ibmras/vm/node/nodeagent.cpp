@@ -14,7 +14,6 @@
 
 #include "node.h"
 #include "uv.h"
-#include "ibmras/vm/node/agent_version.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/Logger.h"
@@ -201,13 +200,10 @@ Handle<Value> Stop(const Arguments& args) {
 Handle<Value> spath(const Arguments& args) {
 	HandleScope scope;
 	Local<String> value = args[0]->ToString();
-	String *path = *value;
-	int size = path->Length() + 1;
-	char* buffer = new char[size];
-	path->WriteAscii(buffer,0 , path->Length());
-	buffer[path->Length()] = '\0';
+	
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->setAgentProperty("plugin.path", buffer);
+	agent->setAgentProperty("plugin.path", ToStdString(value));
+
 	return scope.Close(Undefined());
 }
 
@@ -239,14 +235,15 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	appDir = FindAppDir();
 	hcDir = GetModuleDir(module);
 	ibmras::common::PropertiesFile* props = LoadProperties();
+	props->put("agent.version", agent->getVersion());
+	props->put("agent.native.build.date", agent->getBuildDate());
 	if (props != NULL) {
 		agent->setProperties(*props);
 		delete props;
 	}
 	agent->setLogLevels();
 
-	//IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
-	IBMRAS_LOG_1(info, "Health Center %s", getAgentVersionAndDate().c_str());
+	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
 }
 
 NODE_MODULE(healthcenter, Init)

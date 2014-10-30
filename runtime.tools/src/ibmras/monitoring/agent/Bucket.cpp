@@ -125,7 +125,7 @@ bool Bucket::add(BucketDataQueueEntry* entry, ibmras::monitoring::connector::Con
 		return false; /* data not added as provider and source IDs do not match */
 	}
 	if (entry->size > capacity) {
-		IBMRAS_DEBUG_2(info, "Data not added as the size was %d, but capacity is %d",
+		IBMRAS_DEBUG_2(warning, "Data not added as the size was %d, but capacity is %d",
 				entry->size, capacity);
 		return false; /* data is larger than capacity */
 	}
@@ -230,7 +230,6 @@ uint32 Bucket::getNextPersistentData(uint32 id, uint32& dataSize, void*& data) {
 	IBMRAS_DEBUG(debug, "in Bucket::getNextPersistentData()");
 
 	IBMRAS_DEBUG(debug, "in Bucket::getNextPersistentData() lock acquired");
-	uint32 requestedSize = dataSize;
 	dataSize = 0;
 	data = NULL;
 

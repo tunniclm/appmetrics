@@ -331,7 +331,7 @@ int HLConnector::start() {
 	ibmras::common::port::ThreadData* data =
 			new ibmras::common::port::ThreadData(thread);
 	data->setArgs(this);
-	int tResult = ibmras::common::port::createThread(data);
+	ibmras::common::port::createThread(data);
 
 	IBMRAS_DEBUG(debug, "<<<HLConnector::start()");
 
@@ -445,7 +445,12 @@ int HLConnector::stop() {
 		return 0;
 	}
 
-	packFiles();
+	if(collect) {
+		IBMRAS_DEBUG(debug, "Packing files at stop");
+		packFiles();
+	} else {
+		IBMRAS_DEBUG(debug, "collect is false");
+	}
 
 	for (std::map<std::string, std::fstream*>::iterator it =
 			createdFiles.begin(); it != createdFiles.end(); ++it) {
@@ -544,7 +549,7 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 						} else {
 							break;
 						}
-					};
+					}
 				}
 
 			}
@@ -599,7 +604,10 @@ int HLConnector::packFiles() {
 	IBMRAS_DEBUG(debug, "Closing files");
 	for (std::map<std::string, std::fstream*>::iterator it =
 			createdFiles.begin(); it != createdFiles.end(); it++) {
-		(it->second)->close();
+
+		if((it->second)->is_open()) {
+			(it->second)->close();
+		}
 	}
 
 	IBMRAS_DEBUG(debug, "Calling zipping method");

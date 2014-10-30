@@ -19,7 +19,6 @@
 
 #if defined(WINDOWS)
 #include <windows.h>
-//#include <winsock2.h>
 #include <intrin.h>
 #include <winbase.h>
 #else /* Unix platforms */

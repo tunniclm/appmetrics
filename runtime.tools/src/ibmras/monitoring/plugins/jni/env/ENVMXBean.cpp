@@ -53,7 +53,7 @@ void ENVPullSource::publishConfig() {
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 			agent->getConnectionManager();
 
-	std::string msg = "environment_subsystem=on";
+	std::string msg = "environment_subsystem=on\ncapability.dump.heap=on\ncapability.dump.system=on\ncapability.dump.java=on";
 	conMan->sendMessage("configuration/environment", msg.length(),
 			(void*) msg.c_str());
 }

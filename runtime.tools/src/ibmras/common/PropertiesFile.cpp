@@ -19,8 +19,11 @@ namespace common {
 
 
 
-void PropertiesFile::load(const std::string &inputFile) {
+int PropertiesFile::load(const std::string &inputFile) {
 	std::ifstream in_file(inputFile.c_str());
+	if (in_file.fail()) {
+		return -1;
+	}
 	std::string line;
 	while(std::getline(in_file, line)) {
 		if (line.find('#') == 0) {

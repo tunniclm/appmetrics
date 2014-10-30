@@ -91,7 +91,7 @@ std::string LibraryUtils::getLibraryDir(const std::string &library, const void* 
 #else
 	path = getLibraryLocation(func);
 #endif
-	int pos = path.find_last_of(PATHSEPARATOR);
+	size_t pos = path.find_last_of(PATHSEPARATOR);
 	if (pos != std::string::npos) {
 		path = path.substr(0, pos);
 	}

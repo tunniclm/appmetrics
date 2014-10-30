@@ -11,6 +11,7 @@
 
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/Logger.h"
+#include "ibmras/common/Properties.h"
 #include <iostream>
 #include <cstring>
 #include <cstdio>
@@ -58,6 +59,10 @@ namespace plugin {
 	std::string nprocs;
 	std::string pid;
 	std::string commandLine;
+
+	std::string agentVersion;
+	std::string agentNativeBuildDate;
+
 }
 
 static char* NewCString(const std::string& s) {
@@ -84,16 +89,13 @@ void AppendEnvVars(std::stringstream &ss) {
 	}
 }
 
-static std::string GetBuildDate() {
-	return __DATE__ " " __TIME__;
-}
-
 void AppendSystemInfo(std::stringstream &ss) {
 	ss << "os.arch="     << plugin::arch             << '\n'; // eg "amd64"
 	ss << "os.name="     << plugin::osName           << '\n'; // eg "Windows 7"
 	ss << "os.version="  << plugin::osVersion        << '\n'; // eg "6.1 build 7601 Service Pack 1"
 	ss << "pid="         << plugin::pid              << '\n'; // eg "12345"
-	ss << "native.library.date=" << GetBuildDate()   << '\n'; // eg "Oct 10 2014 11:44:56"
+	ss << "native.library.date=" << plugin::agentNativeBuildDate << '\n'; // eg "Oct 10 2014 11:44:56"
+	ss << "jar.version=" << plugin::agentVersion     << '\n'; // eg "3.0.0.20141030"
 	ss << "number.of.processors=" << plugin::nprocs  << '\n'; // eg 8
 	ss << "command.line=" << plugin::commandLine     << '\n';
 }
@@ -142,6 +144,14 @@ ENVPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(uint32 provID) {
 	pullsource *head = createPullSource(0, "environment_os");
 	plugin::provid = provID;
 	return head;
+}
+
+ENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
+	ibmras::common::Properties props;
+	props.add(properties);
+	plugin::agentVersion = props.get("agent.version", "");
+	plugin::agentNativeBuildDate = props.get("agent.native.build.date", "");
+	return 0;
 }
 
 ENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {

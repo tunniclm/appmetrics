@@ -51,7 +51,7 @@ char* LegacyData::getData() {
 	}
 	sdata.append(EOL);
 	size_t len = sdata.size() + 1;	/* add space for null terminator */
-	char* p = (char*)malloc(len);
+	char* p = new char[len];
 	if(p) {
 		sdata.copy((char*)p, len - 1, 0);
 		*(p + len - 1) = '\0';

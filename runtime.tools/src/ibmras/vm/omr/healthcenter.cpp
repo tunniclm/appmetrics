@@ -34,7 +34,7 @@ void launchAgent(char const *options);
 
 void killAgent();
 
-IBMRAS_DEFINE_LOGGER("OMR VM");
+IBMRAS_DEFINE_LOGGER("omr");
 
 ibmras::monitoring::agent::Agent* agent;
 
@@ -76,15 +76,25 @@ void launchAgent(char const *options) {
 					"healthcenter.dll", (void*) launchAgent);
 	agent->addPlugin(agentLibPath + PATHSEPARATOR + "plugins", "hcmqtt");
 
-	ibmras::common::PropertiesFile props;
-	props.load(options);
-	agent->setProperties(props);
-	if (omrParams.omrti == NULL) {
-		IBMRAS_DEBUG(warning,  "omrParams.omrti is null");
+	if (options == NULL) {
+		IBMRAS_LOG(warning, "No properties file specified");
+	} else {
+		ibmras::common::PropertiesFile props;
+		if (props.load(options)) {
+			agent->setProperties(props);
+		} else {
+			IBMRAS_LOG_1(warning, "Properties could not be loaded from %s", options);
+		}
 	}
+
 
 	agent->setLogLevels();
 
+	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
+
+	if (omrParams.omrti == NULL) {
+		IBMRAS_DEBUG(warning,  "omrParams.omrti is null");
+	}
 
 	agent->addPlugin((ibmras::monitoring::Plugin*)plugins::omr::trace::TraceDataProvider::getInstance(omrParams));
 	agent->addPlugin(
