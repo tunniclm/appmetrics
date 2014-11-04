@@ -11,11 +11,16 @@
 #ifndef ibmras_monitoring_plugins_cpu_cputime_h
 #define ibmras_monitoring_plugins_cpu_cputime_h
 
+#include "ibmras/common/types.h"
+
+// TODO Should rewrite this as a class and not expose timestamp
+//      use the platform specific time values in an opaque way
+//      as converting them to uint64s is problematic
 struct CPUTime {
-	unsigned long long time; /* ns since fixed point */
-	unsigned long long total; /* cumulative total cpu time in ns */
-	unsigned long long process; /* cumulative process cpu time in ns */
-	int nprocs;
+	uint64 time; /* ns since fixed point */
+	uint64 total; /* cumulative total cpu time in ns */
+	uint64 process; /* cumulative process cpu time in ns */
+	uint32 nprocs;
 };
 
 extern "C" struct CPUTime* getCPUTime();

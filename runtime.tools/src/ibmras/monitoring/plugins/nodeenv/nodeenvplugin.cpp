@@ -11,7 +11,7 @@
 
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/logging.h"
-#include <iostream>
+#include "ibmras/common/Properties.h"
 #include <cstring>
 #include <string>
 #include <sstream>
@@ -97,7 +97,7 @@ static std::string GetNodeArguments(const std::string separator="@@@") {
 	std::stringstream ss;
 	Local<Object> process = GetProcessObject();
 	Local<Object> nodeArgv = process->Get(String::New("execArgv"))->ToObject();
-	int nodeArgc = nodeArgv->Get(String::New("length"))->ToInteger()->Value();
+	int64 nodeArgc = nodeArgv->Get(String::New("length"))->ToInteger()->Value();
 
 	int written = 0;
 	if (nodeArgc > 0) {
@@ -110,16 +110,16 @@ static std::string GetNodeArguments(const std::string separator="@@@") {
 	return ss.str();
 }
 
-static void PrintComponentVersions() {
-	Local<Object> versions = Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject()->Get(String::New("versions"))->ToObject();
-	Local<Array> componentNames = versions->GetOwnPropertyNames();
-	unsigned i;
-	for (i=0; i<componentNames->Length(); i++) {
-		std::string componentName = ToStdString(componentNames->Get(i)->ToString());
-		std::string componentVersion = ToStdString(versions->Get(componentNames->Get(i))->ToString()); 
-		std::cout << componentName << " = " << componentVersion << std::endl;
-	}
-}
+//static void PrintComponentVersions() {
+//	Local<Object> versions = Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject()->Get(String::New("versions"))->ToObject();
+//	Local<Array> componentNames = versions->GetOwnPropertyNames();
+//	unsigned i;
+//	for (i=0; i<componentNames->Length(); i++) {
+//		std::string componentName = ToStdString(componentNames->Get(i)->ToString());
+//		std::string componentVersion = ToStdString(versions->Get(componentNames->Get(i))->ToString()); 
+//		std::cout << componentName << " = " << componentVersion << std::endl;
+//	}
+//}
 
 uv_async_t async;
 
@@ -160,7 +160,7 @@ static void GetNodeInformation(uv_async_t *handle, int status) {
 		data.persistent = false;
 		data.provID = plugin::provid;
 		data.sourceID = 0;
-		data.size = content.length();
+		data.size = static_cast<uint32>(content.length()); // should data->size be a size_t?
 		data.data = content.c_str();
 		plugin::callback(&data);
 	} else {
@@ -177,6 +177,18 @@ NODEENVPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(void (*callb
 	return head;
 }
 
+NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
+	ibmras::common::Properties props;
+	props.add(properties);
+
+	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
+	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
+	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.NodeEnvPlugin");
+	ibmras::common::LogManager::getInstance()->setLevel("NodeEnvPlugin", loggingProp);
+	
+	return 0;
+}
+
 NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 	IBMRAS_DEBUG(info,  "Starting");
 	
@@ -188,8 +200,6 @@ NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 
 NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 	IBMRAS_DEBUG(info,  "Stopping");
-
-	//TODO: Implement stop method
 	return 0;
 }
 }

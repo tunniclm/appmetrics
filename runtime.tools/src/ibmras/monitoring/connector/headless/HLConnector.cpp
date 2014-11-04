@@ -447,7 +447,7 @@ int HLConnector::stop() {
 
 	if(collect) {
 		IBMRAS_DEBUG(debug, "Packing files at stop");
-		packFiles();
+		lockAndPackFiles();
 	} else {
 		IBMRAS_DEBUG(debug, "collect is false");
 	}
@@ -562,6 +562,14 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 		}
 	}IBMRAS_DEBUG(debug, "<<<HLConnector::sendMessage()");
 	return 0;
+}
+void HLConnector::lockAndPackFiles() {
+	if (!lock->acquire()) {
+		if (!lock->isDestroyed()) {
+			packFiles();
+		}
+		lock->release();
+	}
 }
 
 int HLConnector::packFiles() {
@@ -692,7 +700,9 @@ void HLConnector::processLoop() {
 				IBMRAS_DEBUG_2(debug, "We've run %d times and have to run %d in total", times_run, number_runs);
 				ibmras::common::port::sleep(run_duration * 60);
 				times_run++;
-				packFiles();
+				if (running) {
+					lockAndPackFiles();
+				}
 			}
 			collect = false;
 			IBMRAS_DEBUG_1(warning, "Not producing HCDs for %d minutes", run_pause);
@@ -704,7 +714,9 @@ void HLConnector::processLoop() {
 			collect = true;
 			IBMRAS_DEBUG_1(debug, "Produce HCDs for %d minutes", run_duration);
 			ibmras::common::port::sleep(run_duration * 60);
-			packFiles();
+			if (running) {
+				lockAndPackFiles();
+			}
 			collect = false;
 			IBMRAS_DEBUG_1(warning, "Rest for %d minutes", run_pause);
 			ibmras::common::port::sleep(run_pause * 60);

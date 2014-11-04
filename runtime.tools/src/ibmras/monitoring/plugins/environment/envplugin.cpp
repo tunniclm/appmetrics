@@ -10,11 +10,10 @@
 
 
 #include "ibmras/monitoring/Monitoring.h"
+#include "ibmras/common/common.h"
 #include "ibmras/common/Logger.h"
 #include "ibmras/common/Properties.h"
-#include <iostream>
 #include <cstring>
-#include <cstdio>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -76,7 +75,7 @@ void AppendEnvVars(std::stringstream &ss) {
 	int i = 0;
 	while (environ[i] != NULL) {
 		ss << "environment." << environ[i] << '\n';
-		if (strncmp("HOSTNAME=", environ[i], strlen("HOSTNAME=")) == 0) {
+		if (std::strncmp("HOSTNAME=", environ[i], std::strlen("HOSTNAME=")) == 0) {
 			hostnameDefined = true;
 		}
 		i++;
@@ -111,7 +110,7 @@ monitordata* OnRequestData() {
 	AppendSystemInfo(contentss);
 	
 	std::string content = contentss.str();
-	data->size = content.length();
+	data->size = static_cast<uint32>(content.length()); // should data->size be a size_t?
 	data->data = NewCString(content);
 	data->persistent = false;
 
@@ -151,6 +150,12 @@ ENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 	props.add(properties);
 	plugin::agentVersion = props.get("agent.version", "");
 	plugin::agentNativeBuildDate = props.get("agent.native.build.date", "");
+	
+	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
+	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
+	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.EnvironmentPlugin");
+	ibmras::common::LogManager::getInstance()->setLevel("EnvironmentPlugin", loggingProp);
+	
 	return 0;
 }
 
@@ -177,7 +182,7 @@ static std::string GetCommandLine() {
 	std::ifstream filestream(filename.c_str());
 
 	if (!filestream.is_open()) {
-		IBMRAS_DEBUG_1(warning, "Failed to open %s", filename.c_str());
+		IBMRAS_LOG_1(debug, "Failed to open %s", filename.c_str());
 		return "";
 	}
 
@@ -205,12 +210,9 @@ static void initStaticInfo() {
 		plugin::osName = "Linux";
 		plugin::osVersion = "";
 	}
-	std::stringstream nprocsss;
-	nprocsss << get_nprocs();
-	plugin::nprocs = nprocsss.str();
-	std::stringstream pidss; 
-	pidss << getpid();
-	plugin::pid = pidss.str();
+
+	plugin::nprocs = ibmras::common::itoa(get_nprocs());
+	plugin::pid = ibmras::common::itoa(getpid());
 	plugin::commandLine = GetCommandLine();	
 }
 
@@ -228,7 +230,7 @@ static std::string GetCommandLine() {
 	proc.pi_pid = getpid();
 	int rc = getargs(&proc, sizeof(proc), procargs, sizeof(procargs));
 	if (rc < 0) {
-		IBMRAS_DEBUG_1(warning, "Failed to get command line (%d)", errno);
+		IBMRAS_LOG_1(debug, "Failed to get command line (%d)", errno);
 		return std::string();
 	}
 	std::stringstream cmdliness;
@@ -265,13 +267,9 @@ static void initStaticInfo() {
 		plugin::osName = "AIX";
 		plugin::osVersion = "";
 	}
-	std::stringstream nprocsss;
 	// might be _SC_NPROCESSORS_ONLN -https://www.ibm.com/developerworks/community/forums/html/topic?id=77777777-0000-0000-0000-000014250083
-	nprocsss << sysconf(_SC_NPROCESSORS_CONF);
-	plugin::nprocs = nprocsss.str();
-	std::stringstream pidss; 
-	pidss << getpid();
-	plugin::pid = pidss.str();
+	plugin::nprocs = ibmras::common::itoa(sysconf(_SC_NPROCESSORS_CONF)); 
+	plugin::pid = ibmras::common::itoa(getpid());
 	plugin::commandLine = GetCommandLine();	
 }
 
@@ -369,13 +367,7 @@ static const std::string GetWindowsBuild() {
 	if (NULL == buffer) {
 		return defaultBuild;
 	}
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif
 	position = sprintf(buffer,"%d.%d build %d",
-#if defined(_ZOS)
-#pragma convlit(resume)
-#endif
 		versionInfo.dwMajorVersion,
 		versionInfo.dwMinorVersion,
 		versionInfo.dwBuildNumber & 0x0000FFFF);
@@ -404,12 +396,8 @@ static void initStaticInfo() {
 	}
 	plugin::osName = GetWindowsMajorVersion();
 	plugin::osVersion = GetWindowsBuild();
-	std::stringstream nprocsss;
-	nprocsss << sysinfo.dwNumberOfProcessors;
-	plugin::nprocs = nprocsss.str();
-	std::stringstream pidss;
-	pidss << GetCurrentProcessId();
-	plugin::pid = pidss.str();
+	plugin::nprocs = ibmras::common::itoa(sysinfo.dwNumberOfProcessors);
+	plugin::pid = ibmras::common::itoa(GetCurrentProcessId());
 	plugin::commandLine = std::string(GetCommandLine());	
 }
 #endif

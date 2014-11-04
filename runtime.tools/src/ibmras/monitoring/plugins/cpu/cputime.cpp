@@ -12,6 +12,9 @@
 #include "ibmras/common/logging.h"
 #include <cstdio>
 #include <ctime>
+#include <string>
+#include <sstream>
+#include <fstream>
 
 #if defined(_LINUX)
 #include <sys/sysinfo.h>
@@ -35,87 +38,88 @@ extern IBMRAS_DECLARE_LOGGER;
 
 extern "C" {
 
-#if defined(_LINUX)
+#if defined(_LINUX) || defined(_AIX)
 
 // FIXME should probably move this to common along side getMilliseconds()
-static unsigned long long time_microseconds() {
+#define USECS_PER_SEC (1000000)
+static uint64 time_microseconds() {
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	return ((unsigned long long)tv.tv_sec * 1000000) + (unsigned long long)tv.tv_usec;
+
+	time_t seconds = tv.tv_sec;
+	suseconds_t microseconds = tv.tv_usec;
+
+	return (static_cast<uint64>(seconds) * USECS_PER_SEC) + microseconds;
 }
 
-static bool read_total_cpu_time(unsigned long long* totaltime, const unsigned NS_PER_HZ) {
-	unsigned long long user = 0, nice = 0, system = 0;
-	char buffer[128];
+#endif
 
-	FILE* fp = fopen("/proc/stat" , "r");
-	if (!fp) {
+#if defined(_LINUX)
+
+static bool read_total_cpu_time(uint64* totaltime, const uint32 NS_PER_HZ) {
+	uint64 user = 0, nice = 0, system = 0;
+
+	std::ifstream filestream("/proc/stat");
+
+	if (!filestream.is_open()) {
 		IBMRAS_DEBUG(warning, "Failed to open /proc/stat");
 		return false;
 	}
-	int bytesRead = fread(buffer, 1, sizeof(buffer) - 1, fp); // leave space for null term
-	fclose(fp);
-	
-	if (bytesRead <= 0) {
-		IBMRAS_DEBUG(warning, "Failed to read /proc/stat");
-		return false;
-	} 
-	buffer[bytesRead] = '\0';
-	if (0 == sscanf(buffer, "cpu  %llu %llu %llu", &user, &nice, &system)) {
+
+	std::string prompt; // "cpu"
+	filestream >> prompt >> user >> nice >> system;
+	bool parsedSuccessfully = filestream.good();
+	filestream.close();
+
+	if (!parsedSuccessfully) {
 		IBMRAS_DEBUG(warning, "Failed to parse /proc/stat");
 		return false;
 	}
-
+		
 	(*totaltime) = (user + nice + system) * NS_PER_HZ;
 	
 	return true;
 }
 
-static bool read_process_cpu_time(unsigned long long* proctime, const unsigned NS_PER_HZ) {
-	unsigned long long user = 0, kernel = 0;
-	char buffer[128];
-	char statfile[128];
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif	
-	sprintf(statfile, "/proc/%d/stat", getpid()); // FIXME bounds & error handling
-#if defined(_ZOS)
-#pragma convlit(resume)
-#endif
-	FILE* fp = fopen(statfile, "r");
-	if (!fp) {
-		IBMRAS_DEBUG_1(warning, "Failed to open %s", statfile);
-		return false;
-	}
-	int bytesRead = fread(buffer, 1, sizeof(buffer) - 1, fp);
-	fclose(fp);
+static bool read_process_cpu_time(uint64* proctime, const uint32 NS_PER_HZ) {
+	uint64 user = 0, kernel = 0;
 
-	if (bytesRead <= 0) {
-		IBMRAS_DEBUG_1(warning, "Failed to read %s", statfile);
-		return false;
-	} 
-	buffer[bytesRead] = '\0';
-	if (0 == sscanf(buffer, 
-			"%*d %*s %*c %*d"
-			"%*d %*d %*d %*d %*u %*u %*u %*u %*u"
-			"%llu %llu",
- 			&user, &kernel)) {
- 		
-		IBMRAS_DEBUG_1(warning, "Failed to parse %s", statfile);
+	std::stringstream filenamess;
+	filenamess << "/proc/" << getpid() << "/stat";
+	std::string filename = filenamess.str();
+	
+	std::ifstream filestream(filename.c_str());
+
+	if (!filestream.is_open()) {
+		IBMRAS_DEBUG_1(warning, "Failed to open %s", filename.c_str());
 		return false;
 	}
-	
+
+	int32 dummyInt;
+	uint32 dummyUInt;
+	std::string dummyStr;
+	filestream >> dummyInt >> dummyStr >> dummyStr >> dummyInt >> dummyInt;
+	filestream >> dummyInt >> dummyInt >> dummyInt >> dummyUInt >> dummyUInt;
+	filestream >> dummyUInt >> dummyUInt >> dummyUInt;
+	filestream >> user >> kernel;
+	bool parsedSuccessfully = filestream.good();
+	filestream.close();
+
+	if (!parsedSuccessfully) {
+		IBMRAS_DEBUG_1(warning, "Failed to parse %s", filename.c_str());
+		return false;
+	}
+		
 	(*proctime) = (user + kernel) * NS_PER_HZ;
 	
 	return true;
 }
  
-// TODO check numeric types (int, long etc)
 struct CPUTime* getCPUTime() {
-	static const unsigned userHz = sysconf(_SC_CLK_TCK);
-	const unsigned NS_PER_HZ = 1000000000 / userHz;
+	static const uint32 userHz = sysconf(_SC_CLK_TCK);
+	static const uint32 NS_PER_HZ = 1000000000 / userHz;
 	struct CPUTime* cputime = new CPUTime;
-	unsigned long long nsStart, nsEnd;
+	uint64 nsStart, nsEnd;
 	
 	nsStart = time_microseconds() * 1000;
 
@@ -126,7 +130,7 @@ struct CPUTime* getCPUTime() {
 	if (!read_process_cpu_time(&cputime->process, NS_PER_HZ)) {
 		delete cputime;
 		return NULL;
-	}	
+	}
 	
 	nsEnd = time_microseconds() * 1000;
 	
@@ -142,14 +146,16 @@ struct CPUTime* getCPUTime() {
 
 #if defined(_WINDOWS)
 
-static inline unsigned long long FILETIME_to_ns(FILETIME wintime) {
-	return ((((unsigned long long) wintime.dwHighDateTime) << 32) + wintime.dwLowDateTime) * 100;
+static inline uint64 FILETIME_to_ns(FILETIME wintime) {
+	DWORD high = wintime.dwHighDateTime;
+	DWORD low = wintime.dwLowDateTime;
+	return ((static_cast<uint64>(high) << 32) + low) * 100;
 }
 
 #define NSEC_TO_UNIX_EPOCH 11644473600000000000ULL
-static inline bool FILETIME_to_unixtimestamp(FILETIME wintime, unsigned long long* unixtimestamp) {
+static inline bool FILETIME_to_unixtimestamp(FILETIME wintime, uint64* unixtimestamp) {
 	// ns since Windows epoch 1601-01-01T00:00:00Z
-	unsigned long long ns = ((((unsigned long long) wintime.dwHighDateTime) << 32) + wintime.dwLowDateTime) * 100;
+	uint64 ns = FILETIME_to_ns(wintime);
 	if (ns < NSEC_TO_UNIX_EPOCH) {
 		// error, time is before unix epoch
 		IBMRAS_DEBUG(warning, "Failed to convert Windows time to UNIX timestamp (before UNIX epoch)");
@@ -160,7 +166,7 @@ static inline bool FILETIME_to_unixtimestamp(FILETIME wintime, unsigned long lon
 	return true; 
 }
 
-static bool read_process_cpu_time(unsigned long long* proctime) {
+static bool read_process_cpu_time(uint64* proctime) {
 	FILETIME create;
 	FILETIME exit;
 	FILETIME kernel;
@@ -177,8 +183,8 @@ static bool read_process_cpu_time(unsigned long long* proctime) {
 	return true;
 }
 
-static bool read_total_cpu_time(unsigned long long* unixtimestamp, unsigned long long* totaltime) {
-	long long user, kernel;
+static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
+	LONGLONG user, kernel;
 	FILETIME utcTimeStamp;
 	HQUERY Query = NULL;
 	HCOUNTER userCounter = NULL;
@@ -234,7 +240,7 @@ static bool read_total_cpu_time(unsigned long long* unixtimestamp, unsigned long
 	
 	PdhCloseQuery(Query);
 	
-	(*totaltime) = ((unsigned long long)user + (unsigned long long)kernel) * 100ULL; // to ns
+	(*totaltime) = (static_cast<uint64>(user) + static_cast<uint64>(kernel)) * 100; // to ns
 	if (!LocalFileTimeToFileTime(&counterValue.TimeStamp, &utcTimeStamp)) {
 		IBMRAS_DEBUG(warning, "Failed to convert local time to UTC");
 		return false;
@@ -270,18 +276,11 @@ struct CPUTime* getCPUTime() {
 
 #if defined(_AIX)
 
-// FIXME should probably move this to common along side getMilliseconds()
-static unsigned long long time_microseconds() {
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return ((unsigned long long)tv.tv_sec * 1000000) + (unsigned long long)tv.tv_usec;
-}
-
 struct CPUTime* getCPUTime() {
-	const unsigned NS_PER_CPU_TICK = 10000000L; // TODO check data type
-	const unsigned NS_PER_MS = 1000000L;
+	static const uint32 NS_PER_CPU_TICK = 10000000;
+	static const uint32 NS_PER_MS = 1000000;
 	struct CPUTime* cputime = new CPUTime;
-	unsigned long long nsStart, nsEnd;
+	uint64 nsStart, nsEnd;
 	perfstat_cpu_total_t stats;
 	perfstat_process_t pstats;
 	perfstat_id_t psid;
@@ -294,13 +293,7 @@ struct CPUTime* getCPUTime() {
 	}
 	
 	// psid.name is char[IDENTIIFER_LENGTH] (64); see libperfstat.h
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif
 	sprintf(psid.name, "%d", getpid());
-#if defined(_ZOS)
-#pragma convlit(resume)
-#endif
 	if (perfstat_process(&psid, &pstats, sizeof(perfstat_process_t), 1) == -1) {
 		delete cputime;
 		return NULL;

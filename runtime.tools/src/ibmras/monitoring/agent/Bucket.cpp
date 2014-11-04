@@ -32,7 +32,7 @@ Bucket::Bucket(uint32 provID, uint32 sourceID, uint32 capacity,
 	size = 0;
 	head = NULL;
 	tail = NULL;
-	masterID = 1;
+	masterID = 0;
 	lock = new ibmras::common::port::Lock;
 	lastPublish = 0;
 	IBMRAS_DEBUG_1(fine, "Bucket created for : %s", uniqueID.c_str());
@@ -45,7 +45,6 @@ Bucket::BucketData::~BucketData() {
 }
 
 void Bucket::publish(ibmras::monitoring::connector::Connector &con) {
-	IBMRAS_DEBUG(fine, "in Bucket::publish()");
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
 			BucketData* current = head;
@@ -64,95 +63,90 @@ void Bucket::publish(ibmras::monitoring::connector::Connector &con) {
 	}
 }
 
-void Bucket::spill(uint32 entrysize, ibmras::monitoring::connector::Connector *con) {
+bool Bucket::spill(uint32 entrysize) {
+
 	BucketData* bdata; /* used to manage the bucket data */
 	uint32 i = 0;
-	IBMRAS_DEBUG_3(debug, "Bucket %s [%d:%d] capacity reached, spilling contents", uniqueID.c_str(), provID,
-			sourceID);
-	/* no room left so need to free up items from the bucket */
-	IBMRAS_DEBUG_3(debug, "Bucket %s size %d capacity %d", uniqueID.c_str(), size, capacity);
 
-	IBMRAS_DEBUG_4(debug, "Bucket %s head %p tail %p  count %d" , uniqueID.c_str(), head, tail, count);
-	if (!lock->acquire()) {
-		if (!lock->isDestroyed()) {
-			BucketData *cursor = head;
-			BucketData *prev = NULL;
-			while ((entrysize > (capacity - size)) && (cursor != NULL)) {
-				if (!cursor->entry->persistentData) {
-					if (cursor->id > lastPublish) {
-						IBMRAS_DEBUG_2(warning, "Bucket %s: spilling unpublished data: %d", uniqueID.c_str(), cursor->id);
-						//TODO why don't we publish here before deletion?
-						if (con) {
-							IBMRAS_DEBUG_2(fine, "publishing message before spill to %s of %d bytes",
-									uniqueID.c_str(), cursor->entry->size);
-							con->sendMessage(uniqueID, cursor->entry->size,
-									cursor->entry->data->ptr());
-							lastPublish = cursor->id;
-
-						}
-					}
-					bdata = cursor;
-					size -= bdata->entry->size;
-					count--;
-					i++;
-					delete bdata;
-					if (prev == NULL) {
-						head = cursor->next;
-					} else {
-						prev->next = cursor->next;
-					}
-				} else {
-					prev = cursor;
-					IBMRAS_DEBUG_2(debug, "Bucket %s: skipping persistent entry %d", uniqueID.c_str(), cursor->id);
-				}
-				cursor = cursor->next;
+	BucketData *cursor = head;
+	BucketData *prev = NULL;
+	while ((entrysize > (capacity - size)) && (cursor != NULL) && (cursor->id <= lastPublish)) {
+		if (!cursor->entry->persistentData) {
+			bdata = cursor;
+			size -= bdata->entry->size;
+			count--;
+			i++;
+			delete bdata;
+			if (prev == NULL) {
+				head = cursor->next;
+			} else {
+				prev->next = cursor->next;
 			}
-			if (!head) {
-				tail = NULL; /* emptied the queue so there is no tail now either */
-			}
-			lock->release();
+		} else {
+			prev = cursor;
 		}
-	}IBMRAS_DEBUG_1(info, "Removed %d entries from the bucket", i);IBMRAS_DEBUG_4(debug, "Bucket stats [%d:%d] : count = %d, size = %d", provID,
+		cursor = cursor->next;
+	}
+	if (!head) {
+		tail = NULL; /* emptied the queue so there is no tail now either */
+	}
+
+	if (head && (entrysize > (capacity - size)) ) {
+		// No room within capacity
+		return false;
+	}
+
+
+	IBMRAS_DEBUG_1(debug, "Removed %d entries from the bucket", i);
+
+	IBMRAS_DEBUG_4(debug, "Bucket stats [%d:%d] : count = %d, size = %d", provID,
 			sourceID, count, size);
+
+
+	return true;
+
 }
 
-bool Bucket::add(BucketDataQueueEntry* entry, ibmras::monitoring::connector::Connector *con) {
-	BucketData* bdata; /* used to manage the bucket data */
-	if ((entry->provID != provID) || (entry->sourceID != sourceID)) {
+bool Bucket::add(monitordata* data) {
+
+	if ((data->provID != provID) || (data->sourceID != sourceID)) {
 		IBMRAS_DEBUG_4(info,
 				"Wrong data sent to bucket : received %d:%d, expected %d, %d",
-				entry->provID, entry->sourceID, provID, sourceID);
+				data->provID, data->sourceID, provID, sourceID);
 		return false; /* data not added as provider and source IDs do not match */
 	}
-	if (entry->size > capacity) {
-		IBMRAS_DEBUG_2(warning, "Data not added as the size was %d, but capacity is %d",
-				entry->size, capacity);
-		return false; /* data is larger than capacity */
-	}
-	if (entry->size > (capacity - size)) {
-		spill(entry->size, con);
-	}
-	bdata = new BucketData;
-	bdata->id = masterID++;
-	bdata->entry = entry;
-	bdata->next = NULL;
+    bool added = false;
+
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
-			if (tail) {
-				tail->next = bdata; /* add new entry to tail */
-				tail = bdata; /* make a new tail */
+			if (spill(data->size)) {
+				BucketData* bdata = new BucketData;
+				bdata->id = ++masterID;
+				bdata->entry = new BucketDataQueueEntry(data);
+				bdata->next = NULL;
+
+				if (tail) {
+					tail->next = bdata; /* add new entry to tail */
+					tail = bdata; /* make a new tail */
+				} else {
+					head = bdata;
+					tail = bdata;
+				}
+				count++;
+				size += data->size;
+				added = true;
 			} else {
-				head = bdata;
-				tail = bdata;
+				IBMRAS_DEBUG_2(warning, "No room in bucket %s for data of size %d", uniqueID.c_str(), data->size);
 			}
-			count++;
-			size += entry->size;
 			lock->release();
 		}
-	}IBMRAS_DEBUG_4(debug,
+	}
+
+
+	IBMRAS_DEBUG_4(debug,
 			"Bucket data [%s] : data size = %d, bucket size = %d, count = %d",
-			uniqueID.c_str(), entry->size, size, count);
-	return true; /* data added to bucket */
+			uniqueID.c_str(), data->size, size, count);
+	return added; /* data added to bucket */
 }
 
 uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data,

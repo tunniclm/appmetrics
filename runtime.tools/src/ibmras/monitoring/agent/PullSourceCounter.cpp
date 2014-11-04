@@ -37,6 +37,10 @@ bool PullSourceCounter::isExpired() {
 	return current == 0; /* counter has expired when the current value = 0 */
 }
 
+void PullSourceCounter::expire() {
+	current = 0;
+}
+
 void PullSourceCounter::reset() {
 	current = interval;
 }

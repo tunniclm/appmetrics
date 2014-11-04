@@ -86,13 +86,14 @@ void BucketList::republish(const std::string &prefix, ibmras::monitoring::connec
 	}
 }
 
-bool BucketList::addData(BucketDataQueueEntry* data) {
-	Bucket* b = findBucket(data->provID, data->sourceID);
-	if (b) {
-		b->add(data); /* found a matching bucket so add the data*/
-		return true;
-	} else {
-		IBMRAS_DEBUG_2(warning,  "Attempted to add data to missing bucket [%d:%d]",
+bool BucketList::addData(monitordata* data) {
+	if (data != NULL && (data->size > 0 && data->data != NULL)) {
+		Bucket* b = findBucket(data->provID, data->sourceID);
+		if (b) {
+			return b->add(data); /* found a matching bucket so add the data*/
+		}
+
+		IBMRAS_DEBUG_2(warning, "Attempted to add data to missing bucket [%d:%d]",
 				data->provID, data->sourceID);
 	}
 	return false;

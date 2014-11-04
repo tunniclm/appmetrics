@@ -11,10 +11,11 @@
 
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/Properties.h"
 #include "ibmras/common/util/sysUtils.h"
 #include <cstring>
+#include <sstream>
 #include <string>
-#include <cstdio>
 #if defined(_LINUX) || defined(_AIX)
 #include <time.h>
 #endif
@@ -62,8 +63,8 @@ static bool GetSteadyTime(struct timespec* tv) {
 	int rc = clock_gettime(CLOCK_MONOTONIC, tv);
 	return rc == 0;
 }
-static unsigned long CalculateDuration(struct timespec start, struct timespec finish) {
-	return (unsigned long)((finish.tv_sec - start.tv_sec) * 1000L + (finish.tv_nsec - start.tv_nsec) / 1000000L);
+static uint64 CalculateDuration(struct timespec start, struct timespec finish) {
+	return static_cast<uint64>((finish.tv_sec - start.tv_sec) * 1000 + (finish.tv_nsec - start.tv_nsec) / 1000000);
 }
 #endif
 
@@ -83,26 +84,20 @@ static bool GetSteadyTime(LARGE_INTEGER* pcount) {
 	BOOL rc = QueryPerformanceCounter(pcount);
 	return rc != 0;
 }
-static unsigned long CalculateDuration(LARGE_INTEGER start, LARGE_INTEGER finish) {
+static uint64 CalculateDuration(LARGE_INTEGER start, LARGE_INTEGER finish) {
 	if (!freqInitialized) return 0L;
 	LARGE_INTEGER elapsedMilliseconds;
 	elapsedMilliseconds.QuadPart = finish.QuadPart - start.QuadPart;
 	elapsedMilliseconds.QuadPart *= 1000;
 	elapsedMilliseconds.QuadPart /= freq.QuadPart;
-	return (unsigned long)(elapsedMilliseconds.QuadPart);
+	return static_cast<uint64>(elapsedMilliseconds.QuadPart);
 }
 #endif
-
-static char* FormatRecord(const unsigned long long gcRealEnd, const char* gcType, const long heapSize, const long heapUsed, const long gcDuration) {
-	char* buffer = new char[1024];
-	// TODO: use snprintf on Linux? or do other bounds checks?
-	std::sprintf(buffer, "NodeGCData,%llu,%s,%ld,%ld,%ld\n", gcRealEnd, gcType, heapSize, heapUsed, gcDuration); // FIXME: should bounds check, no snprintf on windows :(
-	return buffer;
-}
 
 void beforeGC(GCType type, GCCallbackFlags flags) {
 	plugin::timingOK = GetSteadyTime(&plugin::gcSteadyStart);
 }
+
 void afterGC(GCType type, GCCallbackFlags flags) {
 	unsigned long long gcRealEnd;
 	
@@ -110,7 +105,7 @@ void afterGC(GCType type, GCCallbackFlags flags) {
 	if (plugin::timingOK) {
 		plugin::timingOK = GetSteadyTime(&plugin::gcSteadyEnd);	
 	}
-	const long gcDuration = plugin::timingOK ? CalculateDuration(plugin::gcSteadyStart, plugin::gcSteadyEnd) : 0L; 
+	const uint64 gcDuration = plugin::timingOK ? CalculateDuration(plugin::gcSteadyStart, plugin::gcSteadyEnd) : 0; 
 
 	// Get "real" time
 	gcRealEnd = ibmras::common::util::getMilliseconds();
@@ -122,18 +117,25 @@ void afterGC(GCType type, GCCallbackFlags flags) {
 	HeapStatistics hs;
 	V8::GetHeapStatistics(&hs);
 
-	// Encode data (TODO: extract this bit into an API?)
-	char *buffer = FormatRecord(gcRealEnd, gcType, (long)hs.total_heap_size(), (long)hs.used_heap_size(), gcDuration); 
+	std::stringstream contentss;
+	contentss << "NodeGCData";
+	contentss << "," << gcRealEnd; 
+	contentss << "," << gcType;
+	contentss << "," << hs.total_heap_size();
+	contentss << "," << hs.used_heap_size();
+	contentss << "," << gcDuration;
+	contentss << '\n';
+	
+	std::string content = contentss.str();
 
 	// Send data
 	monitordata data;
 	data.persistent = false;
 	data.provID = plugin::provid;
 	data.sourceID = 0;
-	data.data = buffer;
-	data.size = strlen(buffer);
+	data.size = static_cast<uint32>(content.length()); // should data->size be a size_t?
+	data.data = content.c_str();
 	plugin::callback(&data);
-	delete[] buffer;
 }
 
 pushsource* createPushSource(uint32 srcid, const char* name) {
@@ -144,7 +146,7 @@ pushsource* createPushSource(uint32 srcid, const char* name) {
         src->header.description = NewCString(desc);
         src->header.sourceID = srcid;
         src->next = NULL;
-        src->header.capacity = (DEFAULT_CAPACITY / (srcid+1));
+        src->header.capacity = DEFAULT_CAPACITY;
         return src;
 }
 
@@ -157,6 +159,18 @@ NODEGCPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(void (*callba
         return head;
 }
 
+NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
+	ibmras::common::Properties props;
+	props.add(properties);
+
+	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
+	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
+	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.NodeGCPlugin");
+	ibmras::common::LogManager::getInstance()->setLevel("NodeGCPlugin", loggingProp);
+	
+	return 0;
+}
+
 NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 	IBMRAS_DEBUG(info,  "Starting");
 	V8::AddGCPrologueCallback(*beforeGC);
@@ -166,8 +180,7 @@ NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 
 NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 	IBMRAS_DEBUG(info,  "Stopping");
-
-	//TODO: Implement stop method
+	// TODO Unhook GC hooks...
 	return 0;
 }
 }

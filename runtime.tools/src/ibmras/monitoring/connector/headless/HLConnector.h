@@ -45,6 +45,7 @@ private:
 	static void* thread(ibmras::common::port::ThreadData* tData);
 	void processLoop();
 	int packFiles();
+	void lockAndPackFiles();
 
 	bool enabled;
 	bool running;

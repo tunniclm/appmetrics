@@ -12,10 +12,9 @@
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/Logger.h"
+#include "ibmras/common/Properties.h"
 #include "ibmras/monitoring/plugins/cpu/cputime.h"
-#include <iostream>
 #include <cstring>
-#include <cstdio>
 #include <string>
 #include <sstream>
 
@@ -25,7 +24,7 @@
 #define CPUPLUGIN_DECL
 #endif
 
-#define CPUSOURCE_PULL_INTERVAL 1
+#define CPUSOURCE_PULL_INTERVAL 2
 #define DEFAULT_CAPACITY 1024*10
 
 IBMRAS_DEFINE_LOGGER("CPUPlugin");
@@ -92,7 +91,7 @@ monitordata* OnRequestData() {
 		AppendCPUTime(contentss);
 		
 		std::string content = contentss.str();
-		data->size = content.length();
+		data->size = static_cast<uint32>(content.length()); // should data->size be a size_t?
 		data->data = NewCString(content);
 	}
 	
@@ -127,6 +126,18 @@ CPUPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(uint32 provID) {
 	pullsource *head = createPullSource(0, "cpu_os");
 	plugin::provid = provID;
 	return head;
+}
+
+CPUPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
+	ibmras::common::Properties props;
+	props.add(properties);
+
+	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
+	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
+	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.CPUPlugin");
+	ibmras::common::LogManager::getInstance()->setLevel("CPUPlugin", loggingProp);
+	
+	return 0;
 }
 
 CPUPLUGIN_DECL int ibmras_monitoring_plugin_start() {

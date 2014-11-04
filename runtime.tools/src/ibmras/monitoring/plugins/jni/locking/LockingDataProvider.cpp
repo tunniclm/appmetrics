@@ -494,7 +494,12 @@ char* monitor_dump_event(JNIEnv *env) {
 	ibmras::monitoring::plugins::jni::hc_dealloc(
 			(unsigned char**) &finalReport);
 	/* returnReport - returns a report to be deallocated by the caller */
-	returnReport: IBMRAS_DEBUG(debug, "monitor_dump_event: returnReport");
+
+
+	returnReport:
+
+	IBMRAS_DEBUG(debug, "monitor_dump_event: returnReport");
+
 	if (p) {
 		ibmras::monitoring::plugins::jni::hc_dealloc((unsigned char**) &q[0]);
 		ibmras::monitoring::plugins::jni::hc_dealloc((unsigned char**) &p);

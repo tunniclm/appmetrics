@@ -492,18 +492,7 @@ Agent* Agent::getInstance() {
 }
 
 bool Agent::addData(monitordata* data) {
-	if (data != NULL && (data->size > 0 && data->data != NULL)) {
-		Bucket* b = bucketList.findBucket(data->provID, data->sourceID);
-		if (b) {
-			BucketDataQueueEntry* entry = new BucketDataQueueEntry(data);
-			return b->add(entry, &connectionManager); /* found a matching bucket so add the data*/
-		} else {
-			IBMRAS_DEBUG_2(warning, "Attempted to add data to missing bucket [%d:%d]",
-					data->provID, data->sourceID);
-		}
-	}
-	return false;
-
+	return bucketList.addData(data);
 }
 
 void Agent::threadStop() {

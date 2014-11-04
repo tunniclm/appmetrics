@@ -139,6 +139,26 @@ std::string getConfigString() {
 	return str.str();
 }
 
+
+uint32 getBucketCapacity() {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string userValue = agent->getAgentProperty("agent.bufferSize");
+	uint32 capacity = 0;
+	if (userValue.length() > 0) {
+		capacity = atoi(userValue.c_str());
+	}
+	if (capacity <= 0) {
+		capacity = 4000000; /* default value */
+	}
+
+	IBMRAS_DEBUG_1(debug, "using trace bucket size of %d", capacity);
+
+	return capacity;
+
+}
+
+
 /**
  * the agent calls registerPushSource to find out which data sources we have
  * and will provide to us a provID which we use for the callbacks.
@@ -161,7 +181,7 @@ pushsource* registerPushSource(void (*callback)(monitordata* data),
 	 */
 	src->header.sourceID = 0;
 	src->next = NULL;
-	src->header.capacity = 1048576; /* 1MB bucket capacity */
+	src->header.capacity = getBucketCapacity();
 
 	ibmras::monitoring::plugins::j9::trace::provID = provID;
 	ibmras::monitoring::plugins::j9::trace::sendDataToAgent = callback;
@@ -385,7 +405,7 @@ void setCapabilities() {
 void setNoDynamicProperties() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
-	if (agent->agentPropertyExists("leave.dynamic.trace")) {
+	if (!agent->agentPropertyExists("leave.dynamic.trace")) {
 		vmData.setTraceOption(vmData.pti, "buffers=nodynamic");
 	}
 }

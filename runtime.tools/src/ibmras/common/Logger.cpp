@@ -45,7 +45,14 @@ Logger::~Logger() {
 void Logger::header(std::stringstream &str, logging::Level lev, bool debug) {
 	std::time_t time = std::time(NULL);
 	char buffer[100];
+#if defined(_ZOS)
+#pragma convlit(suspend)
+#endif
 	if (std::strftime(buffer, sizeof(buffer), "%c", std::localtime(&time))) {
+#if defined(_ZOS)
+#pragma convlit(resume)
+		__etoa(buffer);
+#endif
 		str << '[' << buffer << ']';
 	}
 	str << " com.ibm.diagnostics.healthcenter." << component;
@@ -83,6 +90,7 @@ void Logger::log(logging::Level lev, const char* format, ...) {
 	va_start(messages, format);
 	char buffer[1024];
 	int result = VPRINT(buffer, 1024, format, messages);
+	va_end(messages);
 	if (result > 0) {
 		str << buffer;
 	} else {
@@ -92,12 +100,16 @@ void Logger::log(logging::Level lev, const char* format, ...) {
 	std::string msg = str.str();
 #if defined(_ZOS) 
     char * z_str = new char [msg.length()+1];
-    std::strcpy (z_str, msg.c_str());
-    __a2e_s(z_str);
-    handler(z_str, lev, this);
+	if (z_str) {
+		std::strcpy (z_str, msg.c_str());
+		__a2e_s(z_str);
+		handler(z_str, lev, this);
+		delete[] z_str;
+	}
 #else
 	handler(msg.c_str(), lev, this);
 #endif
+
 }
 
 void Logger::debug(logging::Level lev, const char* format, ...) {
@@ -107,6 +119,7 @@ void Logger::debug(logging::Level lev, const char* format, ...) {
 	va_start(messages, format);
 	char buffer[1024];
 	int result = VPRINT(buffer, 1024, format, messages);
+	va_end(messages);
 	if (result > 0) {
 		str << buffer;
 	} else {
@@ -116,9 +129,12 @@ void Logger::debug(logging::Level lev, const char* format, ...) {
 	std::string msg = str.str();
 #if defined(_ZOS) 
     char * z_str = new char [msg.length()+1];
-    std::strcpy (z_str, msg.c_str());
-    __a2e_s(z_str);
-    handler(z_str, lev, this);
+	if (z_str) {
+		std::strcpy (z_str, msg.c_str());
+		__a2e_s(z_str);
+		handler(z_str, lev, this);
+		delete[] z_str;
+	}
 #else
 	handler(msg.c_str(), lev, this);
 #endif

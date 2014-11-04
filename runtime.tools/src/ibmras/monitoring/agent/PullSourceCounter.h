@@ -29,6 +29,7 @@ public:
 	bool isQueued();
 	void setQueued(bool value);
 	bool isExpired();
+	void expire();
 	void reset();				/* reset the counter */
 
 	PULL_CALLBACK_COMPLETE complete;
