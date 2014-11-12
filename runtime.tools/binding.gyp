@@ -97,6 +97,9 @@
         "<(srcdir)/vm/node/nodeagent.cpp", 
         "<(srcdir)/vm/node/wrapper.cpp"
       ],
+      'variables': {
+        'agentversion%':'<(version).<(build_id)'
+      },
       'actions': [{
         'action_name': 'Set version',
         'inputs': [ "<(srcdir)/monitoring/agent/Agent.cpp" ],
@@ -107,7 +110,7 @@
           '<(srcdir)/monitoring/agent/Agent.cpp',
           '<(INTERMEDIATE_DIR)/monitoring/agent/Agent.cpp',
           '--from="99\.99\.99\.29991231"',
-          '--to="<(version).<(build_id)"',
+          '--to="<(agentversion)"',
           '-v'
          ],
       }],
