@@ -55,18 +55,22 @@ std::string getString(JNIEnv* env, const char* cname, const char* mname, const c
 
 class PullSource {
 public:
-	virtual pullsource* getDescriptor() {return NULL;};			/* descriptor for this pull source */
+	PullSource(uint32 provID, const std::string& providerName);
 	virtual ~PullSource();										/* desctructor for clean up operations */
+
+	virtual pullsource* getDescriptor() {return NULL;};			/* descriptor for this pull source */
 	uint32 getProvID() {return provID; }						/* JMX provider ID */
 	virtual uint32 getSourceID() = 0;							/* source ID, overridden by the subclass, and corresponds to the enum entries */
-	void setProvID(uint32 provID) { this->provID = provID; };	/* allows the prov ID to be set - remember this is allocated by the agent at startup */
 	monitordata* generateData();								/* where the agent will call into */
+	void pullComplete(monitordata* mdata);
 	monitordata* generateError(char* msg);						/* Wrap an error message to send back */
 	virtual void publishConfig() = 0;							/* sub classes must implement to publish their configuration details */
 protected:
 	virtual monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env) = 0;		/* sub classes must implement this to get the right JNI env to use to retrieve data */
 private:
 	uint32 provID;					/* provider ID assigned by the agent */
+	JNIEnv* env;
+	std::string name;
 
 };
 

@@ -17,6 +17,8 @@
 #include "ibmras/common/port/Lock.h"
 #include <set>
 
+#include "jni.h"
+
 
 namespace ibmras{
 namespace monitoring {
@@ -60,6 +62,10 @@ private:
 	ibmras::common::port::Lock methodSetLock;
 	bool sendHeader;
 	bool initialHeaderSent;
+
+	JNIEnv *env;
+
+	bool getAllMethods;
 };
 }
 }

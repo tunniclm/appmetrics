@@ -12,6 +12,8 @@
 #include "ibmras/monitoring/plugins/jmx/JMXPullSource.h"
 #include "ibmras/monitoring/plugins/jmx/JMXUtility.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
+#include "ibmras/common/util/strUtils.h"
 #include <cstring>
 #include <stdlib.h>
 
@@ -22,6 +24,10 @@ namespace plugins {
 namespace jmx {
 
 JavaVM* vm = NULL;
+
+JMXPullSource::JMXPullSource(uint32 id, const std::string& providerName) :
+	provID(id), env(NULL), name(providerName) {
+}
 
 monitordata* JMXPullSource::generateError(char* msg) {
 	monitordata* data = new monitordata;
@@ -35,27 +41,56 @@ monitordata* JMXPullSource::generateError(char* msg) {
 
 
 monitordata* JMXPullSource::generateData() {
-	JNIEnv* env;
-	jint result = vm->AttachCurrentThread((void**)&env, NULL);
-	if (result != JNI_OK) {
-		IBMRAS_DEBUG(warning,  "Cannot get JMX factory as environment is not set");
-		return NULL;
+
+	if (!env) {
+		JavaVMAttachArgs threadArgs;
+
+		memset(&threadArgs, 0, sizeof(threadArgs));
+		threadArgs.version = JNI_VERSION_1_6;
+
+		threadArgs.name = ibmras::common::util::createAsciiString(name.c_str());
+		threadArgs.group = NULL;
+		IBMRAS_DEBUG_1(debug, "Attaching thread %s", name.c_str());
+		jint errcode = vm->AttachCurrentThreadAsDaemon((void **) &env, &threadArgs);
+		ibmras::common::memory::deallocate((unsigned char**)&threadArgs.name);
+		if (errcode != JNI_OK) {
+			return NULL;
+		}
+
+		IBMRAS_DEBUG_1(debug, "Attached thread %s", name.c_str());
 	}
+
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+
 	jclass clazz = env->FindClass("java/lang/management/ManagementFactory");
+
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+
 	if (!clazz) {
 		IBMRAS_DEBUG(warning,  "!Failed to find ManagementFactory class");
 		return NULL;
 	}
 	IBMRAS_DEBUG(debug,  "Found management class");
 	monitordata* data = generateData(env, &clazz);
-	vm->DetachCurrentThread();		/* call complete, detach the thread */
 	return data;
 }
 
-JMXPullSource::~JMXPullSource() {
-	if(vm) {
-		vm->DetachCurrentThread();		/* call complete, detach the thread */
+void JMXPullSource::pullComplete(monitordata* mdata) {
+	if (mdata) {
+		ibmras::monitoring::plugins::jmx::complete(mdata);
+	} else {
+		if (env) {
+			IBMRAS_DEBUG_1(debug, "Detaching thread %s", name.c_str());
+			vm->DetachCurrentThread();
+			env = NULL;
+		}
 	}
+}
+JMXPullSource::~JMXPullSource() {
 }
 
 

@@ -26,7 +26,12 @@ ConfigurationConnector::~ConfigurationConnector() {
 }
 
 std::string ConfigurationConnector::getConfig(const std::string& name) {
-	return config.get(name);
+	std::string configString("");
+	if (!configLock.acquire()) {
+		configString = config.get(name);
+		configLock.release();
+	}
+	return configString;
 }
 
 int ConfigurationConnector::sendMessage(const std::string& sourceId,
@@ -36,7 +41,10 @@ int ConfigurationConnector::sendMessage(const std::string& sourceId,
 		std::string configName = sourceId.substr(CONFIGURATION_TOPIC.length());
 
 		std::string configString((char*)data, size);
-		config.put(configName, configString);
+		if (!configLock.acquire()) {
+			config.put(configName, configString);
+			configLock.release();
+		}
 	}
 	return 0;
 }

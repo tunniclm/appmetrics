@@ -14,7 +14,6 @@
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/common/port/Lock.h"
 #include "ibmras/monitoring/connector/Connector.h"
-#include "ibmras/common/Memory.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include "ibmras/monitoring/agent/Bucket.h"
 

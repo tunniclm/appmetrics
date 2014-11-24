@@ -43,6 +43,7 @@ uintptr_t createThread(ThreadData* data) {
 	if(result) {
 		return 0;	/* works = handle to thread, so convert to NULL for consistent semantics */
 	}
+	return 1;
 }
 
 

@@ -10,7 +10,7 @@
 
 
 #include "ibmras/common/util/strUtils.h"
-#include "ibmras/common/util/memUtils.h"
+#include "ibmras/common/MemoryManager.h"
 #include <sstream>
 #include "ibmras/common/Logger.h"
 #include <cstring>
@@ -25,6 +25,9 @@
 #include <winbase.h>
 #endif
 
+#if defined(_ZOS)
+#include <unistd.h>
+#endif
 
 namespace ibmras {
 namespace common {
@@ -53,10 +56,14 @@ bool startsWith(const std::string& str, const std::string& prefix) {
 	return (str.length() >= prefix.length() && (0 == str.compare(0, prefix.length(), prefix)));
 }
 
+
 bool equalsIgnoreCase(const std::string& s1, const std::string& s2) {
+
+
 	if (s1.length() != s2.length()) {
 		return false;
 	}
+
 	for(std::string::size_type i = 0; i < s1.size(); ++i) {
 	    if (toupper(s1[i]) !=  toupper(s2[i]) ) {
 	    	return false;
@@ -64,6 +71,94 @@ bool equalsIgnoreCase(const std::string& s1, const std::string& s2) {
 	}
 
 	return true;
+}
+
+
+void native2Ascii(char * str) {
+#if defined(_ZOS)
+    if ( NULL != str )
+    {
+        __etoa(str);
+    }
+#endif
+}
+
+
+/******************************/
+void
+ascii2Native(char * str)
+{
+#if defined(_ZOS)
+    if ( NULL != str )
+    {
+        __atoe(str);
+    }
+#endif
+
+}
+
+
+/******************************/
+void
+force2Native(char * str)
+{
+#ifdef _ZOS
+	char *p = str;
+
+    if ( NULL != str )
+    {
+        while ( 0 != *p )
+        {
+            if ( 0 != ( 0x80 & *p ) )
+            {
+                p = NULL;
+                break;
+            }
+            p++;
+        }
+
+        if ( NULL != p )
+        {
+            __atoe(str);
+        }
+    }
+#endif
+}
+
+char* createAsciiString(const char* nativeString) {
+    char* cp = NULL;
+    if ( NULL != nativeString )
+    {
+        cp = (char*)ibmras::common::memory::allocate(strlen(nativeString) + 1);
+        if ( NULL == cp )
+        {
+            return NULL;
+        } else
+        {
+            /* jnm is valid, so is cp */
+            strcpy(cp,nativeString);
+            native2Ascii(cp);
+        }
+    }
+    return cp;
+}
+
+char* createNativeString(const char* asciiString) {
+    char* cp = NULL;
+    if ( NULL != asciiString )
+    {
+        cp = (char*)ibmras::common::memory::allocate(strlen(asciiString) + 1);
+        if ( NULL == cp )
+        {
+            return NULL;
+        } else
+        {
+            /* jnm is valid, so is cp */
+            strcpy(cp,asciiString);
+            ascii2Native(cp);
+        }
+    }
+    return cp;
 }
 
 

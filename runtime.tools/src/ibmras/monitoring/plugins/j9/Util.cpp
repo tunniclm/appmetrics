@@ -12,6 +12,7 @@
 #include "ibmras/monitoring/plugins/j9/Util.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/util/strUtils.h"
 
 namespace ibmras {
 namespace monitoring {
@@ -124,6 +125,7 @@ std::string Util::queryVmDump(jvmtiExtensionFunction jvmtiQueryVmDump,
 	}
 
 	if (rc == JVMTI_ERROR_NONE) {
+		ibmras::common::util::force2Native(buffer);
 		options = buffer;
 
 	} else {

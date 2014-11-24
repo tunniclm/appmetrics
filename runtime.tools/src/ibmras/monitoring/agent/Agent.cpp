@@ -20,7 +20,6 @@
 
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
-#include "ibmras/common/Memory.h"
 #include "ibmras/monitoring/agent/threads/ThreadPool.h"
 #include "ibmras/common/PropertiesFile.h"
 #include "ibmras/common/LogManager.h"
@@ -43,8 +42,6 @@ const char* LIBSUFFIX = ".so";
 namespace ibmras {
 namespace monitoring {
 namespace agent {
-
-#define AGENT_VERSION "99.99.99.29991231"
 
 static const char* PROPERTIES_PREFIX = "com.ibm.diagnostics.healthcenter.";
 static const char* HEARTBEAT_TOPIC = "heartbeat";
@@ -70,7 +67,7 @@ std::string Agent::getBuildDate() {
 }
 
 std::string Agent::getVersion() {
-	return AGENT_VERSION;
+	return "99.99.99.29991231";
 }
 
 void Agent::setLogLevels() {
@@ -152,11 +149,11 @@ void* processPublishLoop(ibmras::common::port::ThreadData* param) {
 	Agent* agent = Agent::getInstance();
 	int count = 0;
 	while (running) {
-		ibmras::common::port::sleep(1);
+		ibmras::common::port::sleep(2);
 		agent->publish();
 
 		// Send heartbeat ping every 20 seconds
-		if (++count > 20) {
+		if (++count > 10) {
 			count = 0;
 			agent->getConnectionManager()->sendMessage(HEARTBEAT_TOPIC, 0, NULL);
 		}
@@ -171,36 +168,33 @@ void* processPublishLoop(ibmras::common::port::ThreadData* param) {
 void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 	Agent* agent = Agent::getInstance();
 	uint32 pullcount = agent->getPullSources().getSize();
-	uint32 srccount = pullcount;
+
+
+	ibmras::monitoring::agent::threads::ThreadPool pool;
+
 	for (uint32 i = 0; i < pullcount; i++) {
 		DataSource<pullsource> *dsrc = agent->getPullSources().getItem(i);
 		if (!(dsrc->getSource()->callback && dsrc->getSource()->complete)) {
 			IBMRAS_DEBUG_1(warning, "Pull source %s disabled due to missing callback or complete function",
-					dsrc->getUniqueID().c_str());
-			srccount--; /* decrease number of valid sources */
-		}
-	}
-	ibmras::monitoring::agent::threads::ThreadPool* pool =
-			new ibmras::monitoring::agent::threads::ThreadPool(5, srccount); /* 5 pull source threads */
-	for (uint32 i = 0; i < pullcount; i++) {
-		DataSource<pullsource> *dsrc = agent->getPullSources().getItem(i);
-		if (dsrc->getSource()->callback && dsrc->getSource()->complete) {
-			pool->setPullSource(--srccount, dsrc->getSource());
-			IBMRAS_DEBUG_2(debug, "pullsource %d is source %s", srccount, dsrc->getSource()->header.name);
+					dsrc->getUniqueID().c_str())
+		} else {
+			pool.addPullSource(dsrc->getSource());
 		}
 	}
 
 	IBMRAS_DEBUG(info, "Starting agent process pull source loop");
 
-	pool->startAll();
+	pool.startAll();
 	while (running) {
 		ibmras::common::port::sleep(1); /* polling interval for thread */
-		pool->process(updateNow); /* process the pull sources */
+		pool.process(updateNow); /* process the pull sources */
 		updateNow = false;
 	}
-	pool->stopAll();
-	delete pool; /* clean up */
+
+	pool.stopAll();
+
 	IBMRAS_DEBUG(info, "Exiting agent process pull source loop");
+
 	agent->threadStop();
 	return NULL;
 }
@@ -342,17 +336,21 @@ void Agent::start() {
 
 	IBMRAS_DEBUG(info, "Agent start : begin");
 
+
+	/* Receivers first as they are added to connection manager */
+	IBMRAS_DEBUG(info, "Agent start : receivers");
+	startReceivers();
+
 	/* Connectors must be started before the plugins start pushing data */
 	IBMRAS_DEBUG(info, "Agent start : connectors");
 	startConnectors();
 
-	IBMRAS_DEBUG(info, "Agent start : receivers");
-	startReceivers();
 
 	IBMRAS_DEBUG(info, "Agent start : data providers");
 	startPlugins();
 
 	running = true; /* if any of the thread creation below fails then running will be set to false and started threads will exit */
+
 
 	ibmras::common::port::ThreadData* data =
 			new ibmras::common::port::ThreadData(processPullSourceLoop);
@@ -456,24 +454,28 @@ void Agent::stop() {
 	IBMRAS_DEBUG(info, "Agent stop : begin");
 	running = false;
 	IBMRAS_DEBUG(fine, "Waiting for active threads to stop");
+
 	while (activeThreadCount) {
 		ibmras::common::port::sleep(1);
 		IBMRAS_DEBUG_1(debug, "Checking thread count - current [%d]",
 				activeThreadCount);
-	}IBMRAS_DEBUG(fine, "All active threads now quit");
+	}
 
-	connectionManager.removeAllReceivers();
-	connectionManager.stop();
+	IBMRAS_DEBUG(fine, "All active threads now quit");
+
+
 	stopPlugins();
+	connectionManager.stop();
+	connectionManager.removeAllReceivers();
 
 	IBMRAS_DEBUG(info, "Agent stop : finish");
 }
 
 void Agent::shutdown() {
-	std::string str;
-	IBMRAS_DEBUG(info, "Agent shutdown : begin");
 
-	IBMRAS_DEBUG(info, bucketList.toString().c_str());
+	IBMRAS_DEBUG(info, "Agent shutdown : begin");
+	std::string str = bucketList.toString();
+	IBMRAS_DEBUG(info, str.c_str());
 	IBMRAS_DEBUG(info, "Agent shutdown : finish");
 }
 

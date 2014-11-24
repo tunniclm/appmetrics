@@ -29,8 +29,12 @@ monitordata* callback() {
 }
 
 void complete(monitordata* data) {
-	delete[] data->data;		/* free the internal buffer */
-	delete data;			/* free the data structure */
+	if (data != NULL) {
+		if (data->data != NULL) {
+			delete[] data->data;
+		}
+		delete data;
+	}
 }
 
 PullSource* getCPUPullSource() {

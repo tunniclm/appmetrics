@@ -178,11 +178,11 @@ void MQTTConnector::handleOnConnect(MQTTAsync_successData* response) {
 
 	char *topic = new char[agentTopic.length() + 2];
 #if defined(_ZOS)
-#pragma convlit(suspend)
+#pragma convert("ISO8859-1")
 #endif
 	sprintf(topic, "%s#", agentTopic.c_str());
 #if defined(_ZOS)
-#pragma convlit(resume)
+#pragma convert(pop)
 #endif
 	IBMRAS_DEBUG_1(debug, "MQTTAsync_subscribe to %s", topic);
 	MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
@@ -232,11 +232,11 @@ int MQTTConnector::sendMessage(const std::string &sourceId, uint32 size,
 	/* topic = <clientId>/sourceId */
 	char *topic = new char[rootTopic.length() + 1 + sourceId.length() + 1];
 #if defined(_ZOS)
-#pragma convlit(suspend)
+#pragma convert("ISO8859-1")
 #endif
 	sprintf(topic, "%s/%s", rootTopic.c_str(), sourceId.c_str());
 #if defined(_ZOS)
-#pragma convlit(resume)
+#pragma convert(pop)
 #endif
 
 	//	MQTTAsync_deliveryToken token;

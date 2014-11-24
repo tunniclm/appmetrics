@@ -1,4 +1,4 @@
- /**
+/**
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
@@ -7,7 +7,6 @@
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
  */
-
 
 #include <assert.h>
 #include <ctype.h>
@@ -31,9 +30,9 @@
 #include "ibmras/common/Properties.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/port/Process.h"
+#include "ibmras/vm/java/JVMTIMemoryManager.h"
 
 struct __jdata;
-
 
 #include "jvmti.h"
 #include "jni.h"
@@ -46,9 +45,8 @@ struct __jdata;
 /*########################################################################################################################*/
 /*########################################################################################################################*/
 /*########################################################################################################################*/
-
-
-static const char* HEALTHCENTER_PROPERTIES_PREFIX = "com.ibm.java.diagnostics.healthcenter.";
+static const char* HEALTHCENTER_PROPERTIES_PREFIX =
+		"com.ibm.java.diagnostics.healthcenter.";
 
 void launchAgent(const std::string &options);
 std::string agentOptions;
@@ -67,7 +65,8 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach);
 
 static bool agentStarted = false;
 
-IBMRAS_DEFINE_LOGGER("java");
+IBMRAS_DEFINE_LOGGER("java")
+;
 
 ibmras::monitoring::agent::Agent* agent;
 
@@ -75,16 +74,14 @@ ibmras::monitoring::agent::Agent* agent;
 /* Agent control functions */
 /* ======================= */
 /******************************/
-extern "C"
-JNIEXPORT void JNICALL
+extern "C" JNIEXPORT void JNICALL
 cbVMInit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread) {
 
 	launchAgent(agentOptions);
 
 }
 /******************************/
-extern "C"
-JNIEXPORT void JNICALL
+extern "C" JNIEXPORT void JNICALL
 cbVMDeath(jvmtiEnv *jvmti_env, JNIEnv* jni_env) {
 	IBMRAS_DEBUG(debug, "VmDeath event");
 
@@ -111,7 +108,7 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
 		launchAgent(options);
 
 		return 0;
-	} IBMRAS_DEBUG_1(debug, "< Agent_OnAttach. rc=%d", rc);
+	}IBMRAS_DEBUG_1(debug, "< Agent_OnAttach. rc=%d", rc);
 	return rc;
 }
 
@@ -151,21 +148,22 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 
 	res = vm->GetEnv((void **) &pti, JVMTI_VERSION_1);
 
+	ibmras::common::memory::setDefaultMemoryManager(
+			new ibmras::vm::java::JVMTIMemoryManager(pti));
+
 	/*----------- Add thread capabilities ----------------------*/
 
 	(void) memset(&cap, 0, sizeof(cap/*jvmtiCapabilities*/));
 
-    cap.can_get_owned_monitor_info = 1;
-    cap.can_get_current_contended_monitor = 1;
-    cap.can_tag_objects = 1;
-    rc = pti->AddCapabilities(&cap);
-    if ( rc != JVMTI_ERROR_NONE )
-    {
-	    if ( rc != JVMTI_ERROR_NOT_AVAILABLE )
-    	{
-	    	IBMRAS_DEBUG_1(debug,"AddCapabilities failed: rc = %d", rc);
-    	}
-    }
+	cap.can_get_owned_monitor_info = 1;
+	cap.can_get_current_contended_monitor = 1;
+	cap.can_tag_objects = 1;
+	rc = pti->AddCapabilities(&cap);
+	if (rc != JVMTI_ERROR_NONE) {
+		if (rc != JVMTI_ERROR_NOT_AVAILABLE) {
+			IBMRAS_DEBUG_1(debug,"AddCapabilities failed: rc = %d", rc);
+		}
+	}
 
 	/*--------------------------------------
 	 Manage Extension Functions
@@ -190,6 +188,9 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	tDPP.pti = pti;
 	IBMRAS_DEBUG(debug, "before launchagent 2");
 
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	fi = exfn;
 	for (i = 0; i < xcnt; i++) {
 		if (0 == strcmp(fi->id, COM_IBM_REGISTER_TRACE_SUBSCRIBER)) {
@@ -220,11 +221,17 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 			tDPP.setVMLockMonitor = fi->func;
 		} else if (0 == strcmp(fi->id, COM_IBM_REGISTER_VERBOSEGC_SUBSCRIBER)) {
 			tDPP.verboseGCsubscribe = fi->func;
-		} else if ( 0 == strcmp( fi->id, COM_IBM_DEREGISTER_VERBOSEGC_SUBSCRIBER)) {
+		} else if (0
+				== strcmp(fi->id, COM_IBM_DEREGISTER_VERBOSEGC_SUBSCRIBER)) {
 			tDPP.verboseGCunsubscribe = fi->func;
-        } else if (0 == strcmp(fi->id, COM_IBM_TRIGGER_VM_DUMP)) {
-        	tDPP.jvmtiTriggerVmDump = fi->func;
-        }
+		} else if (0 == strcmp(fi->id, COM_IBM_TRIGGER_VM_DUMP)) {
+			tDPP.jvmtiTriggerVmDump = fi->func;
+		}
+
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+
 		/* Cleanup */
 
 		pi = fi->params;
@@ -307,7 +314,6 @@ int ExceptionCheck(JNIEnv *env) {
 	}
 }
 
-
 void getHCProperties(const std::string &options) {
 
 	JNIEnv *ourEnv = NULL;
@@ -318,19 +324,28 @@ void getHCProperties(const std::string &options) {
 		return;
 	}
 
-
+	IBMRAS_DEBUG(debug, "Calling FindClass");
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	jclass hcoptsClass =
 			ourEnv->FindClass(
 					"com/ibm/java/diagnostics/healthcenter/agent/mbean/HealthCenterOptionHandler");
-
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	if (ExceptionCheck(ourEnv) || hcoptsClass == NULL) {
 		IBMRAS_DEBUG(warning, "could not find HealthCenterOptionHandler")
 		return;
-	}
-
+	} IBMRAS_DEBUG(debug, "Calling GetStaticMethodID");
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	jmethodID getPropertiesMethod = ourEnv->GetStaticMethodID(hcoptsClass,
 			"getProperties", "([Ljava/lang/String;)[Ljava/lang/String;");
-
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	if (ExceptionCheck(ourEnv) || getPropertiesMethod == NULL) {
 		IBMRAS_DEBUG(warning, "could not find getProperties method")
 		return;
@@ -341,8 +356,18 @@ void getHCProperties(const std::string &options) {
 	std::string pid = ss.str();
 	jobjectArray applicationArgs = NULL;
 
-	jstring pidArg = ourEnv->NewStringUTF(pid.c_str());
+#if defined(_ZOS)
+	char* pidStr = ibmras::common::util::createAsciiString(pid.c_str());
+#else
+	const char* pidStr = pid.c_str();
+#endif
+
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+	jstring pidArg = ourEnv->NewStringUTF(pidStr);
 	if (!ExceptionCheck(ourEnv)) {
+
 		jstring opts = ourEnv->NewStringUTF(options.c_str());
 		if (!ExceptionCheck(ourEnv)) {
 
@@ -360,12 +385,20 @@ void getHCProperties(const std::string &options) {
 					applicationArgs = NULL;
 				}
 			}
+			ourEnv->DeleteLocalRef(opts);
 		}
+		ourEnv->DeleteLocalRef(pidArg);
 	}
 
+	jobjectArray hcprops = (jobjectArray) ourEnv->CallStaticObjectMethod(
+			hcoptsClass, getPropertiesMethod, applicationArgs);
 
-	jobjectArray hcprops = (jobjectArray)ourEnv->CallStaticObjectMethod(hcoptsClass,
-			getPropertiesMethod, applicationArgs);
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&pidStr);
+#endif
 
 	if (ExceptionCheck(ourEnv) || hcprops == NULL) {
 		IBMRAS_DEBUG(warning, "No healthcenter.properties found")
@@ -373,34 +406,44 @@ void getHCProperties(const std::string &options) {
 	}
 
 	jsize numProps = ourEnv->GetArrayLength(hcprops);
+	IBMRAS_DEBUG_1(debug, "%d.properties found", numProps);
 
 	ibmras::common::Properties theProps;
 
-	for( jsize i = 0; i < numProps; ++i )
-	{
-		jstring line = (jstring) ourEnv->GetObjectArrayElement(hcprops, i );
-		const char* lineChars = ourEnv->GetStringUTFChars(line, false);
+	for (jsize i = 0; i < numProps; ++i) {
+		jstring line = (jstring) ourEnv->GetObjectArrayElement(hcprops, i);
+		const char* lineUTFChars = ourEnv->GetStringUTFChars(line, false);
+#if defined(_ZOS)
+		char* lineChars = ibmras::common::util::createNativeString(lineUTFChars);
+#else
+		const char* lineChars = lineUTFChars;
+#endif
+		if (lineChars) {
+			std::string lineStr(lineChars);
+			size_t pos = lineStr.find('=');
+			if ((pos != std::string::npos) && (pos < lineStr.size())) {
+				std::string key(lineStr.substr(0, pos));
+				std::string value(lineStr.substr(pos + 1));
+				theProps.put(key, value);
 
-		std::string lineStr(lineChars);
-		size_t pos = lineStr.find('=');
-		if ((pos != std::string::npos) && (pos < lineStr.size())) {
-			std::string key (lineStr.substr(0, pos));
-			std::string value (lineStr.substr(pos + 1));
-			theProps.put(key, value);
-
+			}
 		}
 
-		ourEnv->ReleaseStringUTFChars(line, lineChars);
+		ourEnv->ReleaseStringUTFChars(line, lineUTFChars);
+#if defined(_ZOS)
+		ibmras::common::memory::deallocate((unsigned char**)&lineChars);
+#endif
 
 	}
 
 	std::string agentPropertyPrefix = agent->getAgentPropertyPrefix();
-	std::list<std::string> hcPropKeys = theProps.getKeys(HEALTHCENTER_PROPERTIES_PREFIX);
-	for (std::list<std::string>::iterator i = hcPropKeys.begin(); i != hcPropKeys.end();
-			++i) {
+	std::list<std::string> hcPropKeys = theProps.getKeys(
+			HEALTHCENTER_PROPERTIES_PREFIX);
+	for (std::list<std::string>::iterator i = hcPropKeys.begin();
+			i != hcPropKeys.end(); ++i) {
 		std::string key = i->substr(strlen(HEALTHCENTER_PROPERTIES_PREFIX));
 		if (key.length() > 0) {
-			std::string newKey =  agentPropertyPrefix + key;
+			std::string newKey = agentPropertyPrefix + key;
 			if (!theProps.exists(newKey)) {
 				theProps.put(newKey, theProps.get(*i));
 			}
@@ -421,8 +464,8 @@ void launchAgent(const std::string &options) {
 	getHCProperties(options);
 	agent->setLogLevels();
 
-	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
-
+	std::string agentVersion = agent->getVersion();
+	IBMRAS_LOG_1(info, "Health Center %s", agentVersion.c_str());
 
 	// Add MQTT Connector plugin
 	// TODO load SSL or plain
@@ -434,10 +477,11 @@ void launchAgent(const std::string &options) {
 	}
 	agent->addPlugin(agentLibPath, "hcmqtt");
 
-
 	// Set connector properties based on data.collection.level
-	std::string dataCollectionLevel = agent->getAgentProperty("data.collection.level");
-	if (ibmras::common::util::equalsIgnoreCase(dataCollectionLevel, "headless")) {
+	std::string dataCollectionLevel = agent->getAgentProperty(
+			"data.collection.level");
+	if (ibmras::common::util::equalsIgnoreCase(dataCollectionLevel,
+			"headless")) {
 		agent->setAgentProperty("headless", "on");
 		agent->setAgentProperty("mqtt", "off");
 		agent->setAgentProperty("jmx", "off");
@@ -448,24 +492,31 @@ void launchAgent(const std::string &options) {
 		}
 	}
 
-	IBMRAS_DEBUG(debug, "in agent launch agent");
-
 	if (tDPP.pti == NULL) {
 		IBMRAS_DEBUG(debug, "tDPP.pti is null");
 	}
 
+	IBMRAS_DEBUG(debug, "Adding plugins");
+
 	agent->addPlugin(
 			ibmras::monitoring::plugins::j9::trace::TraceDataProvider::getInstance(
 					tDPP));
+
 	agent->addPlugin(
 			ibmras::monitoring::plugins::j9::methods::MethodLookupProvider::getInstance(
 					tDPP));
+
 	agent->addPlugin(
 			ibmras::monitoring::plugins::j9::DumpHandler::getInstance(tDPP));
+
 	agent->addPlugin(
-			ibmras::monitoring::connector::jmx::JMXConnectorPlugin::getInstance(theVM));
+			ibmras::monitoring::connector::jmx::JMXConnectorPlugin::getInstance(
+					theVM));
+
 	agent->addPlugin(
-			ibmras::monitoring::connector::headless::HLConnectorPlugin::getInstance(theVM));
+			ibmras::monitoring::connector::headless::HLConnectorPlugin::getInstance(
+					theVM));
+
 	agent->addPlugin(
 			ibmras::monitoring::plugins::j9::classhistogram::ClassHistogramProvider::getInstance(
 					tDPP));
@@ -480,7 +531,8 @@ void launchAgent(const std::string &options) {
 	agent->addPlugin(ibmras::monitoring::plugins::jni::getPlugin());
 
 	// Add the jni receiver
-	agent->addPlugin((ibmras::monitoring::Plugin*) new ibmras::monitoring::plugins::jni::JNIReceiver());
+	agent->addPlugin(
+			(ibmras::monitoring::Plugin*) new ibmras::monitoring::plugins::jni::JNIReceiver());
 
 	agent->init();
 	agent->start();

@@ -18,6 +18,7 @@
 #include "ibmras/common/util/memUtils.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
 
 #include <ctime>
 
@@ -171,25 +172,20 @@ jlong getFreePhysicalMemorySize(JNIEnv* env);
 const std::string COMMA = ","; //$NON-NLS-1$
 const std::string EQUALS = "="; //$NON-NLS-1$
 
-const std::string PHYSICAL_MEMORY = "physicalmemory";
-const std::string PRIVATE_MEMORY = "privatememory";
-const std::string VIRTUAL_MEMORY = "virtualmemory"; //$NON-NLS-1$
-const std::string FREE_PHYSICAL_MEMORY = "freephysicalmemory"; //$NON-NLS-1$
-const std::string TOTAL_PHYSICAL_MEMORY = "totalphysicalmemory"; //$NON-NLS-1$
 
 MEMPullSource* src = NULL;
 bool enabled = true;
 bool available = true;
 
-PullSource* getMEMPullSource() {
+PullSource* getMEMPullSource(uint32 id) {
 	if (!src) {
-		src = new MEMPullSource;
+		src = new MEMPullSource(id);
 	}
 	return src;
 }
 
 
-MEMPullSource::MEMPullSource() {
+MEMPullSource::MEMPullSource(uint32 id) : PullSource(id, "Health Center (memory)"){
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
 	std::string osName = agent->getProperty("os.name");
@@ -206,7 +202,11 @@ MEMPullSource::MEMPullSource() {
 }
 
 monitordata* callback() {
-	return src->PullSource::generateData();
+	return src->generateData();
+}
+
+void complete(monitordata *mdata) {
+	src->pullComplete(mdata);
 }
 
 bool MEMPullSource::isEnabled() {
@@ -234,9 +234,9 @@ void MEMPullSource::publishConfig() {
 
 void MEMPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
-
-	// publish config when state changes
-	getMEMPullSource()->publishConfig();
+	if (src) {
+		src->publishConfig();
+	}
 }
 
 uint32 MEMPullSource::getSourceID() {
@@ -252,7 +252,7 @@ pullsource* MEMPullSource::getDescriptor() {
 	src->header.capacity = 8 * 1024;
 	src->next = NULL;
 	src->callback = callback;
-	src->complete = ibmras::monitoring::plugins::jni::complete;
+	src->complete = complete;
 	src->pullInterval = 5;
 
 	return src;
@@ -269,32 +269,39 @@ monitordata* MEMPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 		data->persistent = false;
 		data->provID = getProvID();
 		data->sourceID = MEM;
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 		std::string cp = getString(env,
 				"com/ibm/java/diagnostics/healthcenter/agent/dataproviders/memory/MemoryDataProvider",
 				"getJMXData", "()Ljava/lang/String;");
+#if defined(_ZOS)
+#pragma convert(pop)
+	char* memString = ibmras::common::util::createNativeString(cp.c_str());
+#else
+	const char* memString = cp.c_str();
+#endif
+
 		std::stringstream ss;
 
-		//ss << std::endl;
-		ss << cp;
-		ss << PHYSICAL_MEMORY << EQUALS << getProcessPhysicalMemorySize(env)
-				<< COMMA;
-		ss << PRIVATE_MEMORY << EQUALS << getProcessPrivateMemorySize(env)
-				<< COMMA;
-		ss << VIRTUAL_MEMORY << EQUALS << getProcessVirtualMemorySize(env)
-				<< COMMA;
-		ss << FREE_PHYSICAL_MEMORY << EQUALS << getFreePhysicalMemorySize(env)
-				<< std::endl;
+		ss << memString;
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&memString);
+#endif
+
+		ss << "physicalmemory=" << getProcessPhysicalMemorySize(env);
+		ss << ",privatememory=" << getProcessPrivateMemorySize(env);
+		ss << ",virtualmemory=" << getProcessVirtualMemorySize(env);
+		ss << ",freephysicalmemory=" << getFreePhysicalMemorySize(env) << '\n';
+
 
 		std::string memorydata = ss.str();
 
 		jsize len = memorydata.length();
-		char* sval = reinterpret_cast<char*>(hc_alloc(len + 1));
-		if (sval) {
-			strcpy(sval, memorydata.c_str());
-			IBMRAS_DEBUG(debug, "MEMORY REPORT\n");IBMRAS_DEBUG_1(debug, "%s", sval);
+		char* asciiMem = ibmras::common::util::createAsciiString(memorydata.c_str());
+		if (asciiMem) {
 			data->size = len;
-			data->data = sval;
+			data->data = asciiMem;
 			IBMRAS_DEBUG(debug, "<<MEMPullSource::sourceData(DATA)");
 		}
 	}

@@ -26,6 +26,7 @@ namespace os {
 
 class OSJMXPullSource : public JMXPullSource {
 public:
+	OSJMXPullSource(uint32 id);
 	pullsource* getDescriptor();
 	uint32 getSourceID();
 	monitordata* generateData(JNIEnv* env, jclass* mgtBean);

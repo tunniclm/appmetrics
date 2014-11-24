@@ -27,6 +27,7 @@
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/util/sysUtils.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
 
 
 #if defined(WINDOWS)
@@ -59,15 +60,18 @@ char* getMemoryCounters(JNIEnv *env);
 MCPullSource* src = NULL;
 bool enabled = true;
 
-PullSource* getMCPullSource() {
+PullSource* getMCPullSource(uint32 id) {
 	if (!src) {
-		src = new MCPullSource;
+		src = new MCPullSource(id);
 	}
 	return src;
 }
 
 bool MCPullSource::isEnabled() {
 	return enabled;
+}
+
+MCPullSource::MCPullSource(uint32 id) : PullSource(id, "Health Center (memory counters)") {
 }
 
 void MCPullSource::publishConfig() {
@@ -89,11 +93,17 @@ void MCPullSource::publishConfig() {
 
 void MCPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
-	getMCPullSource()->publishConfig();
+	if (src) {
+		src->publishConfig();
+	}
 }
 
 monitordata* callback() {
 	return src->PullSource::generateData();
+}
+
+void complete(monitordata *mdata) {
+	src->pullComplete(mdata);
 }
 
 uint32 MCPullSource::getSourceID() {
@@ -109,7 +119,7 @@ pullsource* MCPullSource::getDescriptor() {
 	src->header.capacity = 8 * 1024;
 	src->next = NULL;
 	src->callback = callback;
-	src->complete = ibmras::monitoring::plugins::jni::complete;
+	src->complete = complete;
 	src->pullInterval = 5;
 
 	return src;
@@ -231,15 +241,23 @@ char* getMemoryCounters(JNIEnv *env) {
 		} else {
 			parentNumber = -1;
 		}
+
 #if defined(_ZOS)
-#pragma convlit(suspend)
+	char* catName = ibmras::common::util::createNativeString(categories_buffer[i].name);
+#else
+	const char* catName = categories_buffer[i].name;
 #endif
-		sprintf(buffer, memCounterFormatString, categories_buffer[i].name,
+
+		sprintf(buffer, memCounterFormatString, catName,
 				categories_buffer[i].liveBytesShallow,
 				categories_buffer[i].liveBytesDeep,
 				categories_buffer[i].liveAllocationsShallow,
 				categories_buffer[i].liveAllocationsDeep, firstChildNumber,
 				nextSiblingNumber, parentNumber);
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&catName);
+#endif
+
 		memcounterarray[i] =
 				(char *) ibmras::monitoring::plugins::jni::hc_alloc(
 						strlen(buffer) + 1);
@@ -292,12 +310,10 @@ char* getMemoryCounters(JNIEnv *env) {
 			strcpy(report, data.c_str());
 		}
 	}
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif
+
 	ibmras::monitoring::plugins::jni::hc_dealloc(
 			(unsigned char**) &finalReport);
-
+	ibmras::common::util::native2Ascii(report);
 	return report;
 }
 

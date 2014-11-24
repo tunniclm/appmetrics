@@ -15,7 +15,7 @@
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/common/port/Semaphore.h"
 #include "ibmras/monitoring/Monitoring.h"
-#include "ibmras/monitoring/agent/threads/WorkerThreadControl.h"
+#include "ibmras/monitoring/agent/threads/WorkerThread.h"
 
 namespace ibmras {
 namespace monitoring {
@@ -25,17 +25,16 @@ namespace threads {
 /* a pool of worker threads */
 class ThreadPool {
 public:
-	ThreadPool(uint32 size, uint32 srccount);
-	void setPullSource(uint32 index, pullsource* src);
+	ThreadPool();
+	void addPullSource(pullsource* src);
+
 	void startAll();			/* start all threads in this pool */
 	void stopAll();				/* stop all threads in this pool */
+
 	void process(bool immediate);				/* process queue entries */
 	~ThreadPool();
 private:
-	uint32 size;
-	WorkerThreadControl* threads;			/* worker threads */
-	PullSourceCounter* counters;	/* count down timers for pulling data */
-	uint32 counterSize;				/* number of countdown counters */
+	std::vector<WorkerThread*> threads;			/* worker threads */
 };
 
 }

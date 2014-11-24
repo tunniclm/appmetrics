@@ -32,19 +32,19 @@ COPY_CONNECTOR=cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
 #-------------------------------------------------------------------------------------------
 #Objects files which make up various components
 #-------------------------------------------------------------------------------------------
-COMMON_OBJS = ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/FileUtils.o ${COMMON_OUT}/LibraryUtils.o ${COMMON_OUT}/Thread.o ${COMMON_OUT}/Lock.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/ThreadData.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/PropertiesFile.o ${COMMON_OUT}/LegacyData.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o 
+COMMON_OBJS = ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/FileUtils.o ${COMMON_OUT}/LibraryUtils.o ${COMMON_OUT}/Thread.o ${COMMON_OUT}/Lock.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/ThreadData.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/PropertiesFile.o ${COMMON_OUT}/LegacyData.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o ${COMMON_OUT}/MemoryManager.o 
 HL_CONNECTOR_OBJS=${CONNECTOR_OUT}/HLConnector.o ${CONNECTOR_OUT}/HLConnectorPlugin.o
-AGENT_OBJS=${COMMON_OBJS} ${AGENT_OUT}/agent.o ${AGENT_OUT}/PullSourceCounter.o ${AGENT_OUT}/ThreadPool.o ${AGENT_OUT}/WorkerThread.o ${AGENT_OUT}/WorkerThreadControl.o ${AGENT_OUT}/SystemReceiver.o ${AGENT_OUT}/ConnectorManager.o ${AGENT_OUT}/Bucket.o ${AGENT_OUT}/BucketList.o ${AGENT_OUT}/BucketDataQueueEntry.o ${AGENT_OUT}/Plugin.o  ${AGENT_OUT}/ConfigurationConnector.o 
+AGENT_OBJS=${COMMON_OBJS} ${AGENT_OUT}/agent.o ${AGENT_OUT}/ThreadPool.o ${AGENT_OUT}/WorkerThread.o ${AGENT_OUT}/SystemReceiver.o ${AGENT_OUT}/ConnectorManager.o ${AGENT_OUT}/Bucket.o ${AGENT_OUT}/BucketList.o ${AGENT_OUT}/Plugin.o  ${AGENT_OUT}/ConfigurationConnector.o 
 
 PAHO_ASYNC_OBJS=${PAHO_OUT}/Clients.o ${PAHO_OUT}/Heap.o ${PAHO_OUT}/LinkedList.o ${PAHO_OUT}/Log.o ${PAHO_OUT}/Messages.o ${PAHO_OUT}/MQTTAsync.o ${PAHO_OUT}/MQTTPacket.o ${PAHO_OUT}/MQTTPacketOut.o ${PAHO_OUT}/MQTTPersistence.o ${PAHO_OUT}/MQTTPersistenceDefault.o ${PAHO_OUT}/MQTTProtocolClient.o ${PAHO_OUT}/MQTTProtocolOut.o ${PAHO_OUT}/SocketBuffer.o ${PAHO_OUT}/Socket.o ${PAHO_OUT}/StackTrace.o ${PAHO_OUT}/Thread.o ${PAHO_OUT}/Tree.o ${PAHO_OUT}/utf-8.o
-MQTT_CONNECTOR_OBJS=${CONNECTOR_OUT}/MQTTConnector.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/Lock.o
+MQTT_CONNECTOR_OBJS=${CONNECTOR_OUT}/MQTTConnector.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/Lock.o ${COMMON_OUT}/MemoryManager.o
 OSTREAM_CONNECTOR_OBJS = ${CONNECTOR_OUT}/OStreamConnector.o 
 TESTPLUGIN_OBJS=${PLUGIN_OUT}/plugin.o
 OSPLUGIN_OBJS=${PLUGIN_OUT}/osplugin.o ${PLUGIN_OUT}/os${OS}.o
 
 JMXPLUGIN_OBJS=${PLUGIN_OUT}/JMXPullSource.o ${PLUGIN_OUT}/JMXSourceManager.o ${PLUGIN_OUT}/JMXUtility.o ${PLUGIN_OUT}/OSJMXPullSource.o ${PLUGIN_OUT}/RTJMXPullSource.o
 JNIPLUGIN_OBJS=${PLUGIN_OUT}/CFacade.o ${PLUGIN_OUT}/ENVMXBean.o ${PLUGIN_OUT}/ThreadDataProvider.o ${PLUGIN_OUT}/MemoryDataProvider.o ${PLUGIN_OUT}/MemoryCounterDataProvider.o  ${PLUGIN_OUT}/LockingDataProvider.o ${PLUGIN_OUT}/JNIReceiver.o
-JAVA_OBJS = ${JAVA_OUT}/DumpHandler.o ${JAVA_OUT}/Util.o ${JAVA_OUT}/ClassHistogramProvider.o ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o ${JAVA_OUT}/MethodLookupProvider.o ${HL_CONNECTOR_OBJS}
+JAVA_OBJS = ${JAVA_OUT}/DumpHandler.o ${JAVA_OUT}/Util.o ${JAVA_OUT}/ClassHistogramProvider.o ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o  ${JAVA_OUT}/JVMTIMemoryManager.o ${JAVA_OUT}/MethodLookupProvider.o ${HL_CONNECTOR_OBJS}
 
 OMR_OBJS = ${OMR_OUT}/MethodLookupProvider.o ${OMR_OUT}/NativeMemoryDataProvider.o ${OMR_OUT}/CpuDataProvider.o ${OMR_OUT}/TraceDataProvider.o  ${OMR_OUT}/MemoryCountersDataProvider.o ${OMR_OUT}/healthcenter.o
 NODE_SRCS = ${NODE_OUT}/nodeagent.cpp ${NODE_OUT}/wrapper.cpp ${NODE_OUT}/wrapper.h ${NODE_OUT}/binding.gyp
@@ -70,7 +70,7 @@ OSTREAM_LIB=${CONNECTOR_OUT}/ostream.${ARC_EXT}
 INCS=-Isrc
 MQTT_INCS=-I${PAHO_SRC}
 HC_EXPORT=-DEXPORT
-
+RC_COMPILE=
 
 
 default: all
@@ -104,6 +104,10 @@ NODE_ADDON=${NODE_OUT}/build/Release/healthcenter.node
 all: setup common ${OBJECTS}
 	@echo "All components now built"
 	
+res:
+	${RC_COMPILE}
+	@echo "Resource compile complete"
+	
 common: setup ${COMMON_OBJS}
 	@echo "Common objects build complete" 
 
@@ -116,7 +120,7 @@ agent: setup common ${AGENT}
 plugins: setup common ${PLUGINS}
 	@echo "Plugin build complete"
 
-java: setup common  ${JAVA_AGENT} ${CONNECTORS} ${PLUGINS}
+java: setup res common ${JAVA_AGENT} ${CONNECTORS} ${PLUGINS}
 	@echo "JAVA build complete"
 	
 omr: HC_OUT=${OMR_OUT}
@@ -180,7 +184,7 @@ ${CONNECTOR_OUT}/libostream.${LIB_EXT}: ${OSTREAM_CONNECTOR_OBJS}
 	${LINK} ${LINK_OPT} ${LIBPATH}"${AGENT_OUT}" ${LIBFLAGS} ${LIBPATH}"${HC_OUT}" ${HC_LIB_USE} ${LIB_OBJOPT} ${OSTREAM_CONNECTOR_OBJS} ${EXELIBS} ${EXEFLAGS}
 	@echo "OStream connector lib built"
  
-${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${JAVA_OBJS}  ${JMXPLUGIN_OBJS} ${JNIPLUGIN_OBJS}
+${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${JAVA_OBJS}  ${JMXPLUGIN_OBJS} ${JNIPLUGIN_OBJS} 
 	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} ${JAVA_OBJS} ${AGENT_OBJS} ${JMXPLUGIN_OBJS} ${JNIPLUGIN_OBJS} ${LD_OPT}  ${EXELIBS} ${EXEFLAGS} 
 	@echo "JAVA Healthcenter lib built"
 	
@@ -210,17 +214,11 @@ ${TEST_OUT}/test${EXE_EXT}: ${TEST_OBJS}
 ${AGENT_OUT}/agent.o: 
 	${CC} ${INCS} ${CFLAGS} -I"./connector/mqtt" -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/Agent.cpp
 	
-${AGENT_OUT}/PullSourceCounter.o: 
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/PullSourceCounter.cpp
-
 ${AGENT_OUT}/ThreadPool.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/threads/ThreadPool.cpp
 
 ${AGENT_OUT}/WorkerThread.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/threads/WorkerThread.cpp
-
-${AGENT_OUT}/WorkerThreadControl.o: 
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/threads/WorkerThreadControl.cpp
 	
 ${AGENT_OUT}/Bucket.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/Bucket.cpp
@@ -228,9 +226,6 @@ ${AGENT_OUT}/Bucket.o:
 ${AGENT_OUT}/BucketList.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/BucketList.cpp
 
-${AGENT_OUT}/BucketDataQueueEntry.o: 
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/BucketDataQueueEntry.cpp
-	
 ${AGENT_OUT}/SystemReceiver.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/agent/SystemReceiver.cpp
 	
@@ -316,6 +311,9 @@ ${PLUGIN_OUT}/JNIReceiver.o:
 ${COMMON_OUT}/memUtils.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/util/memUtils.cpp
 	
+${COMMON_OUT}/MemoryManager.o: 
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/MemoryManager.cpp
+	
 ${COMMON_OUT}/strUtils.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/util/strUtils.cpp
 	
@@ -370,6 +368,9 @@ ${PLUGIN_OUT}/cpuplugin.o: ${SRC}/monitoring/plugins/cpu/cpuplugin.cpp ${SRC}/mo
 
 ${JAVA_OUT}/healthcenter.o: 
 	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/vm/java/healthcenter.cpp
+	
+${JAVA_OUT}/JVMTIMemoryManager.o: 
+	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/vm/java/JVMTIMemoryManager.cpp
 	
 ${JAVA_OUT}/ClassHistogramProvider.o: 
 	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/ClassHistogramProvider.cpp

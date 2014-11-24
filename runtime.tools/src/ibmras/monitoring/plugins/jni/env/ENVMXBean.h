@@ -23,6 +23,7 @@ namespace env {
 
 class ENVPullSource : public PullSource {
 public:
+	ENVPullSource(uint32 id);
 	pullsource* getDescriptor();
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* Env);

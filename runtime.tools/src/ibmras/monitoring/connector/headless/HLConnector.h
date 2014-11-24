@@ -44,7 +44,9 @@ public:
 private:
 	static void* thread(ibmras::common::port::ThreadData* tData);
 	void processLoop();
+	uint32 sleep(uint32 seconds);
 	int packFiles();
+	bool jniPackFiles();
 	void lockAndPackFiles();
 
 	bool enabled;
@@ -52,10 +54,6 @@ private:
 	bool filesInitialized;
 
 	JavaVM* vm;
-	JNIEnv* env;
-	jclass zipJNIclazz;
-	jobject zipClazzObject;
-	jmethodID zipMethod;
 	int32 seqNumber;
 	time_t lastPacked;
 	uint32 upper_limit;

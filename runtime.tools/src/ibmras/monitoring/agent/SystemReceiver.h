@@ -21,7 +21,7 @@ namespace ibmras{
 namespace monitoring {
 namespace agent {
 
-class SystemReceiver: public ibmras::monitoring::connector::Receiver, ibmras::monitoring::Plugin {
+class SystemReceiver: public ibmras::monitoring::connector::Receiver, public ibmras::monitoring::Plugin {
 public:
 	SystemReceiver();
 	virtual ~SystemReceiver();

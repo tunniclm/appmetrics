@@ -14,6 +14,7 @@
 #include <vector>
 #include "ibmras/common/util/strUtils.h"
 
+
 namespace ibmras {
 namespace common {
 
@@ -76,7 +77,7 @@ std::string Properties::toString() {
 	std::stringstream ss;
 	for (std::map<std::string, std::string>::iterator propsiter = props.begin();
 			propsiter != props.end(); ++propsiter) {
-		ss << propsiter->first << "=" << propsiter->second << std::endl;
+		ss << propsiter->first << "=" << propsiter->second << '\n';
 	}
 	return ss.str();
 }

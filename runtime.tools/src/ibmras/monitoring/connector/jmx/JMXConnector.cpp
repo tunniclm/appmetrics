@@ -11,6 +11,7 @@
 
 #include "ibmras/monitoring/connector/jmx/JMXConnector.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "jvmti.h"
 #include "jni.h"
@@ -18,13 +19,8 @@
 #include "jniport.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/port/Process.h"
+#include <string.h>
 
-/*
- * This is compiled with convlit(ISO8859-1) so we need to suspend conversion for literals
- * passed to OS functions such as printf when on zOS
- * We suspend conversion here and put a resume/suspend pair aroun literals that need to
- * be in ISO8859-1 encoding
- */
 #ifdef _ZOS
 #include <unistd.h>
 #endif
@@ -120,11 +116,17 @@ int JMXConnector::launchMBean() {
 		return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_JVMTI_ERR;
 	}
 
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 
 	if (NULL == javaHCLaunchMBean) {
 		javaHCLaunchMBean =
 				env->FindClass(
 						"com/ibm/java/diagnostics/healthcenter/agent/mbean/HCLaunchMBean");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 
 		if (ExceptionCheck(env) || NULL == javaHCLaunchMBean) {
 			IBMRAS_LOG(warning,
@@ -132,10 +134,15 @@ int JMXConnector::launchMBean() {
 			return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
 		}
 	}
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	if (NULL == mainMethod) {
 		mainMethod = env->GetStaticMethodID(javaHCLaunchMBean, "main",
 				"([Ljava/lang/String;)V");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 
 		if (ExceptionCheck(env) || NULL == mainMethod) {
 			IBMRAS_LOG(warning,
@@ -143,23 +150,25 @@ int JMXConnector::launchMBean() {
 			return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
 		}
 	}
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	applicationArgs = env->NewObjectArray(2, env->FindClass("java/lang/String"),
 	NULL);
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+
+
 	/* should throw OOM or come back null */
 	if (ExceptionCheck(env) || NULL == applicationArgs) {
 		IBMRAS_LOG(warning,
 				"launchMBean couldn't create object array. Agent not started.");
 		return com_ibm_java_diagnostics_healthcenter_agent_lateattach_AttachAgent_attachAgent_MBEAN_ERR;
 	}
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif
+
 	processID = ibmras::common::port::getProcessId();
 	sprintf(args0, "%d", processID);
-#if defined (_ZOS)
-#pragma convlit(resume)
-#endif
 
 #ifdef _ZOS
 	__etoa(args0);
@@ -229,14 +238,29 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_getProviders
 	ibmras::monitoring::agent::BucketList* buckets = agent->getBucketList();
 	std::vector<std::string> ids = buckets->getIDs();
 
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	jclass stringClass = jni_env->FindClass("java/lang/String");
-
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	jobjectArray stringArray = jni_env->NewObjectArray(ids.size(), stringClass,
 			0);
 	for (uint32 i = 0; i < ids.size(); ++i) {
-		jstring javaString = jni_env->NewStringUTF(ids[i].c_str());
+#if defined(_ZOS)
+	char* bucket = ibmras::common::util::createAsciiString(ids[i].c_str());
+#else
+	const char* bucket = ids[i].c_str();
+#endif
+		jstring javaString = jni_env->NewStringUTF(bucket);
 		jni_env->SetObjectArrayElement(stringArray, i, javaString);
+#if defined(_ZOS)
+		ibmras::common::memory::deallocate((unsigned char**)&bucket);
+#endif
 	}
+
+
 	return stringArray;
 
 }
@@ -246,17 +270,30 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 		JNIEnv * jni_env, jobject obj, jstring name, jint requestedSize,
 		jintArray requestedId) {
 	const char* bucketName = jni_env->GetStringUTFChars(name, NULL);
+#if defined(_ZOS)
+	char* nativeBucketName = ibmras::common::util::createNativeString(bucketName);
+#else
+	const char* nativeBucketName = bucketName;
+#endif
+	if (nativeBucketName == NULL) {
+		return NULL;
+	}
+	IBMRAS_DEBUG_1(debug, "getData for bucket %s", nativeBucketName);
 
 	ibmras::monitoring::agent::Agent* agent =
 	ibmras::monitoring::agent::Agent::getInstance();
 	ibmras::monitoring::agent::BucketList* buckets = agent->getBucketList();
-	ibmras::monitoring::agent::Bucket* bucket = buckets->findBucket(bucketName);
+	ibmras::monitoring::agent::Bucket* bucket = buckets->findBucket(nativeBucketName);
+
+	jni_env->ReleaseStringUTFChars(name, bucketName);
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&nativeBucketName);
+#endif
 
 	if (bucket == NULL) {
-		IBMRAS_DEBUG_1(debug, "getData for non-existent bucket %s", bucketName);
+		IBMRAS_DEBUG(debug, "getData for non-existent bucket");
 		return NULL;
 	}
-	jni_env->ReleaseStringUTFChars(name, bucketName);
 
 	signed char* data = NULL;
 	int32 size = requestedSize;
@@ -267,25 +304,24 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 	IBMRAS_DEBUG_2(debug, "Getting data for %s, id %d", bucket->getUniqueID().c_str(), id);
 	uint32 droppedCount = 0;
 	id = bucket->getNextData(id, size, (void*&) data, droppedCount);
+	retID[0] = id;
+	jni_env->ReleaseIntArrayElements(requestedId, retID, 0);
+
 	if (size == 0) {
 		IBMRAS_DEBUG_1(debug, "No data returned for %s", bucket->getUniqueID().c_str());
 		return NULL;
 	}
+
 	IBMRAS_DEBUG_2(debug, "%d bytes of data returned for %s", size, bucket->getUniqueID().c_str());
 
 	if (droppedCount > 0) {
 		IBMRAS_DEBUG_2(warning, "Missed %d data buffers for %s", droppedCount, bucket->getUniqueID().c_str());
 	}
 
-	retID[0] = id;
-	jni_env->ReleaseIntArrayElements(requestedId, retID, 0);
-
 	jbyteArray buffersByteArray = jni_env->NewByteArray(size);
 	jni_env->SetByteArrayRegion(buffersByteArray, 0, (int) size, data);
 
-	if (data) {
-		delete[] data;
-	}
+	ibmras::common::memory::deallocate((unsigned char**)&data);
 
 	return buffersByteArray;
 
@@ -296,16 +332,29 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 		JNIEnv * jni_env, jobject obj, jstring topic, jstring message) {
 	const char* subject = jni_env->GetStringUTFChars(topic, NULL);
 	const char* msg = jni_env->GetStringUTFChars(message, NULL);
-
+#if defined(_ZOS)
+	char* nativeSubject = ibmras::common::util::createNativeString(subject);
+	char* nativeMsg = ibmras::common::util::createNativeString(msg);
+#else
+	const char* nativeSubject = subject;
+	const char* nativeMsg = msg;
+#endif
+	if (nativeSubject == NULL || nativeMsg == NULL) {
+		return;
+	}
 	ibmras::monitoring::agent::Agent* agent =
 	ibmras::monitoring::agent::Agent::getInstance();
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 	agent->getConnectionManager();
-	conMan->receiveMessage(subject, strlen(msg), (void*) msg);
+	conMan->processMessage(nativeSubject, strlen(nativeMsg), (void*) nativeMsg);
 
 	jni_env->ReleaseStringUTFChars(topic, subject);
 	jni_env->ReleaseStringUTFChars(message, msg);
 
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&nativeSubject);
+	ibmras::common::memory::deallocate((unsigned char**)&nativeMsg);
+#endif
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -316,10 +365,29 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 	ibmras::monitoring::agent::Agent* agent =
 	ibmras::monitoring::agent::Agent::getInstance();
 
-	std::string config = agent->getConfig(bucketName);
-	jni_env->ReleaseStringUTFChars(name, bucketName);
+#if defined(_ZOS)
+	char* nativeBucketName = ibmras::common::util::createNativeString(bucketName);
+#else
+	const char* nativeBucketName = bucketName;
+#endif
+	if (nativeBucketName == NULL) {
+		return NULL;
+	}
 
-	jstring javaString = jni_env->NewStringUTF(config.c_str());
+	std::string config = agent->getConfig(nativeBucketName);
+	jni_env->ReleaseStringUTFChars(name, bucketName);
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&nativeBucketName);
+
+	char* asciiConfig = ibmras::common::util::createAsciiString(config.c_str());
+#else
+	const char* asciiConfig = config.c_str();
+#endif
+	jstring javaString = jni_env->NewStringUTF(asciiConfig);
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&asciiConfig);
+#endif
+
 	return javaString;
 }
 

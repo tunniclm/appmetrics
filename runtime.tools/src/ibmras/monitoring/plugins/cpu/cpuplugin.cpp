@@ -99,10 +99,12 @@ monitordata* OnRequestData() {
 }
 
 void OnComplete(monitordata* data) {
-	if (data->data != NULL) {
-		delete[] data->data;
+	if (data != NULL) {
+		if (data->data != NULL) {
+			delete[] data->data;
+		}
+		delete data;
 	}
-	delete data;
 }
 
 pullsource* createPullSource(uint32 srcid, const char* name) {

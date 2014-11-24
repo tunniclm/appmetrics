@@ -24,7 +24,6 @@ namespace jmx {
 JMXSourceManager::JMXSourceManager() {
 	running = false;
 	provid = -1;
-	pullCount = 2;
 	pullsources = NULL;
 	vm = NULL;
 }
@@ -32,19 +31,19 @@ JMXSourceManager::JMXSourceManager() {
 pullsource* JMXSourceManager::registerPullSource(uint32 provID) {
 	IBMRAS_DEBUG(fine, "Registering pull sources");
 	provid = provID;
-	pullsources = new JMXPullSource*[pullCount];
-	pullsources[CPU] = ibmras::monitoring::plugins::jmx::os::getOSPullSource();
-	pullsources[CPU]->setProvID(provID);
+	pullsources = new JMXPullSource*[PULL_COUNT];
+	pullsources[CPU] = ibmras::monitoring::plugins::jmx::os::getOSPullSource(provID);
 	pullsource* src = pullsources[CPU]->getDescriptor();
-	pullsources[RT] = ibmras::monitoring::plugins::jmx::rt::getRTPullSource();
-	pullsources[RT]->setProvID(provID);
-	src->next = pullsources[RT]->getDescriptor();		/* create chain of pullsources */
+
+	// Remove RT for now
+//	pullsources[RT] = ibmras::monitoring::plugins::jmx::rt::getRTPullSource(provID);
+//	src->next = pullsources[RT]->getDescriptor();		/* create chain of pullsources */
 	return src;
 }
 
 int JMXSourceManager::start() {
 	IBMRAS_DEBUG(info, "Starting");
-	for (uint32 i = 0; i < pullCount; i++) {
+	for (uint32 i = 0; i < PULL_COUNT; i++) {
 		JMXPullSource* p = pullsources[i];
 		if (p) {
 			p->publishConfig();
@@ -55,7 +54,7 @@ int JMXSourceManager::start() {
 
 int JMXSourceManager::stop() {
 	IBMRAS_DEBUG(info, "Stopping");
-	for(uint32 i = 0; i < pullCount; i++) {
+	for(uint32 i = 0; i < PULL_COUNT; i++) {
 		JMXPullSource* p = pullsources[i];
 		delete p;
 	}

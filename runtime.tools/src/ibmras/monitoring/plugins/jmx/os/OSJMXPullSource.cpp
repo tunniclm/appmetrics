@@ -1,4 +1,4 @@
- /**
+/**
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
@@ -7,7 +7,6 @@
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
  */
-
 
 #include "ibmras/monitoring/plugins/jmx/os/OSJMXPullSource.h"
 #include "ibmras/monitoring/plugins/jmx/JMXSourceManager.h"
@@ -34,15 +33,19 @@ IBMRAS_DEFINE_LOGGER("JMXSources");
 OSJMXPullSource* src = NULL;
 bool enabled = true;
 
-JMXPullSource* getOSPullSource() {
-	if(!src) {
-		src = new OSJMXPullSource;
+JMXPullSource* getOSPullSource(uint32 id) {
+	if (!src) {
+		src = new OSJMXPullSource(id);
 	}
 	return src;
 }
 
 monitordata* callback() {
 	return src->JMXPullSource::generateData();
+}
+
+void complete(monitordata *mdata) {
+	src->pullComplete(mdata);
 }
 
 uint32 OSJMXPullSource::getSourceID() {
@@ -54,13 +57,16 @@ pullsource* OSJMXPullSource::getDescriptor() {
 	src->header.name = "cpu";
 	src->header.description = "CPU usage";
 	src->header.sourceID = CPU;
-	src->header.capacity = 1024;
+	src->header.capacity = 10 * 1024;
 	src->next = NULL;
 	src->callback = callback;
-	//src->complete = getCallbackComplete();
-	src->complete = ibmras::monitoring::plugins::jmx::complete;	/* use default clean up */
+	src->complete = complete;
 	src->pullInterval = 2;
 	return src;
+}
+
+OSJMXPullSource::OSJMXPullSource(uint32 id) :
+		JMXPullSource(id, "Health Center (cpu)") {
 }
 
 void OSJMXPullSource::publishConfig() {
@@ -77,60 +83,91 @@ void OSJMXPullSource::publishConfig() {
 		msg += "off";
 	}
 
-	conMan->sendMessage("configuration/cpu", msg.length(),
-			(void*) msg.c_str());
+	conMan->sendMessage("configuration/cpu", msg.length(), (void*) msg.c_str());
 }
 
 bool OSJMXPullSource::isEnabled() {
+
 	return enabled;
 }
 
 void OSJMXPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
-	getOSPullSource()->publishConfig();
+	if (src) {
+		src->publishConfig();
+	}
 }
 
 monitordata* OSJMXPullSource::generateData(JNIEnv* env, jclass* mgtBean) {
 
 	IBMRAS_DEBUG(debug, "Generating JMX CPU data");
 	monitordata* data = new monitordata;
-	data->persistent = false;
-	data->provID = getProvID();
-	data->sourceID = CPU;
-
-	jobject mgt = getMXBean(env, mgtBean, "OperatingSystem");
-	if(mgt) {
-		IBMRAS_DEBUG(debug, "Getting timestamp");
-		jlong tstamp = getTimestamp(env);
-		IBMRAS_DEBUG(debug, "Invoking getSystemCpuLoad");
-		jdouble systemCPULoad = getDouble(env, &mgt,  "com/ibm/lang/management/OperatingSystemMXBean", "getSystemCpuLoad");
-		IBMRAS_DEBUG(debug, "Invoking getProcessCpuLoad : this is only available in Java 7 and later");
-		jdouble processCPULoad = getDouble(env, &mgt, "com/ibm/lang/management/OperatingSystemMXBean", "getProcessCpuLoad");
-
-		if (processCPULoad >= 0 || systemCPULoad >= 0) {
-			IBMRAS_DEBUG(debug, "Constructing CPU data line");
-			LegacyData* line = new LegacyData("startCPU", tstamp);
-			LegacyDataNumeric<jdouble>* value = new LegacyDataNumeric<jdouble>(
-					processCPULoad);
-			line->add(value);
-			value = new LegacyDataNumeric<jdouble>(systemCPULoad);
-			line->add(value);
-			char* sval = line->getData();
-			IBMRAS_DEBUG_1(debug, "Got CPU data : %s", sval);
-			data->size = strlen(sval);
-			data->data = sval;
-			delete line; /* deleteing the line should cascade delete the values it is currently holding */
-			return data;
-		}
-	}
 	data->size = 0;
 	data->data = NULL;
+
+#if !defined(_ZOS)
+	if (isEnabled()) {
+		data->persistent = false;
+		data->provID = getProvID();
+		data->sourceID = CPU;
+
+		jobject mgt = getMXBean(env, mgtBean, "OperatingSystem");
+		if (mgt) {
+			IBMRAS_DEBUG(debug, "Getting timestamp");
+			jlong tstamp = getTimestamp(env);
+			IBMRAS_DEBUG(debug, "Invoking getSystemCpuLoad");
+
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+
+			jdouble systemCPULoad = getDouble(env, &mgt,
+					"com/ibm/lang/management/OperatingSystemMXBean",
+					"getSystemCpuLoad");
+
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+
+			IBMRAS_DEBUG(debug, "Invoking getProcessCpuLoad : this is only available in Java 7 and later");
+
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+
+			jdouble processCPULoad = getDouble(env, &mgt,
+					"com/ibm/lang/management/OperatingSystemMXBean",
+					"getProcessCpuLoad");
+
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+			IBMRAS_DEBUG_2(debug, "systemCPULoad %d, processCPULoad %d", systemCPULoad, processCPULoad);
+
+			if (processCPULoad >= 0 || systemCPULoad >= 0) {
+				IBMRAS_DEBUG(debug, "Constructing CPU data line");
+				LegacyData* line = new LegacyData("startCPU", tstamp);
+				LegacyDataNumeric<jdouble>* value = new LegacyDataNumeric<
+						jdouble>(processCPULoad);
+				line->add(value);
+				value = new LegacyDataNumeric<jdouble>(systemCPULoad);
+				line->add(value);
+				char* sval = line->getData();
+				IBMRAS_DEBUG_1(debug, "Got CPU data : %s", sval);
+				data->size = strlen(sval);
+				ibmras::common::util::native2Ascii(sval);
+				data->data = sval;
+				delete line; /* deleteing the line should cascade delete the values it is currently holding */
+				return data;
+			}
+		}
+	}
+#endif
 	return data;
 }
 
-
-}	/* end namespace os */
-}	/* end namespace jmx */
-}	/* end namespace plugins */
-}	/* end namespace monitoring */
-} 	/* end namespace ibmras */
+} /* end namespace os */
+} /* end namespace jmx */
+} /* end namespace plugins */
+} /* end namespace monitoring */
+} /* end namespace ibmras */

@@ -182,8 +182,12 @@ void OnGatherDataOnV8Thread(uv_timer_s *data, int status) {
 }
 
 void OnComplete(monitordata* data) {
-	delete[] data->data;
-	delete data;
+	if (data != NULL) {
+		if (data->data != NULL) {
+			delete[] data->data;
+		}
+		delete data;
+	}
 }
 
 pullsource* createPullSource(uint32 srcid, const char* name) {

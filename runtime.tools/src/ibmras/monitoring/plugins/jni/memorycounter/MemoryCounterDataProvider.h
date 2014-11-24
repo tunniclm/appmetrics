@@ -24,6 +24,7 @@ namespace memorycounter {
 
 class MCPullSource : public PullSource {
 public:
+	MCPullSource(uint32 id);
 	pullsource* getDescriptor();
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env);

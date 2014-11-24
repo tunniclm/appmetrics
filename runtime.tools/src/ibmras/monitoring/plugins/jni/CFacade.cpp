@@ -1,4 +1,4 @@
- /**
+/**
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
@@ -10,7 +10,9 @@
 
 #include "ibmras/monitoring/plugins/jni/CFacade.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
 #include "ibmras/common/util/memUtils.h"
+#include "ibmras/common/util/strUtils.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include <cstring>
 #include <stdlib.h>
@@ -33,9 +35,8 @@
 #include <unistd.h>
 #endif
 
-
 namespace ibmras {
-namespace monitoring{
+namespace monitoring {
 namespace plugins {
 namespace jni {
 
@@ -44,34 +45,32 @@ uint64_t tm_stt;
 #if defined(WINDOWS)
 uint64_t rdtsc()
 {
-    return __rdtsc();
+	return __rdtsc();
 }
 #endif
-
-
 
 jvmFunctions* jvmF;
 JavaVM* vm = NULL;
 SourceManager* mgr = new SourceManager;
 
 namespace env {
-	PullSource* getENVPullSource();
+PullSource* getENVPullSource(uint32 id);
 }
 
 namespace threads {
-	PullSource* getTDPullSource();
+PullSource* getTDPullSource(uint32 id);
 }
 
 namespace memory {
-	PullSource* getMEMPullSource();
+PullSource* getMEMPullSource(uint32 id);
 }
 
 namespace memorycounter {
-	PullSource* getMCPullSource();
+PullSource* getMCPullSource(uint32 id);
 }
 
 namespace locking {
-	PullSource* getJLAPullSource();
+PullSource* getJLAPullSource(uint32 id);
 }
 
 #if defined(_ZOS)
@@ -79,32 +78,25 @@ namespace locking {
 extern "C" {
 #endif
 
-	DECL pullsource* registerPullSourcejni(uint32 provID) {
-		return ibmras::monitoring::plugins::jni::mgr->registerPullSource(provID);
-	}
+DECL pullsource* registerPullSourcejni(uint32 provID) {
+	return ibmras::monitoring::plugins::jni::mgr->registerPullSource(provID);
+}
 
-	DECL int startjni() {
-		return ibmras::monitoring::plugins::jni::mgr->start();
-	}
+DECL int startjni() {
+	return ibmras::monitoring::plugins::jni::mgr->start();
+}
 
-	DECL int stopjni() {
-		return ibmras::monitoring::plugins::jni::mgr->stop();
-	}
+DECL int stopjni() {
+	return ibmras::monitoring::plugins::jni::mgr->stop();
+}
 
 #if defined(_ZOS)
 #else
 }
 #endif
 
-IBMRAS_DEFINE_LOGGER("DataProviderSources");
-
-void complete(monitordata* data) {
-
-	hc_dealloc((unsigned char**)(&(data->data)));
-	if(data) {
-		delete data;
-	}
-}
+IBMRAS_DEFINE_LOGGER("DataProviderSources")
+;
 
 SourceManager::SourceManager() {
 	running = false;
@@ -114,32 +106,33 @@ SourceManager::SourceManager() {
 }
 
 pullsource* SourceManager::registerPullSource(uint32 provID) {
-	IBMRAS_DEBUG(fine,  "Registering pull sources");
+	IBMRAS_DEBUG(fine, "Registering pull sources");
 	provid = provID;
 	pullsources = new PullSource*[PULL_COUNT];
 
-	pullsources[ENV] = ibmras::monitoring::plugins::jni::env::getENVPullSource();
-	pullsources[ENV]->setProvID(provID);
+	pullsources[ENV] = ibmras::monitoring::plugins::jni::env::getENVPullSource(
+			provid);
 	pullsource* src = pullsources[ENV]->getDescriptor();
 	pullsource* curr = src;
 
-	pullsources[TD] = ibmras::monitoring::plugins::jni::threads::getTDPullSource();
-	pullsources[TD]->setProvID(provID);
+	pullsources[TD] =
+			ibmras::monitoring::plugins::jni::threads::getTDPullSource(provid);
 	curr->next = pullsources[TD]->getDescriptor();
 	curr = curr->next;
 
-	pullsources[MEM] = ibmras::monitoring::plugins::jni::memory::getMEMPullSource();
-	pullsources[MEM]->setProvID(provID);
+	pullsources[MEM] =
+			ibmras::monitoring::plugins::jni::memory::getMEMPullSource(provid);
 	curr->next = pullsources[MEM]->getDescriptor();
 	curr = curr->next;
 
-	pullsources[MC] = ibmras::monitoring::plugins::jni::memorycounter::getMCPullSource();
-	pullsources[MC]->setProvID(provID);
+	pullsources[MC] =
+			ibmras::monitoring::plugins::jni::memorycounter::getMCPullSource(
+					provid);
 	curr->next = pullsources[MC]->getDescriptor();
 	curr = curr->next;
 
-	pullsources[JLA] = ibmras::monitoring::plugins::jni::locking::getJLAPullSource();
-	pullsources[JLA]->setProvID(provID);
+	pullsources[JLA] =
+			ibmras::monitoring::plugins::jni::locking::getJLAPullSource(provid);
 	curr->next = pullsources[JLA]->getDescriptor();
 	curr = curr->next;
 
@@ -147,7 +140,7 @@ pullsource* SourceManager::registerPullSource(uint32 provID) {
 }
 
 int SourceManager::start() {
-	IBMRAS_DEBUG(info,  "Starting");
+	IBMRAS_DEBUG(info, "Starting");
 	// Ask each source to publish it's config
 	for (uint32 i = 0; i < PULL_COUNT; i++) {
 		PullSource* p = pullsources[i];
@@ -157,17 +150,17 @@ int SourceManager::start() {
 	}
 
 #ifndef ORACLE
-    tm_stt = read_cycles_on_processor(0);
-    //getTDPP().setVMLockMonitor(getTDPP().pti, 1);
-    jvmF->setVMLockMonitor(jvmF->pti, 1);
+	tm_stt = read_cycles_on_processor(0);
+	//getTDPP().setVMLockMonitor(getTDPP().pti, 1);
+	jvmF->setVMLockMonitor(jvmF->pti, 1);
 #endif
 
 	return 0;
 }
 
 int SourceManager::stop() {
-	IBMRAS_DEBUG(info,  "Stopping");
-	for(uint32 i = 0; i < PULL_COUNT; i++) {
+	IBMRAS_DEBUG(info, "Stopping");
+	for (uint32 i = 0; i < PULL_COUNT; i++) {
 		PullSource* p = pullsources[i];
 		if (p) {
 			delete p;
@@ -203,75 +196,85 @@ monitordata* PullSource::generateError(char* msg) {
 	return data;
 }
 
-std::string getString(JNIEnv* env, const char* cname, const char* mname, const char* signature) {
+std::string getString(JNIEnv* env, const char* cname, const char* mname,
+		const char* signature) {
 
-	IBMRAS_DEBUG(debug,  ">>getString");
-	
-	IBMRAS_DEBUG(debug,  "Retrieving class");
+	IBMRAS_DEBUG(debug, ">>getString");
+
+	IBMRAS_DEBUG(debug, "Retrieving class");
 	jclass clazz = env->FindClass(cname);
-	if(!clazz) {
-		IBMRAS_DEBUG_1(warning,  "Failed to find %s class", cname);
+	if (!clazz) {
+		IBMRAS_DEBUG(warning, "Failed to find class");
 		return "";
 	}
-	IBMRAS_DEBUG_1(debug,  "Found %s class", cname);
 
 	jmethodID method = env->GetStaticMethodID(clazz, mname, signature);
-	if(!method) {
-		IBMRAS_DEBUG_1(warning,  "Failed to get %s method ID", mname);
+	if (!method) {
+		IBMRAS_DEBUG(warning, "Failed to get %s method ID");
 		return "";
 	}
-	IBMRAS_DEBUG_1(debug,  "%s method loaded, calling thru JNI", mname);
 
-	jstring jobj = (jstring)env->CallStaticObjectMethod(clazz, method, NULL);
+	jstring jobj = (jstring) env->CallStaticObjectMethod(clazz, method, NULL);
 
 	const char* value = env->GetStringUTFChars(jobj, NULL);
-	if(env->ExceptionOccurred()){
+	if (env->ExceptionOccurred()) {
 		env->ExceptionDescribe();
 	}
 
 	std::string sval(value);
 
 	env->ReleaseStringUTFChars(jobj, value);
+	env->DeleteLocalRef(jobj);
 
-	vm->DetachCurrentThread();
-	IBMRAS_DEBUG(debug,  "<<getString");
+	IBMRAS_DEBUG(debug, "<<getString");
 	return sval;
 }
 
-
 monitordata* PullSource::generateData() {
 
-	IBMRAS_DEBUG(debug,  ">>CFacade's generateData()");
+	IBMRAS_DEBUG(debug, ">>CFacade's generateData()");
 
-	JNIEnv* env = NULL;
-	JavaVMAttachArgs threadArgs;
+	if (!env) {
+		JavaVMAttachArgs threadArgs;
 
-	memset(&threadArgs, 0, sizeof(threadArgs));
-	threadArgs.version = JNI_VERSION_1_6;
-	threadArgs.name = (char *)"interval generation thread";
-	threadArgs.group = NULL;
+		memset(&threadArgs, 0, sizeof(threadArgs));
+		threadArgs.version = JNI_VERSION_1_6;
+		threadArgs.name = ibmras::common::util::createAsciiString(name.c_str());
+		threadArgs.group = NULL;
+		IBMRAS_DEBUG_1(debug, "Attaching thread %s", name.c_str());
+		jint errcode = vm->AttachCurrentThreadAsDaemon((void **) &env, &threadArgs);
+		ibmras::common::memory::deallocate((unsigned char**)&threadArgs.name);
+		if (errcode != JNI_OK) {
+			return NULL;
+		}
 
-	jint result = vm ? vm->AttachCurrentThread((void**)&env, (void*)&threadArgs) : -1;
-	if(JNI_OK != result) {
-		IBMRAS_DEBUG(warning,  "Cannot set environment");
-		IBMRAS_DEBUG(debug,  "<<CFacade's generateData() [NODATA1]");
-		return NULL;
+		IBMRAS_DEBUG_1(debug, "Attached thread %s", name.c_str());
 	}
-	IBMRAS_DEBUG(info,  "Environment set");
-	if(!env) {
-		IBMRAS_DEBUG(debug,  "<<CFacade's generateData() [NODATA2]");
-		return NULL;
-	}
+
 	monitordata* data = sourceData(jvmF, env);
-	IBMRAS_DEBUG(debug,  "<<CFacade's generateData() [DATA]");
+	IBMRAS_DEBUG(debug, "<<CFacade's generateData() [DATA]");
 
 	return data;
 }
 
-PullSource::~PullSource() {
-	if(vm) {
-		vm->DetachCurrentThread();		/* call complete, detach the thread */
+void PullSource::pullComplete(monitordata* mdata) {
+	if (mdata) {
+		hc_dealloc((unsigned char**) (&(mdata->data)));
+		delete mdata;
+	} else {
+		if (env) {
+			IBMRAS_DEBUG_1(debug, "Detaching thread %s", name.c_str());
+			vm->DetachCurrentThread();
+			env = NULL;
+		}
 	}
+}
+
+PullSource::PullSource(uint32 id, const std::string& providerName) :
+		provID(id), env(NULL), name(providerName) {
+}
+
+PullSource::~PullSource() {
 }
 
 DECL ibmras::monitoring::Plugin* getPlugin() {
@@ -292,49 +295,43 @@ DECL ibmras::monitoring::Plugin* getPlugin() {
  */
 
 int ExceptionCheck(JNIEnv *env) {
-    if (env->ExceptionCheck())
-    {
-        IBMRAS_DEBUG(warning,  "JNI exception:");
-        env->ExceptionDescribe();
-        env->ExceptionClear();
-        return 1;
-    } else
-    {
-        return 0;
-    }
+	if (env->ExceptionCheck()) {
+		IBMRAS_DEBUG(warning, "JNI exception:");
+		env->ExceptionDescribe();
+		env->ExceptionClear();
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
-
-void dump_read(void * dp, void * res, int size)
-{
-    memcpy(res, dp, size);
-    return;
+void dump_read(void * dp, void * res, int size) {
+	memcpy(res, dp, size);
+	return;
 }
 
-unsigned int dump_read_u4(char * dp)
-{
-    unsigned int temp;
+unsigned int dump_read_u4(char * dp) {
+	unsigned int temp;
 
-    dump_read((void *)dp, (void *)&temp, 4);
-    temp = ntohl(temp);
-    return temp;
+	dump_read((void *) dp, (void *) &temp, 4);
+	temp = ntohl(temp);
+	return temp;
 }
 
-UINT64 read_cycles_on_processor(int cpu)
-{
-    UINT64 cycles = 0;
+UINT64 read_cycles_on_processor(int cpu) {
+	UINT64 cycles = 0;
 
 #ifdef _ZOS
-    __stck( (unsigned long long *)&cycles);   /* Use unaltered time for JLM */
+	__stck( (unsigned long long *)&cycles); /* Use unaltered time for JLM */
 #else
 #if defined (_LINUX) && !defined(_PPC) && !defined(_S390)
-    cycles = readCyclesOnProcessor(cpu);
+	cycles = readCyclesOnProcessor(cpu);
 #else
-    getCycles(&cycles);
+	getCycles(&cycles);
 #endif
 #endif
 
-    return cycles;
+	return cycles;
 }
 
 #if defined (_LINUX) && !defined(_PPC) && !defined(_S390)
@@ -342,357 +339,283 @@ UINT64 read_cycles_on_processor(int cpu)
  ReadCyclesOnProcessor()
  ************************
  Read cycles on a specified processor
-*/
+ */
 
-uint64_t readCyclesOnProcessor(int cpu)
-{
-    cpu_set_t prev_mask;    /* current processor affinity mask */
-    cpu_set_t new_mask;     /* mask to attach to a processor */
-    uint64_t mycycles;
+uint64_t readCyclesOnProcessor(int cpu) {
+	cpu_set_t prev_mask; /* current processor affinity mask */
+	cpu_set_t new_mask; /* mask to attach to a processor */
+	uint64_t mycycles;
 
-    /* get affinity mask for the current process */
-    /* the call for this depends on which version of glibc we are using */
+	/* get affinity mask for the current process */
+	/* the call for this depends on which version of glibc we are using */
 //#ifdef _NEW_GLIBC
-    int sched_get_return_code = sched_getaffinity(0, sizeof(cpu_set_t), &prev_mask);
+	int sched_get_return_code = sched_getaffinity(0, sizeof(cpu_set_t),
+			&prev_mask);
 //#else
 //    int sched_get_return_code = sched_getaffinity(0, &prev_mask);
 //#endif
 
-    if (sched_get_return_code != 0)
-    {
-        printf("sched_getaffinity failed\n");
-        return PITRACE_ERROR;
-    }
-    /* switch & read cycles      */
+	if (sched_get_return_code != 0) {
+		printf("sched_getaffinity failed\n");
+		return PITRACE_ERROR;
+	}
+	/* switch & read cycles      */
 
-    CPU_ZERO(&new_mask);
-    CPU_SET(cpu, &new_mask);
-
+	CPU_ZERO(&new_mask);
+	CPU_SET(cpu, &new_mask);
 
 //#ifdef _NEW_GLIBC
-    int sched_set_return_code = sched_setaffinity(0, sizeof(cpu_set_t), &new_mask);
+	int sched_set_return_code = sched_setaffinity(0, sizeof(cpu_set_t),
+			&new_mask);
 //#else
 //    int sched_set_return_code = sched_setaffinity(0, &new_mask);
 //#endif
 
+	if (sched_set_return_code != 0) {
+		printf("sched_setaffinity failed\n");
+		return PITRACE_ERROR;
+	}
 
-    if (sched_set_return_code != 0)
-    {
-        printf("sched_setaffinity failed\n");
-        return PITRACE_ERROR;
-    }
+	sleep(0);
 
-    sleep(0);
+	mycycles = getPlatformCycles();
 
-    mycycles = getPlatformCycles();
-
-    /* restore previous mask */
+	/* restore previous mask */
 
 //#ifdef _NEW_GLIBC
-    int sched_reset_return_code = sched_setaffinity(0, sizeof(cpu_set_t), &prev_mask);
+	int sched_reset_return_code = sched_setaffinity(0, sizeof(cpu_set_t),
+			&prev_mask);
 //#else
 //    int sched_reset_return_code = sched_setaffinity(0, &prev_mask);
 //#endif
 
-    if (sched_reset_return_code != 0)
-    {
-        printf("sched_setaffinity failed\n");
-        return PITRACE_ERROR ;
-    }
+	if (sched_reset_return_code != 0) {
+		printf("sched_setaffinity failed\n");
+		return PITRACE_ERROR;
+	}
 
-    sleep(0);
+	sleep(0);
 
-    return mycycles;
+	return mycycles;
 }
 #endif
 
 /*
-  _GetCycles()
-  **************
-  This is an architecture specific routine.
-*/
-uint64_t getPlatformCycles(void)
-{
-    union rdval time;
+ _GetCycles()
+ **************
+ This is an architecture specific routine.
+ */
+uint64_t getPlatformCycles(void) {
+	union rdval time;
 #ifdef CONFIG_IA64
-    int result = 0;
+	int result = 0;
 #endif
 
 #if defined(_WINDOWS)
-   // return rdtsc();
+	return rdtsc();
 #endif
 
 #if defined (_SOLARIS)
-    int result = 0;
+	int result = 0;
 #endif
 
 #if defined (_HPIA)
-    int result = 0;
+	int result = 0;
 #endif
 
 #if defined (_HPRISC)
-    int result = 0;
+	int result = 0;
 #endif
 
 #if defined(_LINUX) && !defined(_PPC) && !defined(_S390)
-    uint32_t lo, hi;
-    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
-    return(uint64_t)hi << 32 | lo;
+	uint32_t lo, hi;
+	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+	return (uint64_t) hi << 32 | lo;
 #endif
 
 #if defined(CONFIG_S390) || defined(CONFIG_S390X) || defined(_S390)
-    __asm__ __volatile__("la     1,%0\n stck    0(1)":"=m"(time.cval)
-                         ::"cc", "1");
+	__asm__ __volatile__("la     1,%0\n stck    0(1)":"=m"(time.cval)
+			::"cc", "1");
 #endif
 
 #if defined(_PPC) || defined(CONFIG_PPC64) || defined (_AIX)
-    uint32_t temp1 = 1;
+	uint32_t temp1 = 1;
 
-    time.sval.hval = 2;
-    while (temp1 != time.sval.hval)
-    {
-        __asm__ __volatile__("mftbu %0":"=r"(temp1));
-        __asm__ __volatile__("mftb  %0":"=r"(time.sval.lval));
-        __asm__ __volatile__("mftbu %0":"=r"(time.sval.hval));
-    }
+	time.sval.hval = 2;
+	while (temp1 != time.sval.hval)
+	{
+		__asm__ __volatile__("mftbu %0":"=r"(temp1));
+		__asm__ __volatile__("mftb  %0":"=r"(time.sval.lval));
+		__asm__ __volatile__("mftbu %0":"=r"(time.sval.hval));
+	}
 #endif
 
 #ifdef CONFIG_IA64
-    __asm__ __volatile__("mov %0=ar.itc":"=r"(time.cval)::"memory");
+	__asm__ __volatile__("mov %0=ar.itc":"=r"(time.cval)::"memory");
 #ifdef CONFIG_ITANIUM
-    while (__builtin_expect((__s32) result == -1, 0))
-        __asm__ __volatile__("mov %0=ar.itc":"=r"(time.cval)::"memory");
+	while (__builtin_expect((__s32) result == -1, 0))
+	__asm__ __volatile__("mov %0=ar.itc":"=r"(time.cval)::"memory");
 #endif
 #endif
-    return time.cval;
+	return time.cval;
 }
 
 /******************************/
-void getCycles(uint64_t * t)
-{
-    *t = getPlatformCycles();
+void getCycles(uint64_t * t) {
+	*t = getPlatformCycles();
 }
 
-int qcmp_jlm(const void * p1, const void * p2)
-{
-    jdata_t * r;
-    jdata_t * s;
+int qcmp_jlm(const void * p1, const void * p2) {
+	jdata_t * r;
+	jdata_t * s;
 
-    r = *(jdata_t **)p1;
-    s = *(jdata_t **)p2;
+	r = *(jdata_t **) p1;
+	s = *(jdata_t **) p2;
 
-    if (r->gets > s->gets)
-    {
-        return -1;
-    }
-    if (r->gets < s->gets)
-    {
-        return 1;
-    }
+	if (r->gets > s->gets) {
+		return -1;
+	}
+	if (r->gets < s->gets) {
+		return 1;
+	}
 
-    return 0;
+	return 0;
 }
 
 /*******************************
  * MEMORY MANAGEMENT FUNCTIONS *
  *******************************/
 
-unsigned char* hc_alloc(int size)
-{
-    jvmtiError rc;
-    void* buffer = NULL;
-
-    //jvmFunctions tdpp = ibmras::monitoring::plugins::jni::getTDPP();
-
-    rc = (jvmF->pti)->Allocate(size, (unsigned char**)&buffer);
-    if (rc != JVMTI_ERROR_NONE)
-    {
-    	//fprintf(stderr,"OutOfMem : hc_alloc failed to allocate %d bytes.", size);
-        return NULL ;
-    } else
-    {
-    	//fprintf(stderr,"hc_alloc: allocated %d bytes at %p", size, buffer);
-        memset(buffer, 0, size);
-        return (unsigned char*)buffer;
-    }
-
+unsigned char* hc_alloc(int size) {
+	return ibmras::common::memory::allocate(size);
 }
 
-void hc_dealloc(unsigned char** buffer)
-{
-    jvmtiError rc;
-    jvmFunctions* tdpp = ibmras::monitoring::plugins::jni::getTDPP();
-
-    if (*buffer == NULL)
-    {
-        //fprintf(stderr,"hc_dealloc buffer == NULL");
-        return;
-    }
-    rc = (tdpp->pti)->Deallocate( *buffer);
-    if (rc != JVMTI_ERROR_NONE)
-    {
-        //fprintf(stderr,"hc_dealloc failed to deallocate. rc=%d", rc);
-    } else
-    {
-        *buffer = NULL;
-    }
+void hc_dealloc(unsigned char** buffer) {
+	ibmras::common::memory::deallocate(buffer);
 }
 
 /**********
  * utility function to free pointers in an array that have been malloced
  **********/
 void dealloc_report_lines(char *lines[], int count) {
-    int i;
-    //IBMRAS_DEBUG(debug,  "> dealloc_report_lines");
+	int i;
+	//IBMRAS_DEBUG(debug,  "> dealloc_report_lines");
 
-    if (lines != NULL)
-    {
-        /* Need to free the memory for our array */
-        for (i=0; i<count; i++)
-        {
-            hc_dealloc((unsigned char**)&lines[i]);
-        }
-    }
-    //IBMRAS_DEBUG(debug,  "< dealloc_report_lines");
+	if (lines != NULL) {
+		/* Need to free the memory for our array */
+		for (i = 0; i < count; i++) {
+			hc_dealloc((unsigned char**) &lines[i]);
+		}
+	}
+	//IBMRAS_DEBUG(debug,  "< dealloc_report_lines");
 }
 
 /* Our own function to perform realloc of memory via jvmti and check return */
-void* hc_realloc_ptr_array(char** source[], int currentSize, int newSize)
-{
-    char** buffer = NULL;
-    int i;
+void* hc_realloc_ptr_array(char** source[], int currentSize, int newSize) {
+	char** buffer = NULL;
+	int i;
 
-    if (currentSize >= newSize)
-    {
-        return *source;
-    }
+	if (currentSize >= newSize) {
+		return *source;
+	}
 
-    buffer = (char**)hc_alloc(newSize * sizeof(char*));
-    if (buffer != NULL)
-    {
-        for (i=0; i < currentSize; i++)
-        {
-            buffer[i] = (*source)[i];
-        }
-    }
-    hc_dealloc((unsigned char**)source);
-    *source = buffer;
-    return buffer;
+	buffer = (char**) hc_alloc(newSize * sizeof(char*));
+	if (buffer != NULL) {
+		for (i = 0; i < currentSize; i++) {
+			buffer[i] = (*source)[i];
+		}
+	}
+	hc_dealloc((unsigned char**) source);
+	*source = buffer;
+	return buffer;
 }
 
 /*********************************
  * STRING MANIPULATION FUNCTIONS *
  *********************************/
 
-void force2Native(const char * str)
-{
-    const char *p = str;
+void force2Native(const char * str) {
+	const char *p = str;
 
-    if ( NULL != str )
-    {
-        while ( 0 != *p )
-        {
-            if ( 0 != ( 0x80 & *p ) )
-            {
-                p = NULL;
-                break;
-            }
-            p++;
-        }
+	if (NULL != str) {
+		while (0 != *p) {
+			if (0 != (0x80 & *p)) {
+				p = NULL;
+				break;
+			}
+			p++;
+		}
 #ifdef _ZOS
-        if ( NULL != p )
-        {
-            __atoe( (char *)str);
-        }
+		if ( NULL != p )
+		{
+			__atoe( (char *)str);
+		}
 #endif
-    }
+	}
 }
 
 /******************************
  * returns a valid string (might be "NULL")
  * or an actual NULL if out of memory
  */
-char * dupJavaStr(const char * jnm)
-{
-    char* cp = NULL;
-    if ( NULL != jnm )
-    {
-        cp = (char*)ibmras::monitoring::plugins::jni::hc_alloc(strlen(jnm) + 1);
-        if ( NULL == cp )
-        {
-            return NULL;
-        } else
-        {
-            /* jnm is valid, so is cp */
-            strcpy(cp,jnm);
-            force2Native(cp);
-        }
-    } else
-    {
-        /* malloc enough space for the word null */
-        cp = (char*)ibmras::monitoring::plugins::jni::hc_alloc(sizeof(char)*4 + 1);
-        if ( NULL == cp )
-        {
-            return NULL;
-        }
-        strcpy(cp, "NULL");
-    }
-    return cp;
+char * dupJavaStr(const char * jnm) {
+	char* cp = NULL;
+	if (NULL != jnm) {
+		cp = (char*) ibmras::monitoring::plugins::jni::hc_alloc(
+				strlen(jnm) + 1);
+		if (NULL == cp) {
+			return NULL;
+		} else {
+			/* jnm is valid, so is cp */
+			strcpy(cp, jnm);
+			force2Native(cp);
+		}
+	} else {
+		/* malloc enough space for the word null */
+		cp = (char*) ibmras::monitoring::plugins::jni::hc_alloc(
+				sizeof(char) * 4 + 1);
+		if (NULL == cp) {
+			return NULL;
+		}
+		strcpy(cp, "NULL");
+	}
+	return cp;
 }
-
-
 
 /************
  * Function to join an array of strings                            *
  * this function allocates memory that must be freed by the caller *
  ************/
-char* join_strings(char *strings[], int count)
-{
-    char* str = NULL;             /* Pointer to the joined strings  */
-    size_t total_length = 0;      /* Total length of joined strings */
-    size_t length = 0;            /* Length of a string             */
-    int i = 0;                    /* Loop counter                   */
+char* join_strings(char *strings[], int count) {
+	char* str = NULL; /* Pointer to the joined strings  */
+	size_t total_length = 0; /* Total length of joined strings */
+	size_t length = 0; /* Length of a string             */
+	int i = 0; /* Loop counter                   */
 
-    /* Find total length of joined strings */
-    for (i = 0 ; i<count ; i++)
-    {
-        if (strings[i] != NULL)
-        {
-            total_length += strlen(strings[i]);
-        }
-    }
-    ++total_length;     /* For joined string terminator */
+	/* Find total length of joined strings */
+	for (i = 0; i < count; i++) {
+		if (strings[i] != NULL) {
+			total_length += strlen(strings[i]);
+		}
+	}
+	++total_length; /* For joined string terminator */
 
-    str = (char*)ibmras::monitoring::plugins::jni::hc_alloc(total_length);  /* Allocate memory for joined strings */
-    if (NULL == str)
-    {
-        return NULL;
-    }
-    str[0] = '\0';                      /* Empty string we can append to      */
+	str = (char*) ibmras::monitoring::plugins::jni::hc_alloc(total_length); /* Allocate memory for joined strings */
+	if (NULL == str) {
+		return NULL;
+	}
+	str[0] = '\0'; /* Empty string we can append to      */
 
-    /* Append all the strings */
-    for (i = 0 ; i<count ; i++)
-    {
-        if (strings[i] != NULL)
-        {
-            strcat(str, strings[i]);
-            length = strlen(str);
-        }
-    }
+	/* Append all the strings */
+	for (i = 0; i < count; i++) {
+		if (strings[i] != NULL) {
+			strcat(str, strings[i]);
+			length = strlen(str);
+		}
+	}
 
-    return str;
+	return str;
 }
-
-void native2Java(char * str)
-{
-#ifdef _ZOS
-    if ( NULL != str )
-    {
-        __etoa(str);
-    }
-#endif
-}
-
 
 
 }

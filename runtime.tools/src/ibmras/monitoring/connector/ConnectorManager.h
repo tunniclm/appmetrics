@@ -38,8 +38,9 @@ public:
 	void removeAllReceivers();
 
 	int sendMessage(const std::string &sourceId, uint32 size, void *data);
+	void receiveMessage(const std::string &id, uint32 size, void *data);
 
-	virtual void receiveMessage(const std::string &id, uint32 size, void *data);
+	void processMessage(const std::string &id, uint32 size, void *data);
 
 	int start();
 	int stop();
@@ -74,6 +75,7 @@ private:
 	std::set<Receiver*> receivers;
 
 	void processReceivedMessages();
+	void processReceivedMessage(const ReceivedMessage &msg);
 	static void* processThread(ibmras::common::port::ThreadData *td);
 };
 }

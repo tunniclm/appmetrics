@@ -1,4 +1,4 @@
- /**
+/**
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
@@ -8,7 +8,6 @@
  * been deposited with the U.S. Copyright Office.
  */
 
-
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -17,6 +16,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <errno.h>
+
+#include <string.h>
 
 #if defined(WINDOWS)
 #include <sys/stat.h>
@@ -35,6 +36,7 @@
 #include "ibmras/monitoring/connector/headless/HLConnector.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/port/Process.h"
 
@@ -64,8 +66,7 @@ HLConnector* HLConnector::getInstance() {
 }
 
 HLConnector::HLConnector(JavaVM* theVM) :
-		enabled(false), running(false), filesInitialized(false), vm(theVM), env(
-				NULL), zipJNIclazz(NULL), zipClazzObject(NULL), zipMethod(NULL), seqNumber(
+		enabled(false), running(false), filesInitialized(false), vm(theVM), seqNumber(
 				1), lastPacked(0), times_run(0), startDelay(0) {
 
 	number_runs = 0;
@@ -95,6 +96,7 @@ int HLConnector::start() {
 		collect = false;
 		return 0;
 	}
+
 	std::string delay = agent->getAgentProperty("headless.delay.start");
 	if (delay.length()) {
 		startDelay = atoi(delay.c_str());
@@ -103,29 +105,44 @@ int HLConnector::start() {
 	std::string ulString = agent->getAgentProperty("headless.files.max.size");
 	if (ulString.length()) {
 		upper_limit = atoi(ulString.c_str());
-	}IBMRAS_DEBUG_1(debug, "upper_limit = %d", upper_limit);IBMRAS_DEBUG_1(debug, "User upper_limit = %d", ulString.c_str());
+	}
+
+	IBMRAS_DEBUG_1(debug, "upper_limit = %d", upper_limit);
+
 
 	std::string fkString = agent->getAgentProperty("headless.files.to.keep");
 	if (fkString.length()) {
 		files_to_keep = atoi(fkString.c_str());
-	}IBMRAS_DEBUG_1(debug, "files_to_keep = %d", files_to_keep);IBMRAS_DEBUG_1(debug, "User files_to_keep = %s", fkString.c_str());
+	}
+
+	IBMRAS_DEBUG_1(debug, "files_to_keep = %d", files_to_keep);
+
 
 	std::string rdString = agent->getAgentProperty("headless.run.duration");
 	if (rdString.length()) {
 		run_duration = atoi(rdString.c_str());
-	}IBMRAS_DEBUG_1(debug, "run_duration = %d", run_duration);IBMRAS_DEBUG_1(debug, "User run_duration = %d", rdString.c_str());
+	}
+
+	IBMRAS_DEBUG_1(debug, "run_duration = %d", run_duration);
+
 
 	std::string rpString = agent->getAgentProperty(
 			"headless.run.pause.duration");
 	if (rpString.length()) {
 		run_pause = atoi(rpString.c_str());
-	}IBMRAS_DEBUG_1(debug, "run_pause = %d", run_pause);IBMRAS_DEBUG_1(debug, "User run_pause = %d", rpString.c_str());
+	}
+
+	IBMRAS_DEBUG_1(debug, "run_pause = %d", run_pause);
+
 
 	std::string nrString = agent->getAgentProperty(
 			"headless.run.number.of.runs");
 	if (nrString.length()) {
 		number_runs = atoi(nrString.c_str());
-	}IBMRAS_DEBUG_1(debug, "number_runs = %d", number_runs);IBMRAS_DEBUG_1(debug, "User number_runs = %d", nrString.c_str());
+	}
+
+	IBMRAS_DEBUG_1(debug, "number_runs = %d", number_runs);
+
 
 	time(&startTime);
 	lastPacked = startTime;
@@ -152,10 +169,12 @@ int HLConnector::start() {
 	} else {
 		userDefinedPath = outputDir;
 		if (!createDirectory(userDefinedPath)) {
-			IBMRAS_DEBUG(warning, "The directory could not be created, using default path");
+			IBMRAS_DEBUG_1(warning, "The directory %s could not be created, using default path", outputDir.c_str());
 			userDefinedPath = defaultPath;
 		}
-	}IBMRAS_DEBUG_1(debug, "Path = %s", userDefinedPath.c_str());
+	}
+
+	IBMRAS_DEBUG_1(debug, "Path = %s", userDefinedPath.c_str());
 
 	//The temporary files will be written at a temporary directory under the user defined path
 	//(or the current directory if the one requested by user could not be created.)
@@ -171,7 +190,9 @@ int HLConnector::start() {
 	} else {
 		IBMRAS_DEBUG_1(debug, "Prefix = %s", filePrefix.c_str());
 		userDefinedPrefix = filePrefix;
-	}IBMRAS_DEBUG_1(debug, "Prefix = %s", userDefinedPrefix.c_str());
+	}
+
+	IBMRAS_DEBUG_1(debug, "Prefix = %s", userDefinedPrefix.c_str());
 
 	/***
 	 * First we create a vector<string> which will contain the IDs of the datasources,
@@ -188,129 +209,7 @@ int HLConnector::start() {
 		return -1;
 	}
 
-	/***
-	 * If we are running Java we will have to pass the parameters using JNI,
-	 * to do so we will create a UTF8-String array and pass it to create
-	 * an object of the java class used to compress and archive the files.
-	 * This parameter is the list of files that will have to be compressed.
-	 * The Java class has a member-method to compress and pack each of
-	 * the files in a zip archive whose name is provided as argument of the
-	 * mentioned method.
-	 */
 
-	JavaVMAttachArgs threadArgs;
-
-	memset(&threadArgs, 0, sizeof(threadArgs));
-	threadArgs.version = JNI_VERSION_1_6;
-	threadArgs.name = (char *) "HLCThread";
-	threadArgs.group = NULL;
-
-	IBMRAS_DEBUG(debug, "Attaching to thread");
-	jint result =
-			vm ? vm->AttachCurrentThread((void**) &env, (void*) &threadArgs) : -1;
-	if (JNI_OK != result) {
-		IBMRAS_DEBUG(warning, "Cannot set environment");IBMRAS_DEBUG(debug, "<<HLConector [NOATTACH]");
-		return -1;
-	}IBMRAS_DEBUG(info, "Environment set");
-
-	/***
-	 * We will create the String[] now. Creating an object array with NewObjectArray requires us to
-	 * provide the specific class from which the instances are created.
-	 */
-	jint size = createdFiles.size();
-	jint i = 0;
-	IBMRAS_DEBUG(debug, "Discovering String class");
-	jclass javaStringClazz = env->FindClass("java/lang/String");
-	if (env->ExceptionOccurred()) {
-		IBMRAS_DEBUG(warning, "Failed to find java/lang/String");
-		env->ExceptionDescribe();
-		//clear the exception if we are not handling it in Java
-		env->ExceptionClear();
-
-		return -1;
-	}
-
-	if (!javaStringClazz) {
-		IBMRAS_DEBUG(warning, "Failed to find java/lang/String");
-		return -1;
-	}IBMRAS_DEBUG(debug, "String class found");
-
-	jobjectArray fileNames = env->NewObjectArray(size, javaStringClazz, 0);
-
-	/***
-	 * Here the string array is populated with the values
-	 */
-	jstring currentFileName;
-
-	for (std::map<std::string, std::string>::iterator it = expandedIDs.begin();
-			it != expandedIDs.end(); ++it) {
-
-		currentFileName = env->NewStringUTF((it->second).c_str());
-		if (env->ExceptionOccurred()) {
-			IBMRAS_DEBUG(warning, "Failed to create UTF string");
-			env->ExceptionDescribe();
-			//clear the exception if we are not handling it in Java
-			env->ExceptionClear();
-
-			return -1;
-		}
-
-		env->SetObjectArrayElement(fileNames, i, currentFileName);
-		if (env->ExceptionCheck()) {
-			IBMRAS_DEBUG_1(warning, "Failed to set object %d in array fileNames", i);
-			env->ExceptionDescribe();
-			//clear the exception if we are not handling it in Java
-			env->ExceptionClear();
-
-			return -1;
-		}
-		i++;
-	}IBMRAS_DEBUG(debug, "jobjectArray created succesfully");
-
-	/***
-	 * Finally, the object that will zip the files is instantiated here.
-	 */
-
-	IBMRAS_DEBUG(debug, "Discovering HeadlessZipUtils class");
-	jclass localzipJNIclazz =
-			env->FindClass(
-					"com/ibm/java/diagnostics/healthcenter/agent/utils/HeadlessZipUtils");
-	zipJNIclazz = reinterpret_cast<jclass>(env->NewGlobalRef(localzipJNIclazz));
-	env->DeleteLocalRef(localzipJNIclazz);
-	if (env->ExceptionOccurred()) {
-		IBMRAS_DEBUG(warning, "Failed to find HeadlessZipUtils");
-		env->ExceptionDescribe();
-		//clear the exception if we are not handling it in Java
-		env->ExceptionClear();
-		return -1;
-	}
-
-	IBMRAS_DEBUG(debug, "Getting ID of HeadlessZipUtils constructor");
-	jmethodID constructor = env->GetMethodID(zipJNIclazz, "<init>",
-			"([Ljava/lang/String;)V");
-	if (!constructor) {
-		IBMRAS_DEBUG(warning, "Failed to get constructor method ID");
-		return -1;
-	}
-
-	IBMRAS_DEBUG(debug, "Creating HLZiputils instance");
-	jobject localzipClazzObject = env->NewObject(zipJNIclazz, constructor,
-			fileNames);
-	zipClazzObject = reinterpret_cast<jobject>(env->NewGlobalRef(
-			localzipClazzObject));
-	env->DeleteLocalRef(localzipClazzObject);
-	if (!zipClazzObject) {
-		IBMRAS_DEBUG(warning, "Failed to instantiate HeadlessZipUtils class");
-		return -1;
-	}
-
-	IBMRAS_DEBUG(debug, "Discovering zip method");
-	zipMethod = env->GetMethodID(zipJNIclazz, "packFiles",
-			"(Ljava/lang/String;)V");
-	if (!zipMethod) {
-		IBMRAS_DEBUG(warning, "Failed to find zip mehtod");
-		return -1;
-	}
 
 	std::stringstream ss;
 	ss << userDefinedPath;
@@ -319,6 +218,7 @@ int HLConnector::start() {
 		ss << userDefinedPrefix;
 		ss << "_";
 	}
+
 	ss << "healthcenter";
 	ss << startDate;
 	ss << ibmras::common::port::getProcessId() << "_";
@@ -351,6 +251,15 @@ void HLConnector::createFile(const std::string &fileName) {
 	createdFiles[fullPath] = file;
 	expandedIDs[fileName] = fullPath;
 	IBMRAS_DEBUG(debug, "<<<HLConnector::createFile()");
+}
+
+uint32 HLConnector::sleep(uint32 seconds) {
+	uint32 count = seconds;
+	while (running && count > 0) {
+		ibmras::common::port::sleep(1);
+		count --;
+	}
+	return count;
 }
 
 bool HLConnector::createDirectory(std::string& path) {
@@ -407,6 +316,9 @@ bool HLConnector::createDirectory(std::string& path) {
 				created = true;
 			}
 		}
+
+	}else if(FILE_ATTRIBUTE_DIRECTORY == dirAttr) {
+		created = true;
 	}
 
 #else
@@ -445,7 +357,7 @@ int HLConnector::stop() {
 		return 0;
 	}
 
-	if(collect) {
+	if (collect) {
 		IBMRAS_DEBUG(debug, "Packing files at stop");
 		lockAndPackFiles();
 	} else {
@@ -543,9 +455,6 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 						if (persistentData != NULL && size > 0) {
 							currentSource->write(persistentData,
 									persistentDataSize);
-							if (persistentData) {
-								delete[] persistentData;
-							}
 						} else {
 							break;
 						}
@@ -563,6 +472,7 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 	}IBMRAS_DEBUG(debug, "<<<HLConnector::sendMessage()");
 	return 0;
 }
+
 void HLConnector::lockAndPackFiles() {
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
@@ -572,98 +482,157 @@ void HLConnector::lockAndPackFiles() {
 	}
 }
 
-int HLConnector::packFiles() {
-	IBMRAS_DEBUG(debug, ">>>HLConnector::packFiles()");
+bool HLConnector::jniPackFiles() {
 
-	filesInitialized = false;
-	std::stringstream ss;
-
-	ss << hcdName;
-	ss << seqNumber;
-	ss << ".hcd";
-
-	std::string hcdFileName = ss.str();
-	IBMRAS_LOG_1(info, "Creating hcd import file %s", hcdFileName.c_str());
-
-	IBMRAS_DEBUG_1(debug, "User defined path is %s", userDefinedPath.c_str());
-
-	IBMRAS_DEBUG_1(debug, "The full path to the .hcd file is: %s", hcdFileName.c_str());
-
-	jstring hcdJavaFileName;
+	bool packed = false;
 
 	JavaVMAttachArgs threadArgs;
 
 	memset(&threadArgs, 0, sizeof(threadArgs));
 	threadArgs.version = JNI_VERSION_1_6;
-	threadArgs.name = (char *) "HLCThread";
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+	threadArgs.name = (char *) "Health Center (headless)";
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	threadArgs.group = NULL;
 
+	JNIEnv *env;
 	jint result =
 			vm ? vm->AttachCurrentThread((void**) &env, (void*) &threadArgs) : -1;
 	if (JNI_OK != result) {
 		IBMRAS_DEBUG(warning, "Cannot set environment");
-		return -1;
-
+		return false;
 	}
 
+	std::stringstream ss;
+	ss << hcdName;
+	ss << seqNumber;
+	ss << ".hcd";
+
+	std::string hcdFileName = ss.str();
 	IBMRAS_DEBUG(debug, "Creating hcd name jstring");
-	hcdJavaFileName = env->NewStringUTF(hcdFileName.c_str());
+
+#if defined(_ZOS)
+	char* hcdNm = ibmras::common::util::createAsciiString(hcdFileName.c_str());
+	char* pthNm = ibmras::common::util::createAsciiString(tmpPath.c_str());
+#else
+	const char* hcdNm = hcdFileName.c_str();
+	const char* pthNm = tmpPath.c_str();
+#endif
+
+	jstring hcdJavaFileName = env->NewStringUTF(hcdNm);
+	jstring folderToZip = env->NewStringUTF(pthNm);
+
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&hcdNm);
+	ibmras::common::memory::deallocate((unsigned char**)&pthNm);
+#endif
 
 	IBMRAS_DEBUG(debug, "Closing files");
 	for (std::map<std::string, std::fstream*>::iterator it =
 			createdFiles.begin(); it != createdFiles.end(); it++) {
 
-		if((it->second)->is_open()) {
+		if ((it->second)->is_open()) {
 			(it->second)->close();
 		}
 	}
 
-	IBMRAS_DEBUG(debug, "Calling zipping method");
-	env->CallVoidMethod(zipClazzObject, zipMethod, hcdJavaFileName);
+	IBMRAS_DEBUG(debug, "Discovering HeadlessZipUtils class");
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+	jclass zipJNIclazz =
+			env->FindClass(
+					"com/ibm/java/diagnostics/healthcenter/agent/utils/HeadlessZipUtils");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	if (env->ExceptionOccurred()) {
-		IBMRAS_DEBUG(warning, "Failed to call packfiles method");
+		IBMRAS_DEBUG(warning, "Failed to find HeadlessZipUtils");
 		env->ExceptionDescribe();
 		//clear the exception if we are not handling it in Java
 		env->ExceptionClear();
-		return -1;
 	} else {
-		std::fstream* hcdZipStream = new std::fstream(hcdFileName.c_str());
-		hcdZipStream->close();
+
+		IBMRAS_DEBUG(debug, "Discovering zip method");
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+		jmethodID zipMethod = env->GetStaticMethodID(zipJNIclazz, "packFiles",
+				"(Ljava/lang/String;Ljava/lang/String;)V");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+		if (!zipMethod) {
+			IBMRAS_DEBUG(warning, "Failed to find zip method");
+		} else {
+			IBMRAS_DEBUG(debug, "Calling zipping method");
+			env->CallStaticVoidMethod(zipJNIclazz, zipMethod, folderToZip, hcdJavaFileName);
+			if (env->ExceptionOccurred()) {
+				IBMRAS_DEBUG(warning, "Failed to call packfiles method");
+				env->ExceptionDescribe();
+				//clear the exception if we are not handling it in Java
+				env->ExceptionClear();
+			} else {
+				packed = true;
+				IBMRAS_LOG_1(info, "Creating hcd import file %s", hcdFileName.c_str());
+			}
+		}
 	}
 
-	IBMRAS_DEBUG_2(debug, "files to keep = %d, seqNumber = %d", files_to_keep, seqNumber);
-	if (files_to_keep && (seqNumber - files_to_keep) > 0) {
-		std::stringstream hcdRemoveName;
-		hcdRemoveName << hcdName << (seqNumber - files_to_keep);
-		hcdRemoveName << ".hcd";
+	env->DeleteLocalRef(hcdJavaFileName);
+	env->DeleteLocalRef(folderToZip);
 
-		std::fstream* hcdStream = new std::fstream(hcdRemoveName.str().c_str());
+	vm->DetachCurrentThread();
 
-		if (hcdStream->good())
-			hcdStream->close();
+	return packed;
+}
 
-		if (remove(hcdRemoveName.str().c_str())) {
-			IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
-			seqNumber++;
+int HLConnector::packFiles() {
+	IBMRAS_DEBUG(debug, ">>>HLConnector::packFiles()");
+
+	filesInitialized = false;
+
+	if (jniPackFiles()) {
+		IBMRAS_DEBUG_2(debug, "files to keep = %d, seqNumber = %d", files_to_keep, seqNumber);
+		if (files_to_keep && (seqNumber - files_to_keep) > 0) {
+			std::stringstream hcdRemoveName;
+			hcdRemoveName << hcdName << (seqNumber - files_to_keep);
+			hcdRemoveName << ".hcd";
+
+			std::fstream* hcdStream = new std::fstream(
+					hcdRemoveName.str().c_str());
+
+			if (hcdStream->good())
+				hcdStream->close();
+
+			if (remove(hcdRemoveName.str().c_str())) {
+				IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
+			}
+
 			delete hcdStream;
-			return -1;
+
 		}
 
-		delete hcdStream;
+		IBMRAS_DEBUG(debug, "Removing files");
+		for (std::map<std::string, std::fstream*>::iterator it =
+				createdFiles.begin(); it != createdFiles.end(); it++) {
+			if (remove(it->first.c_str())) {
+			}
+		}
+
+		seqNumber++;
 
 	}
 
-	IBMRAS_DEBUG(debug, "Removing files");
-	for (std::map<std::string, std::fstream*>::iterator it =
-			createdFiles.begin(); it != createdFiles.end(); it++) {
-		if (remove(it->first.c_str())) {
-		}
-	}
-
-	seqNumber++;
 	IBMRAS_DEBUG(debug, "<<<HLConnector::packFiles()");
 	return 0;
 }
+
+
 
 void HLConnector::processLoop() {
 	IBMRAS_DEBUG(debug, ">> processLoop");
@@ -671,7 +640,7 @@ void HLConnector::processLoop() {
 		IBMRAS_LOG_1(info,
 				"Headless data collection starting with delay of %d minutes",
 				startDelay);
-		ibmras::common::port::sleep(startDelay * 60);
+		sleep(startDelay * 60);
 	}
 	IBMRAS_LOG(info, "Headless data collection has started");
 	if (run_duration) {
@@ -698,28 +667,34 @@ void HLConnector::processLoop() {
 			if (times_run < number_runs) {
 				collect = true;
 				IBMRAS_DEBUG_2(debug, "We've run %d times and have to run %d in total", times_run, number_runs);
-				ibmras::common::port::sleep(run_duration * 60);
+				sleep(run_duration * 60);
 				times_run++;
 				if (running) {
 					lockAndPackFiles();
 				}
 			}
-			collect = false;
-			IBMRAS_DEBUG_1(warning, "Not producing HCDs for %d minutes", run_pause);
-			ibmras::common::port::sleep(run_pause * 60);
+			if (run_pause > 0) {
+				collect = false;
+				IBMRAS_DEBUG_1(warning, "Not producing HCDs for %d minutes", run_pause);
+				sleep(run_pause * 60);
+			}
+
 
 		}
 	} else if (run_duration || run_pause) {
 		while (running) {
 			collect = true;
 			IBMRAS_DEBUG_1(debug, "Produce HCDs for %d minutes", run_duration);
-			ibmras::common::port::sleep(run_duration * 60);
+			sleep(run_duration * 60);
 			if (running) {
 				lockAndPackFiles();
 			}
-			collect = false;
-			IBMRAS_DEBUG_1(warning, "Rest for %d minutes", run_pause);
-			ibmras::common::port::sleep(run_pause * 60);
+
+			if (run_pause > 0) {
+				collect = false;
+				IBMRAS_DEBUG_1(warning, "Rest for %d minutes", run_pause);
+				sleep(run_pause * 60);
+			}
 		}
 	}
 

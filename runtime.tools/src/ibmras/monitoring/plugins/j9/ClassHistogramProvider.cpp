@@ -21,6 +21,7 @@
 #include "jvmti.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
 
 #include "ibmras/monitoring/agent/Agent.h"
 #include <iostream>
@@ -75,7 +76,20 @@ PUSH_CALLBACK sendClassHistogramData;
 uint32 ClassHistogramProvider::providerID = 0;
 IBMRAS_DEFINE_LOGGER("ClassHistogram");
 
+void publishConfig() {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
+	ibmras::monitoring::connector::ConnectorManager *conMan =
+			agent->getConnectionManager();
+
+	std::string msg = "capability.class.histogram=on";
+	conMan->sendMessage("configuration/classhistogram", msg.length(),
+			(void*) msg.c_str());
+}
+
 int startReceiver() {
+	publishConfig();
 	return 0;
 }
 
@@ -134,14 +148,14 @@ void* ClassHistogramProvider::getInstance() {
 
 void ClassHistogramProvider::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
-	// Send the initial empty dictionary
 	if (id == "classhistogram") {
-		std::string data = createHistogramReport();
-		monitordata *mdata = generateData(0, data.c_str(),
-				data.length());
-
 		if (!ibmras::monitoring::agent::Agent::getInstance()->readOnly()) {
+			std::string data = createHistogramReport();
+			char* dataToSend = ibmras::common::util::createAsciiString(data.c_str());
+			monitordata *mdata = generateData(0, dataToSend, data.length());
 			sendClassHistogramData(mdata);
+			ibmras::common::memory::deallocate((unsigned char**)&dataToSend);
+			delete mdata;
 		}
 	}
 }
@@ -154,10 +168,11 @@ monitordata* ClassHistogramProvider::generateData(uint32 sourceID,
 	monitordata* data = new monitordata;
 	data->provID = ClassHistogramProvider::providerID;
 	data->data = dataToSend;
+
 	if (data->data == NULL) {
 		data->size = 0;
 	} else {
-		data->size = strlen(data->data);
+		data->size = size;
 	}
 	data->sourceID = sourceID;
 	data->persistent = false;
@@ -176,7 +191,6 @@ std::string ClassHistogramProvider::createHistogramReport()
     int i;
     const char* repfmt = "@@chd@@,%s,"JLONG_FMT_STR","JLONG_FMT_STR"\n";
     char** classNameArray = NULL;
-    char ** classHistLineArray = NULL;
 
 	JNIEnv * env;
 	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);
@@ -201,11 +215,6 @@ std::string ClassHistogramProvider::createHistogramReport()
 
     classCounts = (jlong*)hc_alloc(count * sizeof(jlong));
     if(NULL == classCounts) {
-    	goto cleanup;
-    }
-
-    classHistLineArray = (char**)hc_alloc((count+1) * sizeof(char*));
-    if(NULL == classHistLineArray) {
     	goto cleanup;
     }
 
@@ -234,7 +243,7 @@ std::string ClassHistogramProvider::createHistogramReport()
 	    }
 
         strcpy(classNameArray[i],signature);
-        //force2Native(classNameArray[i]);
+        ibmras::common::util::force2Native(classNameArray[i]);
 
         if (signature)
         {
@@ -244,6 +253,7 @@ std::string ClassHistogramProvider::createHistogramReport()
         {
             hc_dealloc((unsigned char**)&generic);
         }
+        env->DeleteLocalRef(classes[i]);
     }
 
     /* This returns the JVMTI_ERROR_UNATTACHED_THREAD */
@@ -254,23 +264,13 @@ std::string ClassHistogramProvider::createHistogramReport()
     	IBMRAS_DEBUG_1(debug, "problem iterating over heap, error %d\n",rc);
         goto cleanup;
     }
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif
+
     sprintf(buffer,"heapused,%d\n", heapUsed);
-#if defined(_ZOS)
-#pragma convlit(resume)
-#endif
     report << buffer;
     for (i=0; i < count; i++)
     {
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif
         sprintf(buffer,repfmt,classNameArray[i], classSizes[i], classCounts[i]);
-#if defined(_ZOS)
-#pragma convlit(resume)
-#endif
+        hc_dealloc((unsigned char**)&classNameArray[i]);
         report << buffer;
     }
 
@@ -297,7 +297,6 @@ cleanup:
     hc_dealloc((unsigned char**)&classCounts);
     hc_dealloc((unsigned char**)&classSizes);
     hc_dealloc((unsigned char**)&classNameArray);
-    hc_dealloc((unsigned char**)&classHistLineArray);
 
     std::stringstream reportdata;
 
@@ -309,69 +308,14 @@ cleanup:
 
 unsigned char* ClassHistogramProvider::hc_alloc(int size)
 {
-    jvmtiError rc;
-    unsigned char* buffer = NULL;
-
-    rc = vmFunctions.pti->Allocate(size, (unsigned char**)&buffer);
-    if (rc != JVMTI_ERROR_NONE)
-    {
-    	IBMRAS_DEBUG_1(debug, "OutOfMem : hc_alloc failed to allocate %d bytes.", size);
-        return NULL ;
-    } else
-    {
-//    	IBMRAS_DEBUG_2(fine, "hc_alloc: allocated %d bytes at %p", size, buffer);
-        memset(buffer, 0, size);
-        return buffer;
-    }
+	return ibmras::common::memory::allocate(size);
 }
 
-/********************************************************************************/
-/* Our own function to perform dealloction of memory via jvmti and check return */
 
 void ClassHistogramProvider::hc_dealloc(unsigned char** buffer)
 {
-    jvmtiError rc;
-
-    if (*buffer == NULL)
-    {
-    	IBMRAS_DEBUG(fine, "hc_dealloc called with null pointer");
-        return;
-    }
-    rc = vmFunctions.pti->Deallocate(*buffer);
-    if (rc != JVMTI_ERROR_NONE)
-    {
-        IBMRAS_DEBUG_1(debug, "hc_dealloc failed to deallocate. rc=%d", rc);
-    } else
-    {
-        *buffer = NULL;
-    }
+	ibmras::common::memory::deallocate(buffer);
 }
-
-/******************************/
-//void
-//ClassHistogramProvider::force2Native(char * str)
-//{
-//    char *p = str;
-//
-//    if ( NULL != str )
-//    {
-//        while ( 0 != *p )
-//        {
-//            if ( 0 != ( 0x80 & *p ) )
-//            {
-//                p = NULL;
-//                break;
-//            }
-//            p++;
-//        }
-//#ifdef _ZOS
-//        if ( NULL != p )
-//        {
-//            __atoe(str);
-//        }
-//#endif
-//    }
-//}
 
 
 }

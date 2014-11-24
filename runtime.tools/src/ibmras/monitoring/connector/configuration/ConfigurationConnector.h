@@ -15,6 +15,7 @@
 
 #include "ibmras/monitoring/connector/Connector.h"
 #include "ibmras/common/Properties.h"
+#include "ibmras/common/port/Lock.h"
 
 namespace ibmras {
 namespace monitoring {
@@ -34,6 +35,7 @@ public:
 	}
 private:
 	ibmras::common::Properties config;
+	ibmras::common::port::Lock configLock;
 
 };
 

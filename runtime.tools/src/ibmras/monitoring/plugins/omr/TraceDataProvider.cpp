@@ -120,8 +120,15 @@ int Tracestart() {
 	 * that this is a header record */
 	char METADATA_EYE_CATCHER[] = { 'H', 'C', 'T', 'H' };
 
+	const char *opts[] = { "maximal", "{omrmm,omrti}", NULL };
+
 	if (OMR_ERROR_NONE == rc) {
 		rc = vmData.omrti->BindCurrentThread(vmData.theVm, "HC Tracestart", &vmThread);
+	}
+
+	/* just enable Health Center tracepoints */
+	if (OMR_ERROR_NONE == rc) {
+		vmData.omrti->SetTraceOptions(vmThread,opts);
 	}
 
 	/* get the trace header data from the vm */

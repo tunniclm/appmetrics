@@ -1,4 +1,4 @@
- /**
+/**
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
@@ -7,7 +7,6 @@
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
  */
-
 
 #include "ibmras/monitoring/connector/ConnectorManager.h"
 #include "ibmras/common/logging.h"
@@ -51,10 +50,30 @@ void ConnectorManager::removeAllReceivers() {
 
 void ConnectorManager::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
-	if (running && !receiveLock.acquire()) {
+	if (running && !receiveLock.acquire() && !receiveLock.isDestroyed()) {
 		ReceivedMessage msg(id, size, data);
 		receiveQueue.push(msg);
 		receiveLock.release();
+	}
+}
+
+void ConnectorManager::processMessage(const std::string &id, uint32 size,
+		void *data) {
+	ReceivedMessage msg(id, size, data);
+	if (!receiveLock.acquire() && !receiveLock.isDestroyed()) {
+		processReceivedMessage(msg);
+		receiveLock.release();
+	}
+}
+
+void ConnectorManager::processReceivedMessage(const ReceivedMessage& msg) {
+	for (std::set<Receiver*>::iterator it = receivers.begin();
+			it != receivers.end(); ++it) {
+		if (*it) {
+			(*it)->receiveMessage(msg.getId(),
+					msg.getMessage().size(),
+					(void*) msg.getMessage().c_str());
+		}
 	}
 }
 
@@ -70,20 +89,13 @@ void* ConnectorManager::processThread(ibmras::common::port::ThreadData *td) {
 void ConnectorManager::processReceivedMessages() {
 	while (running) {
 
-		while (!receiveQueue.empty()) {
-			if (!receiveLock.acquire()) {
+		if (!receiveLock.acquire() && !receiveLock.isDestroyed()) {
+			while (!receiveQueue.empty()) {
 				ReceivedMessage msg = receiveQueue.front();
 				receiveQueue.pop();
-				receiveLock.release();
-				for (std::set<Receiver*>::iterator it = receivers.begin();
-						it != receivers.end(); ++it) {
-					if (*it) {
-						(*it)->receiveMessage(msg.getId(),
-								msg.getMessage().size(),
-								(void*) msg.getMessage().c_str());
-					}
-				}
+				processReceivedMessage(msg);
 			}
+			receiveLock.release();
 		}
 		ibmras::common::port::sleep(1);
 	}

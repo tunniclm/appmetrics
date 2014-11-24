@@ -23,6 +23,7 @@ namespace locking {
 
 class JLAPullSource : public PullSource {
 public:
+	JLAPullSource(uint32 id);
 	pullsource* getDescriptor();
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env);

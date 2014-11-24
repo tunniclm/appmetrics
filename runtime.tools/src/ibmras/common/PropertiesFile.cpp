@@ -39,6 +39,7 @@ int PropertiesFile::load(const std::string &inputFile) {
 		}
 	}
 
+	return 0;
 }
 
 

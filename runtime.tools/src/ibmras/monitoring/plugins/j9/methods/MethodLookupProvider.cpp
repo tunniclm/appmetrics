@@ -12,10 +12,9 @@
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/monitoring/plugins/j9/methods/MethodLookupProvider.h"
 #include "ibmjvmti.h"
-#include "jni.h"
-#include "jvmti.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
 
 #include <iostream>
 #include <sstream>
@@ -37,7 +36,8 @@ IBMRAS_DEFINE_LOGGER("methodlookup")
 MethodLookupProvider* MethodLookupProvider::instance = NULL;
 
 MethodLookupProvider::MethodLookupProvider(jvmFunctions functions) :
-		providerID(0), sendHeader(true), initialHeaderSent(false) {
+		providerID(0), sendHeader(true), initialHeaderSent(false), env(NULL), getAllMethods(
+				false) {
 	vmFunctions = functions;
 	name = "Method Lookup";
 	pull = registerPullSource;
@@ -57,7 +57,7 @@ pullsource* MethodLookupProvider::registerPullSource(uint32 provID) {
 	src->header.description =
 			"Method lookup data which maps hex value to method data";
 	src->header.sourceID = 0;
-	src->header.capacity = 1048576; /* 1MB bucket capacity */
+	src->header.capacity = 1024*1024; /* 1MB bucket capacity */
 
 	src->callback = getData;
 	src->complete = complete;
@@ -85,24 +85,24 @@ void* MethodLookupProvider::getReceiver() {
 void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
 
-	if (!methodSetLock.acquire() && !methodSetLock.isDestroyed()) {
+	IBMRAS_DEBUG(debug, "processing received message");
+	if (id == "methoddictionary") {
+		if (size == 0 || data == NULL) {
+			sendHeader = true;
+		} else {
+			std::string message((const char*) data, size);
+			std::size_t found = message.find(',');
+			if (found != std::string::npos) {
+				std::string command = message.substr(0, found);
+				std::string rest = message.substr(found + 1);
+				std::vector<std::string> parameters =
+						ibmras::common::util::split(rest, ',');
 
-		IBMRAS_DEBUG(debug, "receiveMessage got lock");
+				if (parameters.size() > 0) {
+					if (!methodSetLock.acquire()
+							&& !methodSetLock.isDestroyed()) {
 
-		IBMRAS_DEBUG(debug, "processing received message");
-		if (id == "methoddictionary") {
-			if (size == 0 || data == NULL) {
-				sendHeader = true;
-			} else {
-				std::string message((const char*) data, size);
-				std::size_t found = message.find(',');
-				if (found != std::string::npos) {
-					std::string command = message.substr(0, found);
-					std::string rest = message.substr(found + 1);
-					std::vector<std::string> parameters =
-							ibmras::common::util::split(rest, ',');
-
-					if (parameters.size() > 0) {
+						IBMRAS_DEBUG(debug, "receiveMessage got lock");
 
 						char * pEnd;
 						for (std::vector<std::string>::iterator it =
@@ -111,17 +111,16 @@ void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 							methodsToLookup.insert(
 									(void*) strtol((*it).c_str(), &pEnd, 16));
 						}
-					} else {
-						sendHeader = true;
-					}
+					}IBMRAS_DEBUG(debug, "receiveMessage releasing lock");
+					methodSetLock.release();
+					IBMRAS_DEBUG(debug, "receiveMessage lock released");
+				} else {
+					sendHeader = true;
 				}
 			}
-		} else if (id == "headless") {
-			getAllMethodIDs();
 		}
-		IBMRAS_DEBUG(debug, "receiveMessage releasing lock");
-		methodSetLock.release();
-		IBMRAS_DEBUG(debug, "receiveMessage lock released");
+	} else if (id == "headless") {
+		getAllMethods = true;
 	}
 
 }
@@ -129,47 +128,48 @@ void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 void MethodLookupProvider::getAllMethodIDs() {
 
 	IBMRAS_DEBUG(debug, "in getAllMethodIDs");
-	if (!vmFunctions.getJ9method) {
+	if (!vmFunctions.getJ9method || !env) {
 		return;
 	}
-
-	JNIEnv *env;
-	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);
 
 	jclass *classes = NULL;
 	jint count = 0;
 	jvmtiError err = vmFunctions.pti->GetLoadedClasses(&count, &classes);
+	if (JVMTI_ERROR_NONE != err) {
+		IBMRAS_LOG_1(warning, "GetLoadedClasses failed. JVMTI Error %d", err);
+	} else {
 
-	for (int i = 0; i < count; i++) {
-		jint methodcount;
+		for (int i = 0; i < count; i++) {
+			jint methodcount = 0;
 
-		jmethodID *mids = NULL;
-		err = vmFunctions.pti->GetClassMethods(classes[i], &methodcount, &mids);
+			jmethodID *mids = NULL;
+			err = vmFunctions.pti->GetClassMethods(classes[i], &methodcount,
+					&mids);
 
-		if (err == JVMTI_ERROR_NONE) {
-			jmethodID *midPtr = mids;
+			if (err == JVMTI_ERROR_NONE) {
+				jmethodID *midPtr = mids;
 
-			for (int j = 0; j < methodcount; j++) {
-				/* Convert the object pointer to a j9methodPtr as that */
-				/* is what health center uses to lookup missing method names */
+				for (int j = 0; j < methodcount; j++) {
+					/* Convert the object pointer to a j9methodPtr as that */
+					/* is what health center uses to lookup missing method names */
 
-				void *j9method_ptr;
-				err = vmFunctions.getJ9method(vmFunctions.pti, *midPtr,
-						&j9method_ptr);
-				if (err == JVMTI_ERROR_NONE) {
-					methodsToLookup.insert(j9method_ptr);
-				} else {
-					IBMRAS_DEBUG(fine, "getJ9method failed");
+					void *j9method_ptr;
+					err = vmFunctions.getJ9method(vmFunctions.pti, *midPtr,
+							&j9method_ptr);
+					if (err == JVMTI_ERROR_NONE) {
+						methodsToLookup.insert(j9method_ptr);
+					} else {
+						IBMRAS_DEBUG(fine, "getJ9method failed");
+					}
+					midPtr++;
 				}
-				midPtr++;
 			}
-			env->DeleteLocalRef(classes[i]);
-		}
-		hc_dealloc((unsigned char**) &mids);
-	}
 
+			env->DeleteLocalRef(classes[i]);
+			hc_dealloc((unsigned char**) &mids);
+		}
+	}
 	hc_dealloc((unsigned char**) &classes);
-	vmFunctions.theVM->DetachCurrentThread();
 }
 
 monitordata* MethodLookupProvider::getData() {
@@ -178,7 +178,7 @@ monitordata* MethodLookupProvider::getData() {
 
 monitordata* MethodLookupProvider::getMethodData() {
 	IBMRAS_DEBUG(debug, "in getMethodData");
-	JNIEnv *env;
+
 	void *ramMethods = NULL;
 	void **ramMethodsPtr = NULL;
 	void *descriptorBuffer = NULL;
@@ -194,18 +194,46 @@ monitordata* MethodLookupProvider::getMethodData() {
 			IBMRAS_DEBUG(debug, "Sending persistent header");
 			std::string mdheader = ss.str();
 			initialHeaderSent = true;
-			return generateData(0, mdheader.c_str(), mdheader.size(), true );
+			return generateData(0, mdheader.c_str(), mdheader.size(), true);
 		}
 	}
 
+	if (!env) {
+		JavaVMAttachArgs threadArgs;
 
-	vmFunctions.theVM->AttachCurrentThread((void **) &env, NULL);
+		memset(&threadArgs, 0, sizeof(threadArgs));
+		threadArgs.version = JNI_VERSION_1_6;
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+		threadArgs.name = "Health Center (methoddictionary)";
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+		threadArgs.group = NULL;
+		jint errcode = vmFunctions.theVM->AttachCurrentThreadAsDaemon(
+				(void **) &env, &threadArgs);
+		if (errcode != JNI_OK) {
+			return NULL;
+		}
+	}
+
 	if (!methodSetLock.acquire() && !methodSetLock.isDestroyed()) {
 
 		IBMRAS_DEBUG(debug, "getMethodData got lock");
+
+		if (getAllMethods) {
+			getAllMethods = false;
+			getAllMethodIDs();
+		}
+
 		int numberOfMethods = methodsToLookup.size();
 
 		IBMRAS_DEBUG_1(debug, "%d methods to lookup", numberOfMethods);
+		if (numberOfMethods > 3000) {
+			IBMRAS_DEBUG(debug, "capping methods to lookup at 3000");
+			numberOfMethods = 3000;
+		}
 
 		if (vmFunctions.jvmtiGetMethodAndClassNames != 0
 				&& numberOfMethods > 0) {
@@ -228,11 +256,14 @@ monitordata* MethodLookupProvider::getMethodData() {
 			int i = 0;
 			for (std::set<void*>::iterator it = methodsToLookup.begin();
 					it != methodsToLookup.end(); ++it) {
+
+				if (i >= numberOfMethods) {
+					break;
+				}
+
 				ramMethodsPtr[i] = (*it);
 				i++;
 			}
-
-			methodsToLookup.clear();
 
 			/**
 			 * Queries the VM for the method and class names for one or more method identifiers. The results
@@ -274,7 +305,7 @@ monitordata* MethodLookupProvider::getMethodData() {
 			 */
 			int stringBytesLength = 200000;
 
-			stringBytes = hc_alloc(sizeof(char) * stringBytesLength);
+			stringBytes = hc_alloc(stringBytesLength);
 			if (stringBytes == NULL) {
 				goto cleanup;
 			};
@@ -286,8 +317,7 @@ monitordata* MethodLookupProvider::getMethodData() {
 				jvmtiExtensionRamMethodData * descriptors =
 						(jvmtiExtensionRamMethodData *) descriptorBuffer;
 
-				int j = 0;
-				for (int k = 0; k < numberOfMethods; k++) {
+				for (int j = 0; j < numberOfMethods; j++) {
 					if (descriptors[j].reasonCode == JVMTI_ERROR_NONE) {
 
 						std::stringstream ss2;
@@ -296,14 +326,30 @@ monitordata* MethodLookupProvider::getMethodData() {
 						if (ibmras::common::util::startsWith(method, "0x")) {
 							method = method.substr(2);
 						}
-						ss << method << "=" << (char*) descriptors[j].className
-								<< "." << (char*) descriptors[j].methodName
-								<< "\n";
+
+#if defined(_ZOS)
+						char* cls = ibmras::common::util::createNativeString((char*) descriptors[j].className);
+						char* mthd = ibmras::common::util::createNativeString((char*) descriptors[j].methodName);
+#else
+						const char* cls = (char*) descriptors[j].className;
+						const char* mthd = (char*) descriptors[j].methodName;
+#endif
+
+						if (cls && mthd) {
+							ss << method << "=" << cls << "." << mthd << "\n";
+						}
+
+#if defined(_ZOS)
+						ibmras::common::memory::deallocate((unsigned char**)&cls);
+						ibmras::common::memory::deallocate((unsigned char**)&mthd);
+#endif
+						// the method was successfully looked up so remove from list
+						methodsToLookup.erase(ramMethodsPtr[j]);
 					} else if (descriptors[j].reasonCode
-							== JVMTI_ERROR_OUT_OF_MEMORY) {
-						methodsToLookup.insert(ramMethodsPtr[j]);
+							== JVMTI_ERROR_INVALID_METHODID) {
+						// the method was invalid so remove from list
+						methodsToLookup.erase(ramMethodsPtr[j]);
 					}
-					j++;
 				}
 
 			}
@@ -315,30 +361,34 @@ monitordata* MethodLookupProvider::getMethodData() {
 	IBMRAS_DEBUG(debug, "getMethodData releasing lock");
 	methodSetLock.release();
 
-
 	IBMRAS_DEBUG(debug, "getMethodData lock released");
 
 	hc_dealloc((unsigned char**) &stringBytes);
 	hc_dealloc((unsigned char**) &ramMethods);
 	hc_dealloc((unsigned char**) &descriptorBuffer);
 
-	vmFunctions.theVM->DetachCurrentThread();
-
 	monitordata *mdata = NULL;
 	std::string datastring = ss.str();
 	if (datastring.length() > 0) {
 		mdata = generateData(0, datastring.c_str(), datastring.length(), false);
-		IBMRAS_DEBUG_2(debug, " provider %d size %d", mdata->provID, mdata->size);
+		IBMRAS_DEBUG_1(debug, "MethodLookup returning size %d", mdata->size);
 	}
 	return mdata;
 }
 
 void MethodLookupProvider::complete(monitordata *mdata) {
 	IBMRAS_DEBUG(debug, "complete")
-	if (mdata->data) {
-		delete mdata->data;
+	if (mdata) {
+		if (mdata->data) {
+			instance->hc_dealloc((unsigned char**) &mdata->data);
+		}
+		delete mdata;
+	} else {
+		if (instance->env) {
+			instance->vmFunctions.theVM->DetachCurrentThread();
+			instance->env = NULL;
+		}
 	}
-	delete mdata;
 }
 
 monitordata* MethodLookupProvider::generateData(uint32 sourceID,
@@ -346,13 +396,15 @@ monitordata* MethodLookupProvider::generateData(uint32 sourceID,
 	monitordata* data = new monitordata;
 	data->provID = providerID;
 	if (dataToSend && size > 0) {
-		char *buffer = new char[size];
-		memcpy(buffer, dataToSend, size);
-	data->data = buffer;
+		data->data = ibmras::common::util::createAsciiString(dataToSend);
 	} else {
 		data->data = NULL;
 	}
-	data->size = size;
+	if (data->data == NULL) {
+		data->size = 0;
+	} else {
+		data->size = size;
+	}
 	data->sourceID = sourceID;
 	data->persistent = persistentData;
 	return data;
@@ -363,33 +415,11 @@ monitordata* MethodLookupProvider::generateData(uint32 sourceID,
  *******************************/
 
 unsigned char* MethodLookupProvider::hc_alloc(int size) {
-	jvmtiError rc;
-	void* buffer = NULL;
-	rc = (vmFunctions.pti)->Allocate(size, (unsigned char**) &buffer);
-	if (rc != JVMTI_ERROR_NONE) {
-		//fprintf(stderr,"OutOfMem : hc_alloc failed to allocate %d bytes.", size);
-		return NULL;
-	} else {
-		//fprintf(stderr,"hc_alloc: allocated %d bytes at %p", size, buffer);
-		memset(buffer, 0, size);
-		return (unsigned char*) buffer;
-	}
-
+	return ibmras::common::memory::allocate(size);
 }
 
 void MethodLookupProvider::hc_dealloc(unsigned char** buffer) {
-	jvmtiError rc;
-
-	if (*buffer == NULL) {
-		//fprintf(stderr,"hc_dealloc buffer == NULL");
-		return;
-	}
-	rc = (vmFunctions.pti)->Deallocate(*buffer);
-	if (rc != JVMTI_ERROR_NONE) {
-		//fprintf(stderr,"hc_dealloc failed to deallocate. rc=%d", rc);
-	} else {
-		*buffer = NULL;
-	}
+	ibmras::common::memory::deallocate(buffer);
 }
 
 }

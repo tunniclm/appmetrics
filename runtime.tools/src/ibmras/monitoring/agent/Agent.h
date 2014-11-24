@@ -17,7 +17,6 @@
 #include "ibmras/monitoring/agent/DataSourceList.h"
 #include "ibmras/monitoring/connector/Connector.h"
 #include "ibmras/monitoring/agent/BucketList.h"
-#include "ibmras/monitoring/agent/BucketDataQueueEntry.h"
 #include "ibmras/monitoring/connector/ConnectorManager.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/common/Logger.h"
@@ -61,7 +60,8 @@ public:
 
 	void publish();							/* publish messages to connectors */
 	void republish(const std::string &prefix); /* republish history */
-	void immediateUpdate(); /* Signal immediate update from pulssources */
+	void immediateUpdate(); /* Signal immediate update from pullsources */
+
 	void threadStop();						/* fired when an agent processing thread stops */
 	void setLogOutput(ibmras::common::LOCAL_LOGGER_CALLBACK func);
 	void setLogLevels();

@@ -20,58 +20,71 @@ namespace threads {
 
 extern IBMRAS_DECLARE_LOGGER;
 
-void* WorkerThread::threadEntry(ibmras::common::port::ThreadData* data) {
-	((WorkerThread*) data->getArgs())->osentry(data);
-	return NULL;
+
+WorkerThread::WorkerThread(pullsource* pullSource) : semaphore(0, 1), data(threadEntry), countdown(0) {
+	source = pullSource;
+	running = false;
+	stopped = true;
+	data.setArgs(this);
 }
 
-void WorkerThread::start(ibmras::common::port::Semaphore* semaphore) {
-	IBMRAS_DEBUG(fine, "Starting worker thread");
-	busy = false;
+
+void WorkerThread::start() {
+	IBMRAS_DEBUG_1(fine, "Starting worker thread for %s", source->header.name);
 	running = true;
-	this->semaphore = semaphore;
-	acquired = false;
-	data = new ibmras::common::port::ThreadData(WorkerThread::threadEntry);
-	data->setArgs(this);
-	ibmras::common::port::createThread(data);
-}
-
-void* WorkerThread::osentry(ibmras::common::port::ThreadData* args) {
-	IBMRAS_DEBUG_1(finest, "Worker thread 0x%p started by OS", this);
-	Agent* agent = Agent::getInstance();
-	while (running) {
-		acquired = semaphore->wait(1); /* wait for 1 second for semaphore */
-		if (acquired && running) {
-			IBMRAS_DEBUG_1(fine, "Pulling data from source (tid = 0x%p)", this);
-			monitordata* data = source->getData();
-			if (data != NULL) {
-				if (data->size > 0) {
-					IBMRAS_DEBUG_1(finest, "%d bytes of data pulled from source", data->size);
-					agent->addData(data); /* put pulled data on queue for processing */
-				}
-				source->complete(data);
-			}
-			busy = false; /* thread no longer busy */
-			source->setQueued(false); /* pull source no longer queued */
-			source->reset();
-			IBMRAS_DEBUG_1(fine, "Worker thread 0x%p available", this);
-		}
-	}
-	return NULL;
+	stopped = false;
+	ibmras::common::port::createThread(&data);
 }
 
 void WorkerThread::stop() {
 	running = false;
+	semaphore.inc();
+	IBMRAS_DEBUG_1(debug, "Worker thread for %s stopped", source->header.name)
 }
 
-void WorkerThread::setSource(PullSourceCounter* source) {
-	busy = true;
-	this->source = source;
+
+void* WorkerThread::threadEntry(ibmras::common::port::ThreadData* data) {
+	((WorkerThread*) data->getArgs())->processLoop();
+	ibmras::common::port::exitThread(NULL);
+	return NULL;
 }
 
-bool WorkerThread::isBusy() {
-	return busy;
+void WorkerThread::process(bool immediate) {
+	if ((immediate && countdown > 120) || (countdown == 0)) {
+		semaphore.inc();
+		countdown = source->pullInterval;
+	} else {
+		countdown--;
+	}
 }
+
+bool WorkerThread::isStopped() {
+	return stopped;
+}
+
+void* WorkerThread::processLoop() {
+	IBMRAS_DEBUG_1(finest, "Worker thread started for %s", source->header.name);
+	Agent* agent = Agent::getInstance();
+	while (running) {
+		if (semaphore.wait(1) && running) {
+			IBMRAS_DEBUG_1(fine, "Pulling data from source %s", source->header.name);
+			monitordata* data = source->callback();
+			if (data != NULL) {
+				if (data->size > 0) {
+					IBMRAS_DEBUG_2(finest, "%d bytes of data pulled from source %s", data->size, source->header.name);
+					agent->addData(data); /* put pulled data on queue for processing */
+				}
+				source->complete(data);
+			}
+		}
+	}
+
+	source->complete(NULL);
+	stopped = true;
+	IBMRAS_DEBUG_1(finest, "Worker thread for %s exiting process loop", source->header.name);
+	return NULL;
+}
+
 
 }
 }

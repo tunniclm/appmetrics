@@ -43,7 +43,6 @@ public:
 private:
 	uint32 provid;
 	bool running;
-	uint32 pullCount;
 	JMXPullSource** pullsources;
 };
 

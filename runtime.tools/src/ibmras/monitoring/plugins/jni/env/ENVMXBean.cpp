@@ -19,6 +19,7 @@
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/plugins/j9/Util.h"
 #include "ibmras/common/port/Process.h"
+#include "ibmras/common/MemoryManager.h"
 
 using namespace ibmras::monitoring::plugins::jni;
 
@@ -35,15 +36,22 @@ const std::string reportDumpOptions(jvmFunctions* tdpp);
 
 ENVPullSource* src = NULL;
 
-PullSource* getENVPullSource(){
+PullSource* getENVPullSource(uint32 id){
 	if(!src) {
-		src = new ENVPullSource;
+		src = new ENVPullSource(id);
 	}
 	return src;
 }
 
 monitordata* callback() {
-	return src->PullSource::generateData();
+	return src->generateData();
+}
+
+ void complete(monitordata *mdata) {
+	src->pullComplete(mdata);
+}
+
+ENVPullSource::ENVPullSource(uint32 id) : PullSource(id, "Health Center (environment)"){
 }
 
 void ENVPullSource::publishConfig() {
@@ -71,7 +79,7 @@ pullsource* ENVPullSource::getDescriptor() {
 	src->header.capacity = 32 * 1024;
 	src->next = NULL;
 	src->callback = callback;
-	src->complete = ibmras::monitoring::plugins::jni::complete;
+	src->complete = complete;
 	src->pullInterval = 1200;
 
 	return src;
@@ -84,12 +92,26 @@ monitordata* ENVPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 	data->persistent = false;
 	data->provID = getProvID();
 	data->sourceID = ENV;
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	std::string cp = getString(env, "com/ibm/java/diagnostics/healthcenter/agent/dataproviders/environment/EnvironmentDataProvider", "getJMXData", "()Ljava/lang/String;");
-	std::stringstream ss;
-	ss << cp;
-	ss<<"\n";
+#if defined(_ZOS)
+#pragma convert(pop)
+	char* envString = ibmras::common::util::createNativeString(cp.c_str());
+#else
+	const char* envString = cp.c_str();
+#endif
 
+	std::stringstream ss;
+
+	if (envString) {
+		ss << envString;
+		ss<<"\n";
+	}
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&envString);
+#endif
 
 	ss << "native.library.date=" << ibmras::monitoring::agent::Agent::getBuildDate() << "\n";
 	ss << "pid=" << ibmras::common::port::getProcessId() << "\n";
@@ -100,12 +122,12 @@ monitordata* ENVPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 	std::string envdata = ss.str();
 	jsize len = envdata.length();
 
-	char* sval = reinterpret_cast<char*>(hc_alloc(len+1));
-	if(sval) {
-		strcpy(sval,envdata.c_str());
-		IBMRAS_DEBUG_1(debug, "Showing first 100 characters of environment: %.100s",sval);
-		data->size = len;
-		data->data = sval;
+	char* asciiEnv = ibmras::common::util::createAsciiString(envdata.c_str());
+
+	if(asciiEnv) {
+		IBMRAS_DEBUG_1(debug, "Showing first 100 characters of environment: %.100s",envdata.c_str());
+		data->size = strlen(asciiEnv);
+		data->data = asciiEnv;
 	} else {
 		data->size = 0;
 		data->data = NULL;

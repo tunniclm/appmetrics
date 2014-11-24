@@ -1,4 +1,4 @@
- /**
+/**
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
@@ -56,15 +56,19 @@ char* monitor_dump_event(JNIEnv *env);
 JLAPullSource* src = NULL;
 bool enabled = true;
 
-PullSource* getJLAPullSource() {
+PullSource* getJLAPullSource(uint32 id) {
 	if (!src) {
-		src = new JLAPullSource;
+		src = new JLAPullSource(id);
 	}
 	return src;
 }
 
 monitordata* callback() {
-	return src->PullSource::generateData();
+	return src->generateData();
+}
+
+void complete(monitordata *mdata) {
+	src->pullComplete(mdata);
 }
 
 bool JLAPullSource::isEnabled() {
@@ -73,8 +77,12 @@ bool JLAPullSource::isEnabled() {
 
 void JLAPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
-	// publish config when state changes
-	getJLAPullSource()->publishConfig();
+	if (src) {
+		src->publishConfig();
+	}
+}
+
+JLAPullSource::JLAPullSource(uint32 id) :PullSource(id, "Health Center (locking)") {
 }
 
 void JLAPullSource::publishConfig() {
@@ -108,7 +116,7 @@ pullsource* JLAPullSource::getDescriptor() {
 	src->header.capacity = 256 * 1024;
 	src->next = NULL;
 	src->callback = callback;
-	src->complete = ibmras::monitoring::plugins::jni::complete;
+	src->complete = complete;
 	src->pullInterval = 120;
 
 	return src;
@@ -149,16 +157,15 @@ monitordata* JLAPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 
 		ss << value;
 
-		hc_dealloc(reinterpret_cast<unsigned char**>(&value));
+		ibmras::monitoring::plugins::jni::hc_dealloc(reinterpret_cast<unsigned char**>(&value));
 
 		std::string lockingdata = ss.str();
 
 		int len = lockingdata.length();
 
-		char* sval = reinterpret_cast<char*>(hc_alloc(len + 1));
+		char* sval = ibmras::common::util::createAsciiString(lockingdata.c_str());
 
 		if (sval) {
-			strcpy(sval, lockingdata.c_str());
 			data->size = len;
 			data->data = sval;
 		}
@@ -217,7 +224,7 @@ char* monitor_dump_event(JNIEnv *env) {
 	const char* systemMon = "systemMonitor";
 	const char* reportEnd = "reportcomplete";
 
-	jdata_t * jp;
+	jdata_t * jp = NULL;
 
 	int JMONMAX;
 	int SMONMAX;
@@ -288,9 +295,6 @@ char* monitor_dump_event(JNIEnv *env) {
 	tm_delta = tm_curr - tm_stt;
 
 	/* output interval time */
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif
 	sprintf(buffer, "IntervalTime, %" _P64 "d,", tm_delta);
 	reportLineArray[reportLineCount] =
 			reinterpret_cast<char*>(ibmras::monitoring::plugins::jni::hc_alloc(
@@ -485,7 +489,6 @@ char* monitor_dump_event(JNIEnv *env) {
 	finalReport = ibmras::monitoring::plugins::jni::join_strings(
 			reportLineArray, reportLineCount);
 	if (finalReport != NULL) {
-		ibmras::monitoring::plugins::jni::native2Java(finalReport);
 		goto returnReport;
 	}
 
@@ -494,7 +497,6 @@ char* monitor_dump_event(JNIEnv *env) {
 	ibmras::monitoring::plugins::jni::hc_dealloc(
 			(unsigned char**) &finalReport);
 	/* returnReport - returns a report to be deallocated by the caller */
-
 
 	returnReport:
 
@@ -527,13 +529,10 @@ char* monitor_dump_event(JNIEnv *env) {
 	ibmras::monitoring::plugins::jni::hc_dealloc(
 			(unsigned char**) &reportLineArray);
 
-	ibmras::monitoring::plugins::jni::hc_dealloc((unsigned char**) &jp->mnm);
 	IBMRAS_DEBUG(debug, "< monitor_dump_event");
 	return finalReport;
 }
-#if defined(_ZOS)
-#pragma convlit(resume)
-#endif
+
 } /* end namespace locking */
 } /* end namespace jni */
 } /* end namespace plugins */

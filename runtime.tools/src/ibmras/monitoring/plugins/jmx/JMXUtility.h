@@ -30,11 +30,11 @@ namespace jmx {
 extern IBMRAS_DECLARE_LOGGER;
 
 namespace os {
-	JMXPullSource* getOSPullSource();		/* forward declaration of OS bean provider */
+	JMXPullSource* getOSPullSource(uint32 id);		/* forward declaration of OS bean provider */
 }
 
 namespace rt {
-	JMXPullSource* getRTPullSource();		/* forward declaration of RT bean provider */
+	JMXPullSource* getRTPullSource(uint32 id);		/* forward declaration of RT bean provider */
 }
 
 

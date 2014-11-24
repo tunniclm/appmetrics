@@ -15,7 +15,7 @@
 #include <string>
 
 #include "ibmras/common/LogManager.h"
-#include "ibmras/common/Memory.h"
+
 
 #if defined(_WINDOWS)
 #define VPRINT vsprintf_s
@@ -50,7 +50,8 @@ void LogManager::processMsg(const std::string &msg) {
 		if (localLogFunc) {
 			localLogFunc(msg);
 		} else {
-			std::cerr << msg;
+			std::cerr << msg << '\n';
+			std::cerr.flush();
 		}
 		return;
 	}

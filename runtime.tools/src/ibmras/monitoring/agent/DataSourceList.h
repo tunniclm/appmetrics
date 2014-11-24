@@ -83,7 +83,7 @@ template <class T>
 std::string DataSourceList<T>::toString() {
 	DataSource<T> *src = head;
 	std::stringstream str;
-	str << "Data source list : size = " << common::itoa(getSize()) << std::endl;
+	str << "Data source list : size = " << common::itoa(getSize()) << '\n';
 	while(src) {
 		str << src->toString();
 		src = src->next;

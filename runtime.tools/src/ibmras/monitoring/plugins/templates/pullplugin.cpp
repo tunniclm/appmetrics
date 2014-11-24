@@ -73,11 +73,12 @@ monitordata* pulltemplate::pullCallback() {
 
 
 void pulltemplate::pullComplete(monitordata* data) {
-	/**
-	 * This method is a callback "destructor" for the resources acquired by the class
-	 */
-	delete data->data;
-	delete data;
+	if (data != NULL) {
+		if (data->data != NULL) {
+			delete[] data->data;
+		}
+		delete data;
+	}
 }
 
 pullsource* createPullSource(uint32 srcid, const char* name) {

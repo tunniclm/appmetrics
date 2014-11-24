@@ -70,9 +70,9 @@ void SystemReceiver::receiveMessage(const std::string &id, uint32 size,
 
 			std::stringstream str;
 			str << ids[i];
-			str << ",";
+			str << ',';
 			str << config;
-			str << std::endl;
+			str << '\n';
 			std::string msg = str.str();
 
 			conMan->sendMessage(topic, msg.length(), (void*) msg.c_str());

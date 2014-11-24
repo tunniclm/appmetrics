@@ -16,6 +16,7 @@
 #include "jvmti.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
+#include "ibmras/common/MemoryManager.h"
 
 #include "ibmras/monitoring/agent/Agent.h"
 
@@ -99,10 +100,11 @@ void DumpHandler::triggerDumps(const std::vector<std::string> &dumpRequests) {
 			if (vmFunctions.jvmtiTriggerVmDump != 0) {
 				jvmtiError error;
 
-				char * dumpType = new char[type.length()+1];
-				strcpy(dumpType, type.c_str());
-				error = vmFunctions.jvmtiTriggerVmDump(vmFunctions.pti, dumpType);
-				delete[] dumpType;
+				char * dumpType = ibmras::common::util::createAsciiString(type.c_str());
+				if (dumpType) {
+					error = vmFunctions.jvmtiTriggerVmDump(vmFunctions.pti, dumpType);
+				}
+				ibmras::common::memory::deallocate((unsigned char**)&dumpType);
 			}
 		}
 

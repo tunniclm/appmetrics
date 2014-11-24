@@ -80,7 +80,7 @@ void launchAgent(char const *options) {
 		IBMRAS_LOG(warning, "No properties file specified");
 	} else {
 		ibmras::common::PropertiesFile props;
-		if (props.load(options)) {
+		if (!props.load(options)) {
 			agent->setProperties(props);
 		} else {
 			IBMRAS_LOG_1(warning, "Properties could not be loaded from %s", options);
@@ -90,7 +90,8 @@ void launchAgent(char const *options) {
 
 	agent->setLogLevels();
 
-	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
+	std::string agentVersion = agent->getVersion();
+	IBMRAS_LOG_1(info, "Health Center %s", agentVersion.c_str());
 
 	if (omrParams.omrti == NULL) {
 		IBMRAS_DEBUG(warning,  "omrParams.omrti is null");

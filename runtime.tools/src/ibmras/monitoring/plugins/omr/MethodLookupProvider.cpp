@@ -277,7 +277,14 @@ monitordata* MethodLookupProvider::generateData(uint32 sourceID,
 		const char *dataToSend, int size) {
 	monitordata* data = new monitordata;
 	data->provID = MethodLookupProvider::providerID;
-	data->data = dataToSend;
+	if (dataToSend && size > 0) {
+			char *buffer = new char[size];
+			memcpy(buffer, dataToSend, size);
+			ibmras::common::util::native2Ascii(buffer);
+			data->data = buffer;
+		} else {
+			data->data = NULL;
+		}
 	data->size = size;
 	data->sourceID = sourceID;
 	data->persistent = false;

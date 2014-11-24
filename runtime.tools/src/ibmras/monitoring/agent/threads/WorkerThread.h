@@ -15,7 +15,6 @@
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/common/port/Semaphore.h"
 #include "ibmras/monitoring/Monitoring.h"
-#include "ibmras/monitoring/agent/PullSourceCounter.h"
 
 namespace ibmras {
 namespace monitoring {
@@ -24,20 +23,22 @@ namespace threads {
 
 class WorkerThread {
 public:
-	void start(ibmras::common::port::Semaphore* semaphore);				/* start this worker thread taking from the queue */
+	WorkerThread(pullsource* source);
+	void start();				/* start this worker thread taking from the queue */
 	void stop();				/* stop this thread from taking any more entries */
-	void setSource(PullSourceCounter* source);	/* set the next source to pull from */
-	bool isBusy();				/* indicates if the thread is processing a request */
+
+	void process(bool immediate);
+	bool isStopped();
+
 	static void* threadEntry(ibmras::common::port::ThreadData* data);
 private:
-	void* osentry(ibmras::common::port::ThreadData* data);				/* entry function for OS to call back into */
+	void* processLoop();
 	bool running;
-	uintptr_t osthread;				/* underlying OS thread backing this worker */
-	ibmras::common::port::Semaphore* semaphore;		/* sempahore to control data processing */
-	bool acquired;					/* true if the semaphore was acquired, false if timeout */
-	PullSourceCounter* source;		/* source to pull data from */
-	ibmras::common::port::ThreadData* data;
-	bool busy;						/* indicates if a counter has been queued for processing */
+	bool stopped;
+	ibmras::common::port::Semaphore semaphore;		/* sempahore to control data processing */
+	pullsource* source;		/* source to pull data from */
+	ibmras::common::port::ThreadData data;
+	int countdown;
 };
 
 }

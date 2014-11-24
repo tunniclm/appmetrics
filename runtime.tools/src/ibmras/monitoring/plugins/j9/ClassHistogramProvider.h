@@ -29,6 +29,7 @@ public:
 	virtual ~ClassHistogramProvider();
 	int startReceiver();
 	int stopReceiver();
+	void publishConfig();
 	void receiveMessage(const std::string &id, uint32 size, void *data);
 	static pushsource* registerPushSource(void (*callback)(monitordata* data), uint32 provID);
 	static uint32 providerID;

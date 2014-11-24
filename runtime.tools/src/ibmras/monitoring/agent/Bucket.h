@@ -14,9 +14,7 @@
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/common/port/Lock.h"
 #include "ibmras/monitoring/connector/Connector.h"
-#include "ibmras/common/Memory.h"
 #include "ibmras/monitoring/Monitoring.h"
-#include "ibmras/monitoring/agent/BucketDataQueueEntry.h"
 
 namespace ibmras {
 namespace monitoring {
@@ -44,11 +42,15 @@ private:
 	 */
 	class BucketData {
 	public:
+		BucketData(monitordata* mdata);
 		virtual ~BucketData();
 		uint32 id;				/* used by clients to request ranges of data */
-		BucketDataQueueEntry* entry;	/* data on the queue */
+		bool persistentData;
+		uint32 size;				/* amount of data being provided */
+		unsigned char *data;	/* char array of the data to store */
 		BucketData* next;		/* next item in the bucket or null if this is the last item */
 	};
+
 	uint32 provID;
 	uint32 sourceID;
 	std::string uniqueID;  /*Name of the uniqueID plugin providing the name */
@@ -56,10 +58,12 @@ private:
 	BucketData* tail;		/* when items are added to the bucket they are added to the tail */
 	uint32 lastPublish;/* the last entry published */
 	uint32 capacity;		/* maximum capacity for the bucket in bytes */
+	uint32 publishSize; /* max data to send */
 	uint32 size;			/* current size of the bucket */
 	uint32 count;			/* number of items in the bucket */
 	uint32 masterID;		/* master ID for items placed in the bucket */
 	ibmras::common::port::Lock* lock;		/* lock to prevent spills whilst publishing/sending */
+
 };
 
 

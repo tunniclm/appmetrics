@@ -26,9 +26,9 @@ IBMRAS_DEFINE_LOGGER("JMXSources");
 /* need to be in own namespace so that top level callbacks work with other MX bean data providers */
 RTJMXPullSource* src = NULL;
 
-JMXPullSource* getRTPullSource() {
+JMXPullSource* getRTPullSource(uint32 id) {
 	if(!src) {
-		src = new RTJMXPullSource;
+		src = new RTJMXPullSource(id);
 	}
 	return src;
 }
@@ -37,8 +37,15 @@ monitordata* callback() {
 	return src->JMXPullSource::generateData();
 }
 
+void complete(monitordata *mdata) {
+	src->pullComplete(mdata);
+}
+
 uint32 RTJMXPullSource::getSourceID() {
 	return CPU;
+}
+
+RTJMXPullSource::RTJMXPullSource(uint32 id) : JMXPullSource(id, "Health Center (runtime)") {
 }
 
 void RTJMXPullSource::publishConfig() {
@@ -54,7 +61,7 @@ pullsource* RTJMXPullSource::getDescriptor() {
 	src->next = NULL;
 	src->callback = callback;
 	//src->complete = getCallbackComplete();
-	src->complete = ibmras::monitoring::plugins::jmx::complete;	/* use default clean up */
+	src->complete = complete;	/* use default clean up */
 	src->pullInterval = 120;
 	return src;
 }
@@ -70,7 +77,13 @@ monitordata* RTJMXPullSource::generateData(JNIEnv* env, jclass* mgtBean) {
 	jobject mgt = getMXBean(env, mgtBean, "Runtime");
 	if(mgt) {
 		IBMRAS_DEBUG(debug, "Invoking getClassPath");
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 		char* cp = getString(env, &mgt, "java/lang/management/RuntimeMXBean", "getClassPath");
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 		if(cp) {
 			data->size = strlen(cp);
 			data->data = cp;

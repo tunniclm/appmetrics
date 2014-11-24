@@ -33,7 +33,7 @@ bool BucketList::add(Bucket* bucket) {
 
 std::string BucketList::toString() {
 	std::stringstream str;
-	str << "Bucket list : start" << std::endl;
+	str << "Bucket list : start\n";
 	for (std::vector<Bucket*>::iterator i = buckets.begin(); i != buckets.end();
 			++i) {
 		str << (*i)->toString();

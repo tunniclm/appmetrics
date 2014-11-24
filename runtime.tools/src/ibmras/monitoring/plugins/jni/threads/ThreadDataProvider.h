@@ -21,6 +21,7 @@ namespace threads {
 
 class TDPullSource : public PullSource {
 public:
+	TDPullSource(uint32 id);
 	pullsource* getDescriptor();
 	uint32 getSourceID();
 	monitordata* sourceData(jvmFunctions* tdpp, JNIEnv* env);

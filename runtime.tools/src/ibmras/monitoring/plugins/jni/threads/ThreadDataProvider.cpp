@@ -27,15 +27,18 @@ namespace threads {
 TDPullSource* src = NULL;
 bool enabled = true;
 
-PullSource* getTDPullSource() {
+PullSource* getTDPullSource(uint32 id) {
 	if (!src) {
-		src = new TDPullSource;
+		src = new TDPullSource(id);
 	}
 	return src;
 }
 
 bool TDPullSource::isEnabled() {
 	return enabled;
+}
+
+TDPullSource::TDPullSource(uint32 id) : PullSource(id, "Health Center (threads)") {
 }
 
 void TDPullSource::publishConfig() {
@@ -58,11 +61,17 @@ void TDPullSource::publishConfig() {
 
 void TDPullSource::setState(const std::string &newState) {
 	enabled = ibmras::common::util::equalsIgnoreCase(newState, "on");
-	getTDPullSource()->publishConfig();
+	if (src) {
+		src->publishConfig();
+	}
 }
 
 monitordata* callback() {
-	return src->PullSource::generateData();
+	return src->generateData();
+}
+
+void complete(monitordata *mdata) {
+	src->pullComplete(mdata);
 }
 
 uint32 TDPullSource::getSourceID() {
@@ -78,7 +87,7 @@ pullsource* TDPullSource::getDescriptor() {
 	src->header.capacity = 32 * 1024;
 	src->next = NULL;
 	src->callback = callback;
-	src->complete = ibmras::monitoring::plugins::jni::complete;
+	src->complete = complete;
 	src->pullInterval = 30;
 
 	return src;
@@ -93,11 +102,16 @@ monitordata* TDPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 		data->persistent = false;
 		data->provID = getProvID();
 		data->sourceID = TD;
-
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 		std::string cp =
 				getString(env,
 						"com/ibm/java/diagnostics/healthcenter/agent/dataproviders/threads/ThreadDataProvider",
 						"getJMXData", "()Ljava/lang/String;");
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 		int len = cp.length();
 		char* sval = reinterpret_cast<char*>(hc_alloc(len + 1));
 		if (sval) {

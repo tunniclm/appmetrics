@@ -9,6 +9,7 @@
  */
 
 #include "ibmras/common/port/ThreadData.h"
+#include "ibmras/common/util/strUtils.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include <string.h>
 #include "ibmras/common/logging.h"
@@ -67,13 +68,12 @@ monitordata* NativeMemoryDataProvider::pullCallback() {
 
 
 void NativeMemoryDataProvider::pullComplete(monitordata* data) {
-	/**
-	 * This method is a callback "destructor" for the resources acquired by the class
-	 */
-	if (data->data != NULL) {
-		delete data->data;
+	if (data != NULL) {
+		if (data->data != NULL) {
+			delete[] data->data;
+		}
+		delete data;
 	}
-	delete data;
 }
 
 
@@ -238,6 +238,7 @@ char* NativeMemoryDataProvider::getNativeMemoryData()
 	}
 
 	IBMRAS_DEBUG(debug, "getNativeMemoryData exit");
+	ibmras::common::util::native2Ascii(report);
     return report;
 }
 

@@ -1,4 +1,4 @@
- /**
+/**
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
@@ -8,15 +8,12 @@
  * been deposited with the U.S. Copyright Office.
  */
 
-
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/plugins/j9/Util.h"
 #include "ibmras/common/port/Process.h"
+#include "ibmras/common/MemoryManager.h"
 
-#if defined(_ZOS)
-#pragma convlit(suspend)
-#endif
 #if defined(WINDOWS)
 #define JLONG_FMT_STR "%I64d"
 #else /* Unix platforms */
@@ -29,10 +26,6 @@
 
 #if defined (_PPC)
 #include <unistd.h>
-#endif
-
-#if defined(_ZOS)
-#pragma convlit(resume)
 #endif
 
 #include <assert.h>
@@ -57,7 +50,8 @@ namespace trace {
 
 uint32 provID;
 PUSH_CALLBACK sendDataToAgent;
-IBMRAS_DEFINE_LOGGER("TraceDataProvider");
+IBMRAS_DEFINE_LOGGER("TraceDataProvider")
+;
 jvmFunctions vmData;
 char *traceMetadata = NULL;
 int headerSize = 0;
@@ -102,8 +96,8 @@ bool stackTraceDepthSet = false;
 
 static const char* VERBOSE_GC = "verbose.gc"; //$NON-NLS-1$
 
-static const char* profiling[] = { "j9jit.15", "j9jit.16", "j9jit.17",
-		"j9jit.18", "" };
+static const char* profiling[] = { "j9vm.333", "j9jit.15", "j9jit.16",
+		"j9jit.17", "j9jit.18", "" };
 static const char* gc[] = { "j9mm.1", "j9mm.2", "j9mm.50", "j9mm.51", "j9mm.52",
 		"j9mm.53", "j9mm.54", "j9mm.55", "j9mm.56", "j9mm.57", "j9mm.58",
 		"j9mm.59", "j9mm.60", "j9mm.64", "j9mm.65", "j9mm.68", "j9mm.69",
@@ -134,11 +128,10 @@ std::string getConfigString() {
 	std::stringstream str;
 	for (std::map<std::string, std::string>::iterator propsiter =
 			config.begin(); propsiter != config.end(); ++propsiter) {
-		str << propsiter->first << "=" << propsiter->second << std::endl;
+		str << propsiter->first << "=" << propsiter->second << '\n';
 	}
 	return str.str();
 }
-
 
 uint32 getBucketCapacity() {
 	ibmras::monitoring::agent::Agent* agent =
@@ -157,7 +150,6 @@ uint32 getBucketCapacity() {
 	return capacity;
 
 }
-
 
 /**
  * the agent calls registerPushSource to find out which data sources we have
@@ -210,7 +202,10 @@ bool gcTracepointAvailableInThisVM(int tpNumber) {
 		if (((Util::getJavaLevel() < 7) && (!Util::is26VMOrLater()))
 				|| ((Util::getJavaLevel() == 7)
 						&& (Util::getServiceRefreshNumber() < 4)
-						&& (!Util::is27VMOrLater()))) {
+						&& (!Util::is27VMOrLater()))
+				|| ((Util::getJavaLevel() == 6)
+						&& (Util::getServiceRefreshNumber() < 5)
+						&& (Util::is26VMOrLater()))) {
 			return false;
 		}
 	}
@@ -319,8 +314,7 @@ bool isOkConsideringRealtime(int tp) {
 }
 
 bool tracePointExistsInThisVM(const std::string &tp) {
-	std::vector < std::string > tracePoint = ibmras::common::util::split(tp,
-			'.');
+	std::vector<std::string> tracePoint = ibmras::common::util::split(tp, '.');
 	if (tracePoint.size() != 2) {
 		return false;
 	}
@@ -351,7 +345,8 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 
 	bool loaOK = !isLOATracePoint || Util::vmHasLOATracePoints();
 
-	bool isDumpTracePointOK = ((component != "j9dmp") || isDumpTPavailable(number));
+	bool isDumpTracePointOK = ((component != "j9dmp")
+			|| isDumpTPavailable(number));
 
 	bool isJavaTracePoint = ((component == "java")
 			&& (number == "315" || number == "316" || number == "317"
@@ -376,8 +371,14 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 	// Also don't turn on j9vm.333 if the method dictionary is available
 	bool methodDictionaryAvailable = false;
 	if (tp == "j9vm.333") {
-		if (vmData.jvmtiGetMethodAndClassNames) {
-			methodDictionaryAvailable = true;
+		ibmras::monitoring::agent::Agent* agent =
+				ibmras::monitoring::agent::Agent::getInstance();
+
+		std::string headless = agent->getAgentProperty("headless");
+		if (!ibmras::common::util::equalsIgnoreCase(headless, "on")) {
+			if (vmData.jvmtiGetMethodAndClassNames) {
+				methodDictionaryAvailable = true;
+			}
 		}
 	}
 
@@ -402,11 +403,25 @@ void setCapabilities() {
 	}
 }
 
+void setTraceOption(const std::string &traceCommand) {
+
+#if defined(_ZOS)
+	char* cmd = ibmras::common::util::createAsciiString(traceCommand.c_str());
+#else
+	const char* cmd = traceCommand.c_str();
+#endif
+
+	vmData.setTraceOption(vmData.pti, cmd);
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&cmd);
+#endif
+}
+
 void setNoDynamicProperties() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
 	if (!agent->agentPropertyExists("leave.dynamic.trace")) {
-		vmData.setTraceOption(vmData.pti, "buffers=nodynamic");
+		setTraceOption("buffers=nodynamic");
 	}
 }
 
@@ -418,8 +433,6 @@ int Tracestart() {
 
 	IBMRAS_DEBUG(debug, "Tracestart enter");
 
-	setNoDynamicProperties();
-
 	setCapabilities();
 
 	int bufferSize = 0;
@@ -429,8 +442,13 @@ int Tracestart() {
 	long maxCircularBufferSize = DEFAULT_MAX_CIRCULAR_BUFFER_SIZE;
 	/* this is the eye catcher that tells the health center client trace parser
 	 * that this is a header record */
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	char METADATA_EYE_CATCHER[] = { 'H', 'C', 'T', 'H' };
-
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 	/* get the trace header data from the vm */
 	if (vmData.jvmtiGetTraceMetadata != 0) {
 		rc = vmData.jvmtiGetTraceMetadata(vmData.pti, &tempMeta,
@@ -471,15 +489,12 @@ int Tracestart() {
 	/* start the trace subscriber */
 	startTraceSubscriber(maxCircularBufferSize, bufferSize);
 
-
-
 	/* turn off all trace to start with */
-	/* on ppc, it seems we try this before we the trace engine is up so
-	 * adding a sleep 3 seconds pause. This is nasty and we need a better way
-	 *
-	 */
-	vmData.setTraceOption(vmData.pti, "none=all");
-	vmData.setTraceOption(vmData.pti, "maximal=mt");
+	setTraceOption("none=all");
+	setTraceOption("maximal=mt");
+
+	setNoDynamicProperties();
+
 	/* now enable HC specific trace */
 	enableTracePoints(gc);
 	enableTracePoints(profiling);
@@ -513,14 +528,14 @@ TraceDataProvider* TraceDataProvider::getInstance(jvmFunctions tDPP) {
 	return instance;
 }
 
-TraceDataProvider* TraceDataProvider::getInstance() {
+TraceDataProvider * TraceDataProvider::getInstance() {
 	if (!instance) {
 		return NULL;
 	}
 	return instance;
 }
 
-TraceReceiver* TraceDataProvider::getTraceReceiver() {
+TraceReceiver * TraceDataProvider::getTraceReceiver() {
 	if (traceReceiver == NULL) {
 		traceReceiver = new TraceReceiver();
 	}
@@ -610,6 +625,23 @@ std::string getAllocationThresholds() {
 	return threshold;
 }
 
+int setDumpOption(const std::string &dummpCommand) {
+
+#if defined(_ZOS)
+	char* cmd = ibmras::common::util::createAsciiString(dummpCommand.c_str());
+#else
+	const char* cmd = dummpCommand.c_str();
+#endif
+
+	int rc = vmData.jvmtiSetVmDump(vmData.pti, cmd);
+
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&cmd);
+#endif
+	return rc;
+
+}
+
 int setAllocationThresholds(const std::string &thresholds, bool force) {
 	std::string currentThresholds = getAllocationThresholds();
 	if (!force && currentThresholds.length() > 0
@@ -622,7 +654,7 @@ int setAllocationThresholds(const std::string &thresholds, bool force) {
 	command += thresholds;
 
 	vmData.jvmtiResetVmDump(vmData.pti);
-	int rc = vmData.jvmtiSetVmDump(vmData.pti, command.c_str());
+	int rc = setDumpOption(command);
 
 	if (rc != 0) {
 		if (currentThresholds.length() > 0) {
@@ -631,7 +663,7 @@ int setAllocationThresholds(const std::string &thresholds, bool force) {
 			command += currentThresholds;
 
 			vmData.jvmtiResetVmDump(vmData.pti);
-			rc = vmData.jvmtiSetVmDump(vmData.pti, command.c_str());
+			rc = setDumpOption(command);
 		}
 	}
 
@@ -687,9 +719,11 @@ void enableAllocationThreshold() {
 }
 
 void setStackDepth(const std::string &depth) {
+
 	std::string traceCommand = "stackdepth=" + depth;
-	vmData.setTraceOption(vmData.pti, traceCommand.c_str());
+	setTraceOption(traceCommand);
 	stackTraceDepthSet = true;
+
 }
 
 void handleStackTraceTrigger(const std::string &command,
@@ -697,6 +731,7 @@ void handleStackTraceTrigger(const std::string &command,
 	if (!tracePointExistsInThisVM(tracePoint)) {
 		return;
 	}
+
 	std::string traceCommand = "trigger=";
 	if (ibmras::common::util::equalsIgnoreCase(command, "off")) {
 		traceCommand += '!';
@@ -704,6 +739,7 @@ void handleStackTraceTrigger(const std::string &command,
 	traceCommand += "tpnid{";
 	traceCommand += tracePoint;
 	traceCommand += ",jstacktrace}";
+
 	if (!stackTraceDepthSet) {
 		// set the default depth
 		ibmras::monitoring::agent::Agent* agent =
@@ -713,7 +749,8 @@ void handleStackTraceTrigger(const std::string &command,
 			setStackDepth(stackTraceDepth);
 		}
 	}
-	vmData.setTraceOption(vmData.pti, traceCommand.c_str());
+	setTraceOption(traceCommand);
+
 	config[tracePoint + STACK_TRACE_TRIGGER_SUFFIX] = command;
 }
 
@@ -840,26 +877,25 @@ void enableGCTracePoint(const std::string &tp) {
 
 void enableNormalTracePoint(const std::string &tp) {
 	std::string command = "maximal=tpnid{" + tp + "}";
-	vmData.setTraceOption(vmData.pti, command.c_str());
+	setTraceOption(command);
 }
 
 void disableExceptionTracePoint(const std::string &tp) {
-	int rc = 0;
 	std::string command = "exception=!tpnid{" + tp + "}";
-	rc = vmData.setTraceOption(vmData.pti, command.c_str());
+	setTraceOption(command);
 }
 
 void enableExceptionTracePoint(const std::string &tp) {
 	IBMRAS_DEBUG(debug, "in enableExceptionTracePoint");
 
 	std::string command = "exception=tpnid{" + tp + "}";
-	vmData.setTraceOption(vmData.pti, command.c_str());
+	setTraceOption(command);
 }
 
 void disableNormalTracePoint(const std::string &tp) {
 	int rc = 0;
 	std::string command = "maximal=!tpnid{" + tp + "}";
-	rc = vmData.setTraceOption(vmData.pti, command.c_str());
+	setTraceOption(command);
 }
 
 /*
@@ -871,12 +907,12 @@ jlong htonjl(jlong l) {
 		/* big endian */
 		return l;
 	} else {
-		jint hi = (jint)(l >> 32);
-		jint lo = (jint)(l & 0xffffffff);
+		jint hi = (jint) (l >> 32);
+		jint lo = (jint) (l & 0xffffffff);
 		jlong convhi = htonl(hi);
 		jlong convlo = htonl(lo);
 		/* little endian */
-		return (jlong)((convlo << 32) | (convhi & 0xffffffff));
+		return (jlong) ((convlo << 32) | (convhi & 0xffffffff));
 	}
 }
 
@@ -897,9 +933,17 @@ bool startTraceSubscriber(long maxCircularBufferSize, int traceBufferSize) {
 		void *subscriptionID;
 
 		int rc;
+
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 		rc = vmData.jvmtiRegisterTraceSubscriber(vmData.pti,
-				"Health Center trace subscriber", traceSubscriber, NULL,
-				NULL, &subscriptionID);
+				"Health Center (trace subscriber)", traceSubscriber, NULL, NULL,
+				&subscriptionID);
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+
 		IBMRAS_DEBUG_1(debug, "return code from jvmtiRegisterTraceSubscriber %d", rc);
 		if (JVMTI_ERROR_NONE == rc) {
 			IBMRAS_DEBUG(debug,
@@ -931,6 +975,8 @@ jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 	unsigned char* buffer = new unsigned char[length + 4 + sizeof(jlong)];
 	/* Write eye catcher */
 	strcpy((char*) buffer, "HCTB");
+	ibmras::common::util::native2Ascii((char*) buffer);
+
 	/* Convert payload length to network byte order */
 	payLoadLength = htonjl(payLoadLength);
 
@@ -951,7 +997,7 @@ jvmtiError traceSubscriber(jvmtiEnv *pti, void *record, jlong length,
 	return JVMTI_ERROR_NONE;
 }
 
-monitordata* generateTraceHeader() {
+monitordata * generateTraceHeader() {
 	return generateData(0, traceMetadata, headerSize);
 }
 
@@ -1019,13 +1065,13 @@ int registerVerboseGCSubscriber(std::string fileName) {
 	} else {
 		/* Register a new subscriber */
 #ifdef _ZOS
-#pragma convlit(resume)
+#pragma convert("ISO8859-1")
 #endif
 		jvmtiError err = vmData.verboseGCsubscribe(vmData.pti,
 				"Health Center verbose GC subscriber", verboseGCSubscriber,
 				verboseGCAlarm, NULL, &vgcsubscriptionID);
 #ifdef _ZOS
-#pragma convlit(suspend)
+#pragma convert(pop)
 #endif
 		if (err != JVMTI_ERROR_NONE) {
 			IBMRAS_LOG_1(warning, "verboseGCsubscribe failed: %i", err);
@@ -1075,13 +1121,19 @@ std::string getWriteableDirectory() {
 	std::string dir = "";
 
 	memset(&threadArgs, 0, sizeof(threadArgs));
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
 	threadArgs.version = JNI_VERSION_1_6;
-	threadArgs.name = (char *) "HLCThread";
+	threadArgs.name = (char *) "Health Center (vgc)";
 	threadArgs.group = NULL;
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
 
 	JNIEnv* env;
 
-	std::vector < std::string > directories;
+	std::vector<std::string> directories;
 
 	IBMRAS_DEBUG(debug, "Attaching to thread");
 	jint result =
@@ -1099,12 +1151,31 @@ std::string getWriteableDirectory() {
 
 	std::string userDir = agent->getAgentProperty("output.directory");
 
-	jstring dirJava = env->NewStringUTF(userDir.c_str());
+#if defined(_ZOS)
+	char* uDir = ibmras::common::util::createAsciiString(userDir.c_str());
+#else
+	const char* uDir = userDir.c_str();
+#endif
+
+
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+
+	jstring dirJava = env->NewStringUTF(uDir);
+
 	dir = getString(env,
 			"com/ibm/java/diagnostics/healthcenter/agent/dataproviders/Util",
 			"findWriteableDirectory", "(Ljava/lang/String;)Ljava/lang/String;",
 			dirJava);
+#if defined(_ZOS)
+#pragma convert(pop)
+	ibmras::common::memory::deallocate((unsigned char**)&uDir);
+#endif
 
+	env->DeleteLocalRef(dirJava);
+
+	vmData.theVM->DetachCurrentThread();
 	return dir;
 }
 
@@ -1117,29 +1188,37 @@ std::string getString(JNIEnv* env, const std::string& cname,
 	IBMRAS_DEBUG(debug, "Retrieving class");
 	jclass clazz = env->FindClass(cname.c_str());
 	if (!clazz) {
-		IBMRAS_DEBUG_1(warning, "Failed to find %s class", cname.c_str());
+		IBMRAS_DEBUG(warning, "Failed to find class");
 		return "";
-	}IBMRAS_DEBUG_1(debug, "Found %s class", cname.c_str());
+	}IBMRAS_DEBUG(debug, "Found class");
 
 	jmethodID method = env->GetStaticMethodID(clazz, mname.c_str(),
 			signature.c_str());
 	if (!method) {
-		IBMRAS_DEBUG_1(warning, "Failed to get %s method ID", mname.c_str());
+		IBMRAS_DEBUG(warning, "Failed to get %s method ID");
 		return "";
-	}IBMRAS_DEBUG_1(debug, "%s method loaded, calling thru JNI", mname.c_str());
+	}
+
+	IBMRAS_DEBUG(debug, "method loaded, calling thru JNI");
 
 	jstring jobj = (jstring) env->CallStaticObjectMethod(clazz, method,
 			dirJava);
-
-	IBMRAS_DEBUG_1(debug, "Back from env->GetStringUTFChars method with jobj = %s", jobj);
 
 	IBMRAS_DEBUG_1(debug, "Back from %s method", mname.c_str());
 
 	if (jobj) {
 		const char* value = env->GetStringUTFChars(jobj, NULL);
-		IBMRAS_DEBUG_1(debug, "Back from env->GetStringUTFChars method wit jobj = %s", jobj)
-		std::string sval(value);
+#if defined(_ZOS)
+	char* nativeStr = ibmras::common::util::createNativeString(value);
+#else
+	const char* nativeStr = value;
+#endif
+		std::string sval(nativeStr);
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&nativeStr);
+#endif
 		env->ReleaseStringUTFChars(jobj, value);
+		env->DeleteLocalRef(jobj);
 
 		return sval;
 	}

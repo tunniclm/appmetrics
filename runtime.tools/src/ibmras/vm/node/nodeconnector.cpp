@@ -72,8 +72,8 @@ int NodeConnector::sendMessage(const std::string &sourceId, uint32 size, void *d
 		md->sourceID = bucket->getSourceID();
 		md->size = size;
 		md->data = data;
-		BucketDataQueueEntry* entry = new BucketDataQueueEntry(md);
-		bucket->add(entry);
+//		BucketDataQueueEntry* entry = new BucketDataQueueEntry(md);
+//		bucket->add(entry);
 	}
 	return 0;
 }

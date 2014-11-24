@@ -9,6 +9,7 @@
  */
 
 #include "ibmras/common/port/ThreadData.h"
+#include "ibmras/common/util/strUtils.h"
 #include "ibmras/monitoring/Monitoring.h"
 #include <string.h>
 #include <sstream>
@@ -75,11 +76,12 @@ monitordata* MemoryCountersDataProvider::pullCallback() {
 
 
 void MemoryCountersDataProvider::pullComplete(monitordata* data) {
-	/**
-	 * This method is a callback "destructor" for the resources acquired by the class
-	 */
-	delete data->data;
-	delete data;
+	if (data != NULL) {
+		if (data->data != NULL) {
+			delete[] data->data;
+		}
+		delete data;
+	}
 }
 
 
@@ -318,6 +320,7 @@ char* MemoryCountersDataProvider::getMemoryCounters()
 	}
 
 	IBMRAS_DEBUG(debug, "getMemoryCounters exit");
+	ibmras::common::util::native2Ascii(report);
 	return report;
 }
 
@@ -377,7 +380,7 @@ MemoryCountersDataProvider::dealloc_report_lines(char *lines[], int count) {
         /* Need to free the memory for our array */
         for (i=0; i<count; i++)
         {
-            free(lines[i]);
+        	 free(lines[i]);
         }
     }
     IBMRAS_DEBUG(debug, "< dealloc_report_lines");
