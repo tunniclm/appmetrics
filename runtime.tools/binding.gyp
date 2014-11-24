@@ -143,6 +143,7 @@
         "<(srcdir)/common/Properties.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
+        "<(srcdir)/common/MemoryManager.cpp",
       ],
       "conditions": [
         [ 'node_byteorder=="big"', {
@@ -162,6 +163,7 @@
         "<(srcdir)/common/Properties.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
+        "<(srcdir)/common/MemoryManager.cpp",
       ],
     },
     {
@@ -176,6 +178,7 @@
         "<(srcdir)/common/Properties.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
+        "<(srcdir)/common/MemoryManager.cpp",
       ],
     },
     {
@@ -191,6 +194,7 @@
         "<(srcdir)/common/Properties.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
+        "<(srcdir)/common/MemoryManager.cpp",
       ],
       "conditions": [
         ['OS=="win"', {
@@ -213,6 +217,7 @@
         "<(srcdir)/common/Properties.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
+        "<(srcdir)/common/MemoryManager.cpp",
       ],
     },
     {
@@ -227,6 +232,7 @@
         "<(srcdir)/common/Properties.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
+        "<(srcdir)/common/MemoryManager.cpp",
       ],
     },
 
