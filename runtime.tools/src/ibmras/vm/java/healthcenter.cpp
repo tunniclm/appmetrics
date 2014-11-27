@@ -126,7 +126,6 @@ Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
 
 /****************************/
 jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
-	int res;
 	jvmtiCapabilities cap;
 	jvmtiEventCallbacks cb;
 
@@ -140,13 +139,11 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	jvmtiExtensionEventInfo * ei;
 	jvmtiParamInfo * pi;
 
-	static int fInitialized = 0;
-
 	theVM = vm;
 	tDPP.theVM = vm;
 	agentOptions = options;
 
-	res = vm->GetEnv((void **) &pti, JVMTI_VERSION_1);
+	vm->GetEnv((void **) &pti, JVMTI_VERSION_1);
 
 	ibmras::common::memory::setDefaultMemoryManager(
 			new ibmras::vm::java::JVMTIMemoryManager(pti));
@@ -284,20 +281,12 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	cb.VMInit = cbVMInit;
 	cb.VMDeath = cbVMDeath;
 
-	res = pti->SetEventCallbacks(&cb, sizeof(cb));
-	res = pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT,
+	pti->SetEventCallbacks(&cb, sizeof(cb));
+	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT,
 			NULL);
-	res = pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH,
+	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH,
 			NULL);
 
-//	res = vm->GetEnv((void **) &env, JNI_VERSION);
-//	if (res < 0) {
-//		return JNI_ERR;
-//	}
-
-	if (rc == JNI_OK) {
-		fInitialized = 1;
-	}
 
 	IBMRAS_DEBUG_1(debug, "< agentstart rc=%d", rc);
 	return rc;
@@ -412,7 +401,7 @@ void getHCProperties(const std::string &options) {
 
 	for (jsize i = 0; i < numProps; ++i) {
 		jstring line = (jstring) ourEnv->GetObjectArrayElement(hcprops, i);
-		const char* lineUTFChars = ourEnv->GetStringUTFChars(line, false);
+		const char* lineUTFChars = ourEnv->GetStringUTFChars(line, NULL);
 #if defined(_ZOS)
 		char* lineChars = ibmras::common::util::createNativeString(lineUTFChars);
 #else

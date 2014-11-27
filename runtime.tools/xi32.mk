@@ -13,10 +13,10 @@ ARCHIVE=ar -r
 ARCHIVE_MQTT=ar -r ${MQTT_LIB} 
 ARCHIVE_OSTREAM=ar -r ${OSTREAM_LIB} 
 ARC_EXT=a
-CFLAGS=-O0 -g3 -Wall -c -fmessage-length=0 -fPIC -m32 -DLINUX -DIBMRAS_DEBUG_LOGGING
+CFLAGS=-Os -Wall -s -c -fmessage-length=0 -fPIC -m32 -DLINUX -DIBMRAS_DEBUG_LOGGING
 LIB_EXT=so
 EXE_EXT=
-LIBFLAGS=-shared -lpthread -ldl 
+LIBFLAGS=-shared -lpthread -ldl -Wl,--gc-sections
 LIB_OBJOPT=-o"$@"
 LIBPATH=-L
 EXEFLAGS= -lrt 

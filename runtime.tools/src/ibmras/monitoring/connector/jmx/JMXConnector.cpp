@@ -303,7 +303,7 @@ Java_com_ibm_java_diagnostics_healthcenter_agent_dataproviders_MonitoringDataPro
 
 	IBMRAS_DEBUG_2(debug, "Getting data for %s, id %d", bucket->getUniqueID().c_str(), id);
 	uint32 droppedCount = 0;
-	id = bucket->getNextData(id, size, (void*&) data, droppedCount);
+	id = bucket->getNextData(id, size, (void**) &data, droppedCount);
 	retID[0] = id;
 	jni_env->ReleaseIntArrayElements(requestedId, retID, 0);
 

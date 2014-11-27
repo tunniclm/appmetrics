@@ -44,7 +44,7 @@ public:
 private:
 	static void* thread(ibmras::common::port::ThreadData* tData);
 	void processLoop();
-	uint32 sleep(uint32 seconds);
+	void sleep(uint32 seconds);
 	int packFiles();
 	bool jniPackFiles();
 	void lockAndPackFiles();

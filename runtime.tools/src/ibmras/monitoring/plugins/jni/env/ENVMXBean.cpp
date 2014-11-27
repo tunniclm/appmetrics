@@ -120,7 +120,6 @@ monitordata* ENVPullSource::sourceData(jvmFunctions* tdpp, JNIEnv* env) {
 	ss<<vmd;
 
 	std::string envdata = ss.str();
-	jsize len = envdata.length();
 
 	char* asciiEnv = ibmras::common::util::createAsciiString(envdata.c_str());
 

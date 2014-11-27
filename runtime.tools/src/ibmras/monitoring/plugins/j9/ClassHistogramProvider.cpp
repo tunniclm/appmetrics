@@ -149,6 +149,7 @@ void* ClassHistogramProvider::getInstance() {
 void ClassHistogramProvider::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
 	if (id == "classhistogram") {
+		IBMRAS_DEBUG(debug, "received class histogram request");
 		if (!ibmras::monitoring::agent::Agent::getInstance()->readOnly()) {
 			std::string data = createHistogramReport();
 			char* dataToSend = ibmras::common::util::createAsciiString(data.c_str());
@@ -182,9 +183,10 @@ monitordata* ClassHistogramProvider::generateData(uint32 sourceID,
 
 std::string ClassHistogramProvider::createHistogramReport()
 {
-    char buffer[1000];
     std::stringstream report;
-    int heapUsed=0;
+    std::stringstream reportdata;
+
+	int heapUsed=0;
     int rc;
     jclass *classes = NULL;
     jint count;
@@ -265,7 +267,10 @@ std::string ClassHistogramProvider::createHistogramReport()
         goto cleanup;
     }
 
+    char buffer[1000];
+
     sprintf(buffer,"heapused,%d\n", heapUsed);
+
     report << buffer;
     for (i=0; i < count; i++)
     {
@@ -290,6 +295,7 @@ std::string ClassHistogramProvider::createHistogramReport()
 				+ (unsigned long long) (tv.tv_usec) / 1000;
 #endif
 
+	reportdata << "classhistogramreport," << "reportTime," << millisecondsSinceEpoch << "\n" << report.str();
 
 cleanup:
 	vmFunctions.theVM->DetachCurrentThread();
@@ -298,9 +304,6 @@ cleanup:
     hc_dealloc((unsigned char**)&classSizes);
     hc_dealloc((unsigned char**)&classNameArray);
 
-    std::stringstream reportdata;
-
-    reportdata << "classhistogramreport," << "reportTime," << millisecondsSinceEpoch << "\n" << report.str();
 
     return reportdata.str();
 }

@@ -205,10 +205,11 @@ bool Bucket::add(monitordata* data) {
 	return added; /* data added to bucket */
 }
 
-uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data,
+uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* *data,
 		uint32 &droppedCount) {
 	uint32 returnId = id;
 	droppedCount = 0;
+	*data = NULL;
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
 			uint32 requestedSize = dataSize;
@@ -261,7 +262,7 @@ uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data,
 						returnId = dataToSend->id;
 						dataToSend = dataToSend->next;
 					}
-					data = buffer;
+					*data = buffer;
 
 					break;
 				}
@@ -280,14 +281,14 @@ uint32 Bucket::getNextData(uint32 id, int32 &dataSize, void* &data,
  *
  * NOTE as the caller has the lock we trust them with the data pointer rather than a copy
  */
-uint32 Bucket::getNextPersistentData(uint32 id, uint32& dataSize, void*& data) {
+uint32 Bucket::getNextPersistentData(uint32 id, uint32& dataSize, void** data) {
 	uint32 returnId = id;
 
 	IBMRAS_DEBUG(debug, "in Bucket::getNextPersistentData()");
 
 	IBMRAS_DEBUG(debug, "in Bucket::getNextPersistentData() lock acquired");
 	dataSize = 0;
-	data = NULL;
+	*data = NULL;
 
 	BucketData* current = head;
 	while (current && current->id <= lastPublish) {
@@ -295,7 +296,7 @@ uint32 Bucket::getNextPersistentData(uint32 id, uint32& dataSize, void*& data) {
 			IBMRAS_DEBUG_1(debug, "in Bucket::getNextPersistentData() persistent entry found id", current->id);
 			// Allocate buffer
 			dataSize = current->size;
-			data = current->data;
+			*data = current->data;
 			returnId = current->id;
 			break;
 		}

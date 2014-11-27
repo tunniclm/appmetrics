@@ -589,7 +589,6 @@ char * dupJavaStr(const char * jnm) {
 char* join_strings(char *strings[], int count) {
 	char* str = NULL; /* Pointer to the joined strings  */
 	size_t total_length = 0; /* Total length of joined strings */
-	size_t length = 0; /* Length of a string             */
 	int i = 0; /* Loop counter                   */
 
 	/* Find total length of joined strings */
@@ -610,7 +609,6 @@ char* join_strings(char *strings[], int count) {
 	for (i = 0; i < count; i++) {
 		if (strings[i] != NULL) {
 			strcat(str, strings[i]);
-			length = strlen(str);
 		}
 	}
 

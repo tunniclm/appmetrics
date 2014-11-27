@@ -38,6 +38,7 @@
 #include "ibmras/common/logging.h"
 #include "ibmras/common/MemoryManager.h"
 #include "ibmras/common/util/strUtils.h"
+#include "ibmras/common/util/sysUtils.h"
 #include "ibmras/common/port/Process.h"
 
 namespace ibmras {
@@ -253,13 +254,14 @@ void HLConnector::createFile(const std::string &fileName) {
 	IBMRAS_DEBUG(debug, "<<<HLConnector::createFile()");
 }
 
-uint32 HLConnector::sleep(uint32 seconds) {
-	uint32 count = seconds;
-	while (running && count > 0) {
+void HLConnector::sleep(uint32 seconds) {
+	unsigned long long currentTime = ibmras::common::util::getMilliseconds();
+	unsigned long long sleepTime = currentTime + (seconds * 1000);
+
+	while (running && currentTime < sleepTime) {
 		ibmras::common::port::sleep(1);
-		count --;
+		currentTime = ibmras::common::util::getMilliseconds();
 	}
-	return count;
 }
 
 bool HLConnector::createDirectory(std::string& path) {
@@ -451,7 +453,7 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 
 						IBMRAS_DEBUG_2(debug, "getting persistent data for %s id %d", sourceId.c_str(), id);
 						id = bucket->getNextPersistentData(id,
-								persistentDataSize, (void*&) persistentData);
+								persistentDataSize, (void**)&persistentData);
 						if (persistentData != NULL && size > 0) {
 							currentSource->write(persistentData,
 									persistentDataSize);
@@ -513,7 +515,8 @@ bool HLConnector::jniPackFiles() {
 	ss << ".hcd";
 
 	std::string hcdFileName = ss.str();
-	IBMRAS_DEBUG(debug, "Creating hcd name jstring");
+	IBMRAS_LOG_1(info, "Creating hcd import file %s", hcdFileName.c_str());
+
 
 #if defined(_ZOS)
 	char* hcdNm = ibmras::common::util::createAsciiString(hcdFileName.c_str());
@@ -522,7 +525,7 @@ bool HLConnector::jniPackFiles() {
 	const char* hcdNm = hcdFileName.c_str();
 	const char* pthNm = tmpPath.c_str();
 #endif
-
+	IBMRAS_DEBUG(debug, "Creating hcd name jstring");
 	jstring hcdJavaFileName = env->NewStringUTF(hcdNm);
 	jstring folderToZip = env->NewStringUTF(pthNm);
 
@@ -578,7 +581,7 @@ bool HLConnector::jniPackFiles() {
 				env->ExceptionClear();
 			} else {
 				packed = true;
-				IBMRAS_LOG_1(info, "Creating hcd import file %s", hcdFileName.c_str());
+				IBMRAS_LOG_1(info, "hcd import file %s created", hcdFileName.c_str());
 			}
 		}
 	}

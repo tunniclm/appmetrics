@@ -22,7 +22,7 @@ namespace plugins {
 namespace j9 {
 namespace trace {
 
-class TraceReceiver: public ibmras::monitoring::connector::Receiver, ibmras::monitoring::Plugin {
+class TraceReceiver: public ibmras::monitoring::connector::Receiver, public ibmras::monitoring::Plugin {
 public:
 	TraceReceiver();
 	virtual ~TraceReceiver();

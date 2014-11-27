@@ -893,7 +893,6 @@ void enableExceptionTracePoint(const std::string &tp) {
 }
 
 void disableNormalTracePoint(const std::string &tp) {
-	int rc = 0;
 	std::string command = "maximal=!tpnid{" + tp + "}";
 	setTraceOption(command);
 }

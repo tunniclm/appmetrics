@@ -151,7 +151,7 @@ char* getMemoryCounters(JNIEnv *env) {
 	jint total_categories;
 	jint written_count = 0;
 	jvmtiMemoryCategory* categories_buffer = NULL;
-	char* report;
+	char* report = NULL;
 	jvmtiError err;
 	jint i;
 	char *finalReport = NULL;

@@ -104,12 +104,12 @@ void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 
 						IBMRAS_DEBUG(debug, "receiveMessage got lock");
 
-						char * pEnd;
 						for (std::vector<std::string>::iterator it =
 								parameters.begin(); it != parameters.end();
 								++it) {
+							IBMRAS_DEBUG_2(debug, "%s %p", (*it).c_str(),(void*) strtoul((*it).c_str(), NULL, 16));
 							methodsToLookup.insert(
-									(void*) strtol((*it).c_str(), &pEnd, 16));
+									(void*) strtoul((*it).c_str(), NULL, 16));
 						}
 					}IBMRAS_DEBUG(debug, "receiveMessage releasing lock");
 					methodSetLock.release();

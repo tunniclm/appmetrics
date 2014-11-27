@@ -188,20 +188,16 @@ char* reportJLA(JNIEnv *env) {
 char* monitor_dump_event(JNIEnv *env) {
 	void ** q = NULL;
 	void * p = 0;
-	int rc;
+
 
 	UINT64 tm_delta;
 	UINT64 tm_curr;
 
 	static int dcnt = 0;
-	int jlm = 0;
-
-	jint * thrdstat;
 
 	char * beg;
 	char * end;
 	char * stt;
-	int ntraces;
 	unsigned char ty;
 	int i;
 	int psz = sizeof(void *);
@@ -252,7 +248,7 @@ char* monitor_dump_event(JNIEnv *env) {
 		goto cleanup;
 	}
 
-	rc = getTDPP()->dumpVMLockMonitor(pti, &p);
+	getTDPP()->dumpVMLockMonitor(pti, &p);
 	if (0 == p) {
 		/* if the dumpVMlockMonitor call has failed returned a blank string
 		 * this seems to happen quite often (intermittently 50% of the time?)
@@ -266,12 +262,9 @@ char* monitor_dump_event(JNIEnv *env) {
 	//int pid = ibmras::common::port::getProcessId();
 
 	dcnt++; /* Get current report run number */
-	jlm = 1;
 
 	beg = reinterpret_cast<char*>(q[0]);
 	end = reinterpret_cast<char*>(q[1]);
-	ntraces = 0;
-	thrdstat = 0;
 
 	/* calc max entries divided by 32*/
 	JMONMAX = (int) ((end - beg) / 32);

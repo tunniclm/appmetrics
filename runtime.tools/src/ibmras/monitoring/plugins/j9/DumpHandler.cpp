@@ -98,11 +98,9 @@ void DumpHandler::triggerDumps(const std::vector<std::string> &dumpRequests) {
 			std::string type = parts[0].substr(0, (parts[0].length()-4));
 
 			if (vmFunctions.jvmtiTriggerVmDump != 0) {
-				jvmtiError error;
-
 				char * dumpType = ibmras::common::util::createAsciiString(type.c_str());
 				if (dumpType) {
-					error = vmFunctions.jvmtiTriggerVmDump(vmFunctions.pti, dumpType);
+					vmFunctions.jvmtiTriggerVmDump(vmFunctions.pti, dumpType);
 				}
 				ibmras::common::memory::deallocate((unsigned char**)&dumpType);
 			}
