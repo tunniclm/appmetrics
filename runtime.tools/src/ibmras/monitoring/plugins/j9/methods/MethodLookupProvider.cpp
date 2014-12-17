@@ -15,6 +15,7 @@
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/MemoryManager.h"
+#include "ibmras/monitoring/agent/Agent.h"
 
 #include <iostream>
 #include <sstream>
@@ -37,13 +38,21 @@ MethodLookupProvider* MethodLookupProvider::instance = NULL;
 
 MethodLookupProvider::MethodLookupProvider(jvmFunctions functions) :
 		providerID(0), sendHeader(true), initialHeaderSent(false), env(NULL), getAllMethods(
-				false) {
+				false), enabled(false) {
 	vmFunctions = functions;
 	name = "Method Lookup";
 	pull = registerPullSource;
 	type = ibmras::monitoring::plugin::data
 			| ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) getReceiver;
+
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
+	std::string enableProp = agent->getAgentProperty("data.profiling");
+	if (enableProp == "on" || enableProp == "") {
+		enabled = true;
+	}
 }
 
 MethodLookupProvider::~MethodLookupProvider() {
@@ -57,7 +66,7 @@ pullsource* MethodLookupProvider::registerPullSource(uint32 provID) {
 	src->header.description =
 			"Method lookup data which maps hex value to method data";
 	src->header.sourceID = 0;
-	src->header.capacity = 1024*1024; /* 1MB bucket capacity */
+	src->header.capacity = 1024 * 1024; /* 1MB bucket capacity */
 
 	src->callback = getData;
 	src->complete = complete;
@@ -85,12 +94,17 @@ void* MethodLookupProvider::getReceiver() {
 void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 		void *data) {
 
+	if (!enabled) {
+		return;
+	}
+
 	IBMRAS_DEBUG(debug, "processing received message");
 	if (id == "methoddictionary") {
 		if (size == 0 || data == NULL) {
 			sendHeader = true;
 		} else {
 			std::string message((const char*) data, size);
+
 			std::size_t found = message.find(',');
 			if (found != std::string::npos) {
 				std::string command = message.substr(0, found);
@@ -128,7 +142,7 @@ void MethodLookupProvider::receiveMessage(const std::string &id, uint32 size,
 void MethodLookupProvider::getAllMethodIDs() {
 
 	IBMRAS_DEBUG(debug, "in getAllMethodIDs");
-	if (!vmFunctions.getJ9method || !env) {
+	if (!enabled || !vmFunctions.getJ9method || !env) {
 		return;
 	}
 
@@ -178,6 +192,20 @@ monitordata* MethodLookupProvider::getData() {
 
 monitordata* MethodLookupProvider::getMethodData() {
 	IBMRAS_DEBUG(debug, "in getMethodData");
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
+	std::string enableProp = agent->getAgentProperty("data.profiling");
+	IBMRAS_DEBUG_1(debug, "profiling property = %s", enableProp.c_str());
+	if (enableProp == "on" || enableProp == "") {
+		enabled = true;
+	} else {
+		enabled = false;
+	}
+
+	if (!enabled) {
+		return NULL;
+	}
 
 	void *ramMethods = NULL;
 	void **ramMethodsPtr = NULL;
@@ -202,7 +230,7 @@ monitordata* MethodLookupProvider::getMethodData() {
 		JavaVMAttachArgs threadArgs;
 
 		memset(&threadArgs, 0, sizeof(threadArgs));
-		threadArgs.version = JNI_VERSION_1_6;
+		threadArgs.version = JNI_VERSION_1_4;
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
 #endif

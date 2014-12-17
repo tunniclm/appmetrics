@@ -491,7 +491,7 @@ bool HLConnector::jniPackFiles() {
 	JavaVMAttachArgs threadArgs;
 
 	memset(&threadArgs, 0, sizeof(threadArgs));
-	threadArgs.version = JNI_VERSION_1_6;
+	threadArgs.version = JNI_VERSION_1_4;
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
 #endif

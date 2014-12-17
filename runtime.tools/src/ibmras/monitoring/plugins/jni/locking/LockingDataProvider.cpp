@@ -83,6 +83,14 @@ void JLAPullSource::setState(const std::string &newState) {
 }
 
 JLAPullSource::JLAPullSource(uint32 id) :PullSource(id, "Health Center (locking)") {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string enableProp = agent->getAgentProperty("data.locking");
+	if (enableProp == "on" || enableProp == "") {
+		enabled = true;
+	} else {
+		enabled = false;
+	}
 }
 
 void JLAPullSource::publishConfig() {

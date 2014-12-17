@@ -275,6 +275,7 @@ bool isDumpTPavailable(const std::string &tpNumber) {
 	}
 	if (tpNumber == "7") {
 		return isDumpStartedTPAvailabledInVM();
+
 	}
 	// J9dmp 9 and 10 are only available in 26 vm
 	if (tpNumber == "9" || tpNumber == "10") {
@@ -327,6 +328,7 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 	bool isJITTracePoint = ((component == "j9jit")
 			&& (number == "1" || number == "20" || number == "21"
 					|| number == "22" || number == "23" || number == "24"
+
 					|| number == "28" || number == "29"));
 
 	bool jitOK = !isJITTracePoint || Util::is27VMOrLater();
@@ -425,6 +427,21 @@ void setNoDynamicProperties() {
 	}
 }
 
+void controlSubsystem(const std::string &command,
+		const std::string& subsystem);
+
+void initializeSubsystem(const std::string &subsystem) {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
+	std::string enableProp = agent->getAgentProperty("data." + subsystem);
+	if (enableProp == "on" || enableProp == "") {
+		controlSubsystem("on", subsystem);
+	} else {
+		config[subsystem + "_subsystem"] = "off";
+	}
+
+}
 /**
  * The start() method starts the plugin and is the method called from the setup ibmras::monitoring::Plugin* getPlugin()
  * function above
@@ -496,16 +513,12 @@ int Tracestart() {
 	setNoDynamicProperties();
 
 	/* now enable HC specific trace */
-	enableTracePoints(gc);
-	enableTracePoints(profiling);
-	enableTracePoints(classes);
-	enableTracePoints(jit);
-	enableTracePoints(io);
-	config["gc_subsystem"] = "on";
-	config["profiling_subsystem"] = "on";
-	config["classes_subsystem"] = "on";
-	config["jit_subsystem"] = "on";
-	config["io_subsystem"] = "on";
+	initializeSubsystem("io");
+	initializeSubsystem("gc");
+	initializeSubsystem("profiling");
+	initializeSubsystem("jit");
+	initializeSubsystem("classes");
+
 	enableTracePoints(DUMP_POINTS);
 
 	// Publish the initial configuration
@@ -605,8 +618,13 @@ void controlSubsystem(const std::string &command,
 	} else {
 		return;
 	}
+
 	//update the config info
 	config[subsystem + SUBSYSTEM] = command;
+
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	agent->setAgentProperty("data." + subsystem, command);
 }
 
 std::string getAllocationThresholds() {
@@ -1123,7 +1141,7 @@ std::string getWriteableDirectory() {
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
 #endif
-	threadArgs.version = JNI_VERSION_1_6;
+	threadArgs.version = JNI_VERSION_1_4;
 	threadArgs.name = (char *) "Health Center (vgc)";
 	threadArgs.group = NULL;
 #if defined(_ZOS)

@@ -39,6 +39,14 @@ bool TDPullSource::isEnabled() {
 }
 
 TDPullSource::TDPullSource(uint32 id) : PullSource(id, "Health Center (threads)") {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string enableProp = agent->getAgentProperty("data.threads");
+	if (enableProp == "on" || enableProp == "") {
+		enabled = true;
+	} else {
+		enabled = false;
+	}
 }
 
 void TDPullSource::publishConfig() {

@@ -199,6 +199,13 @@ MEMPullSource::MEMPullSource(uint32 id) : PullSource(id, "Health Center (memory)
 	 */
 		available = false;
 	}
+
+	std::string enableProp = agent->getAgentProperty("data.memory");
+	if (enableProp == "on" || enableProp == "") {
+		enabled = true;
+	} else {
+		enabled = false;
+	}
 }
 
 monitordata* callback() {

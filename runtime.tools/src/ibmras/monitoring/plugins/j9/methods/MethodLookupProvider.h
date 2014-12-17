@@ -66,6 +66,8 @@ private:
 	JNIEnv *env;
 
 	bool getAllMethods;
+
+	bool enabled;
 };
 }
 }

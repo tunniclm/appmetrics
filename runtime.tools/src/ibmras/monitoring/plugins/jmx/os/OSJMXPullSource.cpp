@@ -27,11 +27,13 @@ namespace plugins {
 namespace jmx {
 namespace os {
 
-IBMRAS_DEFINE_LOGGER("JMXSources");
+IBMRAS_DEFINE_LOGGER("JMXSources")
+;
 
 /* need to be in own namespace so that top level callbacks work with other MX bean data providers */
 OSJMXPullSource* src = NULL;
 bool enabled = true;
+bool methodsChecked = false;
 
 JMXPullSource* getOSPullSource(uint32 id) {
 	if (!src) {
@@ -41,7 +43,11 @@ JMXPullSource* getOSPullSource(uint32 id) {
 }
 
 monitordata* callback() {
-	return src->JMXPullSource::generateData();
+	if (enabled) {
+		return src->JMXPullSource::generateData();
+	} else {
+		return NULL;
+	}
 }
 
 void complete(monitordata *mdata) {
@@ -67,6 +73,15 @@ pullsource* OSJMXPullSource::getDescriptor() {
 
 OSJMXPullSource::OSJMXPullSource(uint32 id) :
 		JMXPullSource(id, "Health Center (cpu)") {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string enableProp = agent->getAgentProperty("data.cpu");
+	if (enableProp == "on" || enableProp == "") {
+		enabled = true;
+	} else {
+		enabled = false;
+	}
+
 }
 
 void OSJMXPullSource::publishConfig() {
@@ -78,6 +93,7 @@ void OSJMXPullSource::publishConfig() {
 
 	std::string msg = "cpu_subsystem=";
 	if (isEnabled()) {
+		methodsChecked = false;
 		msg += "on";
 	} else {
 		msg += "off";
@@ -106,7 +122,23 @@ monitordata* OSJMXPullSource::generateData(JNIEnv* env, jclass* mgtBean) {
 	data->data = NULL;
 
 #if !defined(_ZOS)
+	if (!methodsChecked) {
+
+		if (!getMethod(env, "com/ibm/lang/management/OperatingSystemMXBean",
+				"getSystemCpuLoad", "()D")) {
+			if (!getMethod(env,
+					"com/ibm/lang/management/OperatingSystemMXBean",
+					"getProcessCpuLoad", "()D")) {
+				IBMRAS_DEBUG(debug, "CPU data not available")
+				enabled = false;
+				publishConfig();
+			}
+		}
+		methodsChecked = true;
+	}
+
 	if (isEnabled()) {
+
 		data->persistent = false;
 		data->provID = getProvID();
 		data->sourceID = CPU;
@@ -142,7 +174,7 @@ monitordata* OSJMXPullSource::generateData(JNIEnv* env, jclass* mgtBean) {
 #if defined(_ZOS)
 #pragma convert(pop)
 #endif
-			IBMRAS_DEBUG_2(debug, "systemCPULoad %d, processCPULoad %d", systemCPULoad, processCPULoad);
+			IBMRAS_DEBUG_2(debug, "systemCPULoad %f, processCPULoad %f", systemCPULoad, processCPULoad);
 
 			if (processCPULoad >= 0 || systemCPULoad >= 0) {
 				IBMRAS_DEBUG(debug, "Constructing CPU data line");

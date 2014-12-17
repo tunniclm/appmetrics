@@ -46,7 +46,7 @@ monitordata* JMXPullSource::generateData() {
 		JavaVMAttachArgs threadArgs;
 
 		memset(&threadArgs, 0, sizeof(threadArgs));
-		threadArgs.version = JNI_VERSION_1_6;
+		threadArgs.version = JNI_VERSION_1_4;
 
 		threadArgs.name = ibmras::common::util::createAsciiString(name.c_str());
 		threadArgs.group = NULL;

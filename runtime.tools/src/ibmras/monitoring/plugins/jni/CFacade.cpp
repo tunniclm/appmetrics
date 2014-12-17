@@ -238,13 +238,14 @@ monitordata* PullSource::generateData() {
 		JavaVMAttachArgs threadArgs;
 
 		memset(&threadArgs, 0, sizeof(threadArgs));
-		threadArgs.version = JNI_VERSION_1_6;
+		threadArgs.version = JNI_VERSION_1_4;
 		threadArgs.name = ibmras::common::util::createAsciiString(name.c_str());
 		threadArgs.group = NULL;
 		IBMRAS_DEBUG_1(debug, "Attaching thread %s", name.c_str());
 		jint errcode = vm->AttachCurrentThreadAsDaemon((void **) &env, &threadArgs);
 		ibmras::common::memory::deallocate((unsigned char**)&threadArgs.name);
 		if (errcode != JNI_OK) {
+			IBMRAS_DEBUG_1(debug, "AttachCurrentThreadAsDaemon failed %d", errcode);
 			return NULL;
 		}
 

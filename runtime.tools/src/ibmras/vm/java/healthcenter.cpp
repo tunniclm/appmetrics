@@ -65,8 +65,50 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach);
 
 static bool agentStarted = false;
 
-IBMRAS_DEFINE_LOGGER("java")
-;
+IBMRAS_DEFINE_LOGGER("java");
+
+/* ==================================== */
+/* code for ZAAP switching on z/OS only */
+/* ==================================== */
+
+/* Set of values to XOR the data with */
+
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+
+#define CRYPT_XOR_VAL_1	'\xa1'
+#define CRYPT_XOR_VAL_2	'\x1c'
+#define CRYPT_XOR_VAL_3	'\xeb'
+#define CRYPT_XOR_VAL_4	'\x06'
+
+extern "C" JNIEXPORT char *__OnLoad() {
+	static char tag[]= {
+		'\x0c' ^ CRYPT_XOR_VAL_1,
+		'O' ^ CRYPT_XOR_VAL_2,
+		'T' ^ CRYPT_XOR_VAL_3,
+		'I' ^ CRYPT_XOR_VAL_4,
+		'J' ^ CRYPT_XOR_VAL_1,
+		'h' ^ CRYPT_XOR_VAL_2,
+		'e' ^ CRYPT_XOR_VAL_3,
+		'a' ^ CRYPT_XOR_VAL_4,
+		'l' ^ CRYPT_XOR_VAL_1,
+		't' ^ CRYPT_XOR_VAL_2,
+		'h' ^ CRYPT_XOR_VAL_3,
+		'c' ^ CRYPT_XOR_VAL_4,
+		'e' ^ CRYPT_XOR_VAL_1,
+		'n' ^ CRYPT_XOR_VAL_2,
+		't' ^ CRYPT_XOR_VAL_3,
+		'e' ^ CRYPT_XOR_VAL_4,
+		'r' ^ CRYPT_XOR_VAL_1
+	};
+	return tag;
+}
+#pragma convert(pop)
+#endif
+
+/* =========== */
+/* ZAAP end    */
+/* =========== */
 
 ibmras::monitoring::agent::Agent* agent;
 
@@ -106,9 +148,9 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
 		agentStarted = true;
 		rc = agentStart(vm, options, reserved, 1);
 		launchAgent(options);
+	}
 
-		return 0;
-	}IBMRAS_DEBUG_1(debug, "< Agent_OnAttach. rc=%d", rc);
+	IBMRAS_DEBUG_1(debug, "< Agent_OnAttach. rc=%d", rc);
 	return rc;
 }
 
@@ -116,10 +158,15 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
 JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
 	IBMRAS_DEBUG(debug, "OnLoad");
-	agentStarted = true;
 	jint rc = 0;
+	if (!agentStarted) {
 
-	rc = agentStart(vm, options, reserved, 0);
+		agentStarted = true;
+
+		rc = agentStart(vm, options, reserved, 0);
+	}
+
+
 	IBMRAS_DEBUG_1(debug, "< Agent_OnLoad. rc=%d", rc);
 	return rc;
 }
@@ -282,11 +329,8 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	cb.VMDeath = cbVMDeath;
 
 	pti->SetEventCallbacks(&cb, sizeof(cb));
-	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT,
-			NULL);
-	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH,
-			NULL);
-
+	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
+	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
 
 	IBMRAS_DEBUG_1(debug, "< agentstart rc=%d", rc);
 	return rc;
@@ -326,7 +370,7 @@ void getHCProperties(const std::string &options) {
 	if (ExceptionCheck(ourEnv) || hcoptsClass == NULL) {
 		IBMRAS_DEBUG(warning, "could not find HealthCenterOptionHandler")
 		return;
-	} IBMRAS_DEBUG(debug, "Calling GetStaticMethodID");
+	}IBMRAS_DEBUG(debug, "Calling GetStaticMethodID");
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
 #endif
@@ -526,5 +570,11 @@ void launchAgent(const std::string &options) {
 	agent->init();
 	agent->start();
 
+}
+
+JNIEXPORT void JNICALL
+Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_isLoaded(
+		JNIEnv *env, jclass clazz) {
+	IBMRAS_DEBUG(debug, "Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_isLoaded called");
 }
 

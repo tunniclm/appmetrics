@@ -72,6 +72,14 @@ bool MCPullSource::isEnabled() {
 }
 
 MCPullSource::MCPullSource(uint32 id) : PullSource(id, "Health Center (memory counters)") {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string enableProp = agent->getAgentProperty("data.memory");
+	if (enableProp == "on" || enableProp == "") {
+		enabled = true;
+	} else {
+		enabled = false;
+	}
 }
 
 void MCPullSource::publishConfig() {
