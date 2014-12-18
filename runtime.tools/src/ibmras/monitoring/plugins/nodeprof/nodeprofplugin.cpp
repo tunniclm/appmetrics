@@ -67,7 +67,7 @@ static void ConstructNodeData(const CpuProfileNode *node, int id, int parentId, 
 		return;
 	}
 
-	result << id << ',' << parentId << ',';
+	result << "NodeProfData,Node," << id << ',' << parentId << ',';
 	result << script << ',' << function << ',' << line << ',' << selfSamples << ',' << totalSamples << '\n';
 
 	// clean up
@@ -94,8 +94,9 @@ static char * ConstructData(const CpuProfile *profile) {
 	//const CpuProfileNode *current = topRoot;
 
 	std::stringstream result;
-	result << "NodeProfData," << ibmras::common::util::getMilliseconds() << '\n';
+	result << "NodeProfData,Start," << ibmras::common::util::getMilliseconds() << '\n';
 	visit(topRoot, ConstructNodeData, 0, result);
+	result << "NodeProfData,End" << '\n';
 	return NewCString(result.str());
 }
 

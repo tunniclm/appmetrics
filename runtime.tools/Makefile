@@ -19,6 +19,7 @@ INSTALL_DIR=${OUTPUT}/deploy
 JAVA_OUT=${OUTPUT}/java
 OMR_OUT=${OUTPUT}/omr
 NODE_OUT=${OUTPUT}/node
+CORE_OUT=${OUTPUT}/core
 PAHO_OUT=${OUTPUT}/paho
 HC_OUT=${JAVA_OUT}
 
@@ -93,6 +94,7 @@ NODE_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}nodegcplugin.${LIB_EXT} ${PLUGIN_OUT}/${
 PYPLUG=${PLUGIN_OUT}/libpyplugin.so
 TEST=${TEST_OUT}/test${EXE_EXT}
 OBJECTS=${AGENT} ${CONNECTORS} ${PLUGINS} ${TEST} 
+CORE_AGENT=${CORE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 JAVA_AGENT=${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 OMR_AGENT=${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 NODE_AGENT=${NODE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
@@ -135,6 +137,10 @@ pyplug: ${PYPLUG}
 	
 test: setup common ${CONNECTORS} ${AGENT} ${TEST}
 	@echo "Test build complete"
+	
+core: HC_OUT=${CORE_OUT}
+core: setup common ${CORE_AGENT} ${CONNECTORS} 
+	@echo "Core build complete"	
 
 #-------------------------------------------------------------------------------------------
 #Libraries
@@ -191,6 +197,11 @@ ${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${JAVA_OBJS}  ${
 ${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${OMR_OBJS}
 	${LINK} ${LINK_OPT}  ${LIBFLAGS} ${LIB_OBJOPT} ${OMR_OBJS} ${AGENT_OBJS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
 	@echo "omr Healthcenter lib built"
+
+${CORE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS}
+	${LINK} ${LINK_OPT}  ${LIBFLAGS} ${LIB_OBJOPT} ${AGENT_OBJS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
+	@echo "core Healthcenter lib built"
+
 
 ${NODE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} 
 	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} ${AGENT_OBJS} ${EXELIBS} ${EXEFLAGS} 
@@ -522,6 +533,7 @@ ${OUTPUT}:
 	mkdir -p ${OMR_OUT}
 	mkdir -p ${NODE_OUT}
 	mkdir -p ${PAHO_OUT}
+	mkdir -p ${CORE_OUT}
 	
 
 
@@ -544,6 +556,15 @@ omrinstall: omr
 	${COPY_CONNECTOR}
 	cp src/properties/omr/healthcenter.properties ${INSTALL_DIR}
 	cp ${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT} ${INSTALL_DIR}
+	@echo "-----------------------------------------------------------------------------------------------------------------------"
+
+coreinstall: core
+	@echo "installing to  ${INSTALL_DIR}"
+	mkdir -p ${INSTALL_DIR}/plugins
+	mkdir -p ${INSTALL_DIR}/libs
+	${COPY_CONNECTOR}
+	cp src/properties/omr/healthcenter.properties ${INSTALL_DIR}
+	cp ${CORE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT} ${INSTALL_DIR}
 	@echo "-----------------------------------------------------------------------------------------------------------------------"
              
 nodeinstall: node
