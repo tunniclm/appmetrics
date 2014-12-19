@@ -221,6 +221,21 @@
       ],
     },
     {
+      "target_name": "memoryplugin",
+      "type": "shared_library",
+      "sources": [
+        "<(srcdir)/monitoring/plugins/memory/memoryplugin.cpp",
+        "<(srcdir)/common/Logger.cpp",
+        "<(srcdir)/common/LogManager.cpp",
+        "<(srcdir)/common/port/<(portdir)/Process.cpp",
+        "<(srcdir)/common/port/Lock.cpp",
+        "<(srcdir)/common/Properties.cpp",
+        "<(srcdir)/common/util/strUtils.cpp",
+        "<(srcdir)/common/util/sysUtils.cpp",
+        "<(srcdir)/common/MemoryManager.cpp",
+      ],
+    },
+    {
       "target_name": "envplugin",
       "type": "shared_library",
       "sources": [
@@ -262,6 +277,7 @@
         "nodeenvplugin",
         "nodegcplugin",
         "nodeprofplugin",
+        "memoryplugin",
      ],
       "copies": [
         {
@@ -289,6 +305,7 @@
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodeenvplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodegcplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodeprofplugin<(SHARED_LIB_SUFFIX)",
+            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)memoryplugin<(SHARED_LIB_SUFFIX)",
           ],
         },
       ],
