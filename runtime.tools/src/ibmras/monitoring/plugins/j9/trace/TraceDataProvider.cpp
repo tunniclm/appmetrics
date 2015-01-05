@@ -97,7 +97,7 @@ bool stackTraceDepthSet = false;
 static const char* VERBOSE_GC = "verbose.gc"; //$NON-NLS-1$
 
 static const char* profiling[] = { "j9vm.333", "j9jit.15", "j9jit.16",
-		"j9jit.17", "j9jit.18", "" };
+		"j9jit.17", "j9jit.18", "j9jit.39", "j9jit.40", "j9jit.41", "" };
 static const char* gc[] = { "j9mm.1", "j9mm.2", "j9mm.50", "j9mm.51", "j9mm.52",
 		"j9mm.53", "j9mm.54", "j9mm.55", "j9mm.56", "j9mm.57", "j9mm.58",
 		"j9mm.59", "j9mm.60", "j9mm.64", "j9mm.65", "j9mm.68", "j9mm.69",
@@ -233,7 +233,7 @@ bool j9ShrTracePointAvailableInThisVM() {
 	return true;
 }
 
-bool profilingTracepointAvailableInThisVM() {
+bool profilingTracepointAvailableInThisVM(const std::string &tpNumber) {
 	/*
 	 * profiling tracepoints aren't available in Java 5 before SR8, and the trace API is broken
 	 * therefore we don't get a return code to find out whether we managed to enable it or not.
@@ -247,6 +247,12 @@ bool profilingTracepointAvailableInThisVM() {
 		if (Util::getServiceRefreshNumber() < 8) {
 			return false;
 		}
+	}
+	/*
+	 * T81694 - the following profiling tracepoints are only available in Java 8 (and presumably upwards)
+	 */
+	if (Util::getJavaLevel() < 8 && (tpNumber == "39" || tpNumber == "40" || tpNumber == "41")) {
+		return false;
 	}
 	// TODO should it check for SR6? Or maybe for Java 6 return codes work?
 	return true;
@@ -337,13 +343,14 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 	bool isj9ShrOK = !isj9ShrTracePoint || j9ShrTracePointAvailableInThisVM();
 
 	bool isProfilingTracePoint = ((component == "j9jit")
-			&& (number == "15" || number == "16" || number == "17"
-					|| number == "18"));
+			&& (number == "15" || number == "16" || number == "17" ||
+				number == "18" || number == "39" || number == "40" ||
+				number == "41"));
 
 	bool isLOATracePoint = (tp == "j9mm.231" || tp == "j9mm.234");
 
 	bool profilingOK = !isProfilingTracePoint
-			|| profilingTracepointAvailableInThisVM();
+			|| profilingTracepointAvailableInThisVM(number);
 
 	bool loaOK = !isLOATracePoint || Util::vmHasLOATracePoints();
 

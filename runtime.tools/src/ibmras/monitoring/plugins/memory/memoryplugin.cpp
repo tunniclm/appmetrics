@@ -44,6 +44,13 @@
 #include <sys/procfs.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+
+extern "C"
+{
+int getprocs(struct procsinfo*, int, struct fdsinfo*, int, pid_t*, int);
+int getprocs64(struct procentry64*, int, struct fdsinfo64*, int, pid_t*, int);
+}
+
 #if !defined(VMINFO_GETPSIZES)
 
 #define VMINFO_GETPSIZES  102 /* report a system's supported page sizes */
@@ -131,15 +138,14 @@ struct vminfo_psize
 
 IBMRAS_DEFINE_LOGGER("MemoryPlugin");
 
-uint64 getProcessPhysicalMemorySize();
-uint64 getProcessPrivateMemorySize();
-uint64 getProcessVirtualMemorySize();
-uint64 getFreePhysicalMemorySize();
-uint64 getTotalPhysicalMemorySize();
+int64 getProcessPhysicalMemorySize();
+int64 getProcessPrivateMemorySize();
+int64 getProcessVirtualMemorySize();
+int64 getFreePhysicalMemorySize();
+int64 getTotalPhysicalMemorySize();
 
-
-typedef int		IDATA;
-typedef unsigned int	UDATA;
+typedef long		IDATA;
+typedef size_t		UDATA;
 
 const std::string COMMA = ",";
 const std::string EQUALS = "=";
@@ -171,50 +177,29 @@ extern "C" {
 #define USECS_PER_SEC (1000000)
 
 #if defined(_LINUX) || defined(_AIX)
-static uint64 time_microseconds() {
+static int64 getTime() {
         struct timeval tv;
         gettimeofday(&tv, NULL);
 
-        time_t seconds = tv.tv_sec;
-        suseconds_t microseconds = tv.tv_usec;
-
-        return (static_cast<uint64>(seconds) * USECS_PER_SEC) + microseconds;
+        return ((int64) tv.tv_sec)*1000 + tv.tv_usec/1000;
 }
 #elif defined(_WINDOWS)
-static uint64 time_microseconds() {
-	LARGE_INTEGER freq, i, multiplier;
-
-	/* Try to use the performance counter, but revert to GetTickCount() if a problem occurs */
-	if (QueryPerformanceFrequency(&freq)) {
-		multiplier.QuadPart = freq.QuadPart / USECS_PER_SEC;
-		if (0 != multiplier.QuadPart) {
-			if (QueryPerformanceCounter(&i)) {
-				return (i.QuadPart / multiplier.QuadPart);
-			}
-		}
-	}
-
-	/* GetTickCount() returns ticks in milliseconds */
-	return GetTickCount() * 1000;
+static int64 getTime() {
+	LONGLONG time;
+	GetSystemTimeAsFileTime( (FILETIME*)&time );
+	return (int64) ((time - 116444736000000000) /10000);
 }
 #elif defined(_S390)
-	static uint64 time_microseconds() {
-		uint64 microsec = MAXPREC() / 8;
-		return microsec;
-	}
+static int64 getTime() {
+	int64 millisec = MAXPREC() / 8000;
+	return millisec;
+}
 #endif
-
-
-uint64 getTime() {
-	return time_microseconds() / 1000;
 }
 
-}
-
-
-uint64 getTotalPhysicalMemorySize() {
+int64 getTotalPhysicalMemorySize() {
 #if defined (_AIX)
-	return (long)_system_configuration.physmem;
+	return (int64)(sysconf(_SC_AIX_REALMEM) * 1024);
 #elif defined (_LINUX)
 	IDATA pagesize, num_pages;
 
@@ -224,7 +209,7 @@ uint64 getTotalPhysicalMemorySize() {
 	if (pagesize == -1 || num_pages == -1) {
 		return 0;
     } else {
-		return (long) pagesize *num_pages;
+		return (int64) pagesize *num_pages;
 	}
 #elif defined (_WINDOWS) 
 	MEMORYSTATUSEX statex;
@@ -414,7 +399,7 @@ static IDATA readProcStatField(UDATA index, const char *format, ...)
 #endif
 
 
-uint64 getProcessPhysicalMemorySize() {
+int64 getProcessPhysicalMemorySize() {
 #if defined(LINUX)
         /* Read rss field from /proc/<pid>/stat as per 'man proc'. */
 #define RSS_FIELD_INDEX 23
@@ -423,7 +408,7 @@ uint64 getProcessPhysicalMemorySize() {
         if (1 == readProcStatField(RSS_FIELD_INDEX, "%ld", &rss))
         {
                 /* NOTE: This is accurate even in the context of huge pages. */
-                return(long)rss * sysconf(_SC_PAGESIZE);
+                return(int64)rss * sysconf(_SC_PAGESIZE);
         }
 #undef RSS_FIELD_INDEX
 #elif defined(AIXPPC)
@@ -449,7 +434,7 @@ uint64 getProcessPhysicalMemorySize() {
 
 }
 
-uint64 getProcessPrivateMemorySize() {
+int64 getProcessPrivateMemorySize() {
 
 #if defined(LINUX)
         /*
@@ -466,15 +451,12 @@ uint64 getProcessPrivateMemorySize() {
                 if (NULL != str)
                 {
                         long shared;
-
                         if (1 == sscanf(str, "%ld", &shared))
                         {
-                                long vsize = getProcessVirtualMemorySize();
-
+                                int64 vsize = getProcessVirtualMemorySize();
                                 if (-1 != vsize)
                                 {
-                                        long priv = vsize - ((long)shared * sysconf(_SC_PAGESIZE));
-
+                                        int64 priv = vsize - ((int64)shared * sysconf(_SC_PAGESIZE));
                                         return(priv > 0 ? priv : -1);
                                 }
                         }
@@ -488,7 +470,7 @@ uint64 getProcessPrivateMemorySize() {
         if (1 == getprocs64((struct procentry64*)&pe, sizeof(pe), NULL, 0, &pid, 1))
         {
                 /* NOTE: pi_dvm is always in 4K units regardless of pi_data_l2psize. */
-                long size = (long)pe.pi_tsize + (long)pe.pi_dvm * 4096;
+                int64 size = (int64)pe.pi_tsize + (int64)pe.pi_dvm * 4096;
 
                 return(size > 0 ? size : -1);
         }
@@ -510,7 +492,7 @@ uint64 getProcessPrivateMemorySize() {
         return -1;
 }
 
-uint64  getProcessVirtualMemorySize() {
+int64  getProcessVirtualMemorySize() {
 #if defined(LINUX)
         /* Read vsize field from /proc/<pid>/stat as per 'man proc'. */
 #define VSIZE_FIELD_INDEX 22
@@ -518,7 +500,7 @@ uint64  getProcessVirtualMemorySize() {
 
         if (1 == readProcStatField(VSIZE_FIELD_INDEX, "%lu", &vsize))
         {
-                return(long)(vsize > 0 ? vsize : -1);
+                return(int64)(vsize > 0 ? vsize : -1);
         }
 #undef VSIZE_FIELD_INDEX
 #elif defined(AIXPPC)
@@ -535,16 +517,16 @@ uint64  getProcessVirtualMemorySize() {
         info.cb = sizeof(info);
         if (0 != GetProcessMemoryInfo(GetCurrentProcess(), &info, sizeof(info)))
         {
-                return(long)info.PagefileUsage;
+                return(int64)info.PagefileUsage;
         }
 #endif
         return -1;
 }
 
-uint64 getFreePhysicalMemorySize() {
+int64 getFreePhysicalMemorySize() {
 #if defined(LINUX)
         /* NOTE: This is accurate even in the context of huge pages. */
-        return(long)sysconf(_SC_AVPHYS_PAGES) * sysconf(_SC_PAGESIZE);
+        return(int64)sysconf(_SC_AVPHYS_PAGES) * sysconf(_SC_PAGESIZE);
 #elif defined(AIXPPC)
         /* NOTE: This works on AIX 5.3 and later. */
         IDATA numPageSizes = vmgetinfo(NULL, VMINFO_GETPSIZES, 0);
@@ -556,7 +538,7 @@ uint64 getFreePhysicalMemorySize() {
 
                 if (numPageSizes == numPageSizesRetrieved)
                 {
-                        long size = 0;
+                        int64 size = 0;
                         IDATA i;
 
                         for (i = 0; i < numPageSizes; i++)
@@ -566,7 +548,7 @@ uint64 getFreePhysicalMemorySize() {
                                 pageSize.psize = pageSizes[i];
                                 if (0 == vmgetinfo(&pageSize, VMINFO_PSIZE, sizeof(pageSize)))
                                 {
-                                        size += (long)pageSize.psize * pageSize.numfrb;
+                                        size += (int64)pageSize.psize * pageSize.numfrb;
                                 }
                         }
                         return(size > 0 ? size : -1);

@@ -234,6 +234,11 @@
         "<(srcdir)/common/util/sysUtils.cpp",
         "<(srcdir)/common/MemoryManager.cpp",
       ],
+      "conditions": [
+        ['OS=="win"', {
+          "libraries": [ "Psapi" ],
+        }],
+      ],
     },
     {
       "target_name": "envplugin",
