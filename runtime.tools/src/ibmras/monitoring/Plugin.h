@@ -2,7 +2,7 @@
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
- * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * (C) Copyright IBM Corp. 2007, 2015 All Rights Reserved.
  * The source code for this program is not published or otherwise
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
@@ -12,7 +12,8 @@
 #ifndef ibmras_monitoring_plugin_h
 #define ibmras_monitoring_plugin_h
 
-#include "ibmras/monitoring/Monitoring.h"
+#include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/common/types.h"
 #include <vector>
 #include <string>
 

@@ -29,7 +29,7 @@
   "target_defaults": {
     "cflags_cc!": [ '-fno-exceptions' ],
     "defines": [ "EXPORT", "IBMRAS_DEBUG_LOGGING" ],
-    "include_dirs": [ "src", "<(pahosrcdir)" ],
+    "include_dirs": [ "src", "<(pahosrcdir)", "src/ibmras/vm/node/node_modules/nan" ],
     "target_conditions": [
       ['_type=="shared_library"', {
         'product_prefix': '<(SHARED_LIB_PREFIX)',
@@ -80,7 +80,7 @@
         "<(srcdir)/common/port/ThreadData.cpp",
         "<(srcdir)/common/Properties.cpp",
         "<(srcdir)/common/PropertiesFile.cpp",
-        "<(srcdir)/common/data/legacy/LegacyData.cpp",
+#        "<(srcdir)/common/data/legacy/LegacyData.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
         "<(INTERMEDIATE_DIR)/monitoring/agent/Agent.cpp",
@@ -92,8 +92,7 @@
         "<(srcdir)/monitoring/agent/BucketList.cpp",
         "<(srcdir)/monitoring/Plugin.cpp",
         "<(srcdir)/monitoring/connector/configuration/ConfigurationConnector.cpp",
-        "<(srcdir)/vm/node/nodeagent.cpp", 
-        "<(srcdir)/vm/node/wrapper.cpp"
+        "<(srcdir)/vm/node/nodeagent.cpp"
       ],
       'variables': {
         'agentversion%':'<(version).<(build_id)'
@@ -145,17 +144,12 @@
         "<(srcdir)/common/util/sysUtils.cpp",
         "<(srcdir)/common/MemoryManager.cpp",
       ],
-      "conditions": [
-        [ 'node_byteorder=="big"', {
-          "defines": [ "REVERSED" ], 
-        }],
-      ],
     },
     {
       "target_name": "nodeenvplugin",
       "type": "shared_library",
       "sources": [
-        "<(srcdir)/monitoring/plugins/nodeenv/nodeenvplugin.cpp",
+        "<(srcdir)/monitoring/plugins/node/env/nodeenvplugin.cpp",
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
         "<(srcdir)/common/port/<(portdir)/Process.cpp",
@@ -170,7 +164,7 @@
       "target_name": "nodeprofplugin",
       "type": "shared_library",
       "sources": [
-        "<(srcdir)/monitoring/plugins/nodeprof/nodeprofplugin.cpp",
+        "<(srcdir)/monitoring/plugins/node/prof/nodeprofplugin.cpp",
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
         "<(srcdir)/common/port/<(portdir)/Process.cpp",
@@ -185,7 +179,7 @@
       "target_name": "nodegcplugin",
       "type": "shared_library",
       "sources": [
-        "<(srcdir)/monitoring/plugins/nodegc/nodegcplugin.cpp",
+        "<(srcdir)/monitoring/plugins/node/gc/nodegcplugin.cpp",
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
         "<(srcdir)/common/port/<(portdir)/Process.cpp",
@@ -200,8 +194,8 @@
       "target_name": "cpuplugin",
       "type": "shared_library",
       "sources": [
-        "<(srcdir)/monitoring/plugins/cpu/cpuplugin.cpp",
-        "<(srcdir)/monitoring/plugins/cpu/cputime.cpp",
+        "<(srcdir)/monitoring/plugins/common/cpu/cpuplugin.cpp",
+        "<(srcdir)/monitoring/plugins/common/cpu/cputime.cpp",
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
         "<(srcdir)/common/port/<(portdir)/Process.cpp",
@@ -224,7 +218,7 @@
       "target_name": "memoryplugin",
       "type": "shared_library",
       "sources": [
-        "<(srcdir)/monitoring/plugins/memory/memoryplugin.cpp",
+        "<(srcdir)/monitoring/plugins/common/memory/memoryplugin.cpp",
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
         "<(srcdir)/common/port/<(portdir)/Process.cpp",
@@ -244,7 +238,7 @@
       "target_name": "envplugin",
       "type": "shared_library",
       "sources": [
-        "<(srcdir)/monitoring/plugins/environment/envplugin.cpp",
+        "<(srcdir)/monitoring/plugins/common/environment/envplugin.cpp",
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
         "<(srcdir)/common/port/<(portdir)/Process.cpp",

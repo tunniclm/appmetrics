@@ -2,7 +2,7 @@
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
- * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * (C) Copyright IBM Corp. 2007, 2015 All Rights Reserved.
  * The source code for this program is not published or otherwise
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
@@ -46,6 +46,8 @@ uint32 provID;
 PUSH_CALLBACK sendDataToAgent;
 
 IBMRAS_DEFINE_LOGGER("TraceDataProvider");
+
+static const char* gc = "{omrmm.14, omrmm.15, omrmm.10, omrmm.11, omrmm.12, omrmm.13, omrmm.0, omrmm.1}";
 
 omrRunTimeProviderParameters vmData;
 UtSubscription *subscriptionID;
@@ -120,7 +122,7 @@ int Tracestart() {
 	 * that this is a header record */
 	char METADATA_EYE_CATCHER[] = { 'H', 'C', 'T', 'H' };
 
-	const char *opts[] = { "maximal", "{omrmm,omrti}", NULL };
+	const char *opts[] = { "maximal", gc, NULL };
 
 	if (OMR_ERROR_NONE == rc) {
 		rc = vmData.omrti->BindCurrentThread(vmData.theVm, "HC Tracestart", &vmThread);
@@ -128,7 +130,7 @@ int Tracestart() {
 
 	/* just enable Health Center tracepoints */
 	if (OMR_ERROR_NONE == rc) {
-		vmData.omrti->SetTraceOptions(vmThread,opts);
+		vmData.omrti->SetTraceOptions(vmThread, opts);
 	}
 
 	/* get the trace header data from the vm */

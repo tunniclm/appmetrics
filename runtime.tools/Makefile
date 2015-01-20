@@ -33,7 +33,7 @@ COPY_CONNECTOR=cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
 #-------------------------------------------------------------------------------------------
 #Objects files which make up various components
 #-------------------------------------------------------------------------------------------
-COMMON_OBJS = ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/FileUtils.o ${COMMON_OUT}/LibraryUtils.o ${COMMON_OUT}/Thread.o ${COMMON_OUT}/Lock.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/ThreadData.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/PropertiesFile.o ${COMMON_OUT}/LegacyData.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o ${COMMON_OUT}/MemoryManager.o 
+COMMON_OBJS = ${COMMON_OUT}/Logger.o ${COMMON_OUT}/LogManager.o ${COMMON_OUT}/FileUtils.o ${COMMON_OUT}/LibraryUtils.o ${COMMON_OUT}/Thread.o ${COMMON_OUT}/Lock.o ${COMMON_OUT}/Process.o ${COMMON_OUT}/ThreadData.o ${COMMON_OUT}/Properties.o ${COMMON_OUT}/PropertiesFile.o ${COMMON_OUT}/strUtils.o ${COMMON_OUT}/sysUtils.o ${COMMON_OUT}/MemoryManager.o 
 HL_CONNECTOR_OBJS=${CONNECTOR_OUT}/HLConnector.o ${CONNECTOR_OUT}/HLConnectorPlugin.o
 AGENT_OBJS=${COMMON_OBJS} ${AGENT_OUT}/agent.o ${AGENT_OUT}/ThreadPool.o ${AGENT_OUT}/WorkerThread.o ${AGENT_OUT}/SystemReceiver.o ${AGENT_OUT}/ConnectorManager.o ${AGENT_OUT}/Bucket.o ${AGENT_OUT}/BucketList.o ${AGENT_OUT}/Plugin.o  ${AGENT_OUT}/ConfigurationConnector.o 
 
@@ -43,7 +43,7 @@ OSTREAM_CONNECTOR_OBJS = ${CONNECTOR_OUT}/OStreamConnector.o
 TESTPLUGIN_OBJS=${PLUGIN_OUT}/plugin.o
 OSPLUGIN_OBJS=${PLUGIN_OUT}/osplugin.o ${PLUGIN_OUT}/os${OS}.o
 
-JMXPLUGIN_OBJS=${PLUGIN_OUT}/JMXPullSource.o ${PLUGIN_OUT}/JMXSourceManager.o ${PLUGIN_OUT}/JMXUtility.o ${PLUGIN_OUT}/OSJMXPullSource.o ${PLUGIN_OUT}/RTJMXPullSource.o
+JMXPLUGIN_OBJS=${PLUGIN_OUT}/JMXPullSource.o ${PLUGIN_OUT}/JMXSourceManager.o ${PLUGIN_OUT}/JMXUtility.o ${PLUGIN_OUT}/LegacyData.o ${PLUGIN_OUT}/OSJMXPullSource.o ${PLUGIN_OUT}/RTJMXPullSource.o
 JNIPLUGIN_OBJS=${PLUGIN_OUT}/CFacade.o ${PLUGIN_OUT}/ENVMXBean.o ${PLUGIN_OUT}/ThreadDataProvider.o ${PLUGIN_OUT}/MemoryDataProvider.o ${PLUGIN_OUT}/MemoryCounterDataProvider.o  ${PLUGIN_OUT}/LockingDataProvider.o ${PLUGIN_OUT}/JNIReceiver.o
 JAVA_OBJS = ${JAVA_OUT}/DumpHandler.o ${JAVA_OUT}/Util.o ${JAVA_OUT}/ClassHistogramProvider.o ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o  ${JAVA_OUT}/JVMTIMemoryManager.o ${JAVA_OUT}/MethodLookupProvider.o ${HL_CONNECTOR_OBJS}
 
@@ -88,13 +88,14 @@ CONNECTORS=${CONNECTOR_OUT}/${LIB_PREFIX}hcmqtt.${LIB_EXT} #${CONNECTOR_OUT}/lib
 AGENT=${AGENT_OUT}/${LIB_PREFIX}monagent.${LIB_EXT}
 #PLUGINS=${PLUGIN_OUT}/libplugin.${LIB_EXT} ${PLUGIN_OUT}/libosplugin.${LIB_EXT}
 PLUGINS=${PLUGIN_OUT}/libplugin.${LIB_EXT}
+LOG_PLUGIN=${PLUGIN_OUT}/${LIB_PREFIX}logplugin.${LIB_EXT} 
 COMMON_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}envplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}cpuplugin.${LIB_EXT} #${PLUGIN_OUT}/libosplugin.${LIB_EXT} 
 NODE_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}nodegcplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}nodeenvplugin.${LIB_EXT}
 #NODE_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}nodeprofplugin.${LIB_EXT}
 PYPLUG=${PLUGIN_OUT}/libpyplugin.so
 TEST=${TEST_OUT}/test${EXE_EXT}
 OBJECTS=${AGENT} ${CONNECTORS} ${PLUGINS} ${TEST} 
-CORE_AGENT=${CORE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
+CORE_AGENT=${CORE_OUT}/${LIB_PREFIX}healthcentercore.${LIB_EXT}
 JAVA_AGENT=${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 OMR_AGENT=${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 NODE_AGENT=${NODE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
@@ -301,23 +302,23 @@ ${COMMON_OUT}/Properties.o:
 ${COMMON_OUT}/PropertiesFile.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/PropertiesFile.cpp
 
-${COMMON_OUT}/LegacyData.o: 
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/data/legacy/LegacyData.cpp
+${PLUGIN_OUT}/LegacyData.o: 
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jmx/os/legacy/LegacyData.cpp
 	
 ${PLUGIN_OUT}/JMXSourceManager.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jmx/JMXSourceManager.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jmx/JMXSourceManager.cpp
 
 ${PLUGIN_OUT}/JMXPullSource.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jmx/JMXPullSource.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jmx/JMXPullSource.cpp
 
 ${PLUGIN_OUT}/JMXUtility.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jmx/JMXUtility.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jmx/JMXUtility.cpp
 	
 ${PLUGIN_OUT}/CFacade.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jni/CFacade.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jni/CFacade.cpp
 
 ${PLUGIN_OUT}/JNIReceiver.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jni/JNIReceiver.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jni/JNIReceiver.cpp
 	
 ${COMMON_OUT}/memUtils.o: 
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/util/memUtils.cpp
@@ -332,25 +333,25 @@ ${COMMON_OUT}/sysUtils.o:
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/common/util/sysUtils.cpp
 	
 ${PLUGIN_OUT}/ENVMXBean.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jni/env/ENVMXBean.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jni/env/ENVMXBean.cpp
 	
 ${PLUGIN_OUT}/ThreadDataProvider.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jni/threads/ThreadDataProvider.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jni/threads/ThreadDataProvider.cpp
 	
 ${PLUGIN_OUT}/MemoryDataProvider.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jni/memory/MemoryDataProvider.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jni/memory/MemoryDataProvider.cpp
 	
 ${PLUGIN_OUT}/MemoryCounterDataProvider.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jni/memorycounter/MemoryCounterDataProvider.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jni/memorycounter/MemoryCounterDataProvider.cpp
 
 ${PLUGIN_OUT}/LockingDataProvider.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jni/locking/LockingDataProvider.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jni/locking/LockingDataProvider.cpp
 	
 ${PLUGIN_OUT}/OSJMXPullSource.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jmx/os/OSJMXPullSource.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jmx/os/OSJMXPullSource.cpp
 	
 ${PLUGIN_OUT}/RTJMXPullSource.o: 
-	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/jmx/rt/RTJMXPullSource.cpp
+	${CC} ${INCS} ${CFLAGS} -I${JAVA_PLAT_INCLUDE} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/jmx/rt/RTJMXPullSource.cpp
 	
 ${PLUGIN_OUT}/pyplugin.o: 
 	${CC} ${INCS} -I${OMR_SRC_INCLUDE} ${PYTHON_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/pytest/pyplugin.cpp
@@ -364,14 +365,14 @@ ${PLUGIN_OUT}/nodeprofplugin.o: ${SRC}/monitoring/plugins/nodeprof/nodeprofplugi
 ${PLUGIN_OUT}/nodeenvplugin.o: ${SRC}/monitoring/plugins/nodeenv/nodeenvplugin.cpp
 	${CC} ${INCS} -I${NODE_SDK_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/nodeenv/nodeenvplugin.cpp
 	
-${PLUGIN_OUT}/envplugin.o: ${SRC}/monitoring/plugins/environment/envplugin.cpp
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/environment/envplugin.cpp
+${PLUGIN_OUT}/envplugin.o: ${SRC}/monitoring/plugins/common/environment/envplugin.cpp
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/environment/envplugin.cpp
 	
 ${PLUGIN_OUT}/cputime.o: ${SRC}/monitoring/plugins/cpu/cputime.cpp ${SRC}/monitoring/plugins/cpu/cputime.h
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/cpu/cputime.cpp
 	
-${PLUGIN_OUT}/cpuplugin.o: ${SRC}/monitoring/plugins/cpu/cpuplugin.cpp ${SRC}/monitoring/plugins/cpu/cputime.h
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/cpu/cpuplugin.cpp	
+${PLUGIN_OUT}/cpuplugin.o: ${SRC}/monitoring/plugins/common/cpu/cpuplugin.cpp ${SRC}/monitoring/plugins/common/cpu/cputime.h
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/cpu/cpuplugin.cpp	
 	
 #-------------------------------------------------------------------------------------------
 #JAVA vm files which make up various JAVA shim levels

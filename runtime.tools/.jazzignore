@@ -22,7 +22,6 @@ core.ignore.recursive= \
 core.ignore= \
 	{.autotools} \
 	{.cproject} \
-	{.jazzignore} \
 	{.project} \
 	{.settings} \
 	{Agent.asm} \
@@ -96,44 +95,26 @@ core.ignore= \
 	{Tree.asm} \
 	{WorkerThread.asm} \
 	{WorkerThreadControl.asm} \
-	{agentsrc.zip} \
 	{bin} \
 	{build} \
-	{build.bat} \
-	{build.sh} \
-	{build_dbg.sh} \
-	{cl.js} \
 	{environment} \
 	{healthcenter.asm} \
-	{install.bat} \
-	{install.sh} \
-	{install_dbg.sh} \
 	{libz.so} \
 	{libzmia.so} \
 	{locking} \
 	{memory} \
 	{memorycounters} \
 	{methoddictionary} \
-	{mm.js} \
 	{output} \
 	{plugin.asm} \
 	{pr1.py} \
 	{prueba.java} \
 	{pruebajni.cpp} \
-	{rebuild.bat} \
-	{rebuild.sh} \
-	{rebuild_dbg.sh} \
 	{strUtils.asm} \
 	{sysUtils.asm} \
-	{test} \
 	{test.asm} \
-	{test_valgrind.sh} \
-	{testg.sh} \
-	{testit.sh} \
 	{threads} \
 	{trace} \
-	{tst} \
 	{utf-8.asm} \
 	{vc120.pdb} \
-	{works.js} \
 	{zip.asm} 

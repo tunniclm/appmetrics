@@ -2,7 +2,7 @@
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
- * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * (C) Copyright IBM Corp. 2007, 2015 All Rights Reserved.
  * The source code for this program is not published or otherwise
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
@@ -18,14 +18,14 @@
 
 #include "ibmras/common/logging.h"
 #include "ibmras/monitoring/agent/Agent.h"
-#include "ibmras/monitoring/Monitoring.h"
+#include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/plugins/j9/methods/MethodLookupProvider.h"
 #include "ibmras/monitoring/plugins/j9/DumpHandler.h"
 #include "ibmras/monitoring/plugins/j9/ClassHistogramProvider.h"
 #include "ibmras/monitoring/connector/jmx/JMXConnectorPlugin.h"
 #include "ibmras/monitoring/connector/headless/HLConnectorPlugin.h"
-#include "ibmras/monitoring/plugins/jni/JNIReceiver.h"
+#include "ibmras/monitoring/plugins/j9/jni/JNIReceiver.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/common/Properties.h"
 #include "ibmras/common/util/strUtils.h"
@@ -39,8 +39,8 @@ struct __jdata;
 #include "ibmjvmti.h"
 #include "jni.h"
 #include "jniport.h"
-#include "ibmras/monitoring/plugins/jmx/JMX.h"
-#include "ibmras/monitoring/plugins/jni/Facade.h"
+#include "ibmras/monitoring/plugins/j9/jmx/JMX.h"
+#include "ibmras/monitoring/plugins/j9/jni/Facade.h"
 
 /*########################################################################################################################*/
 /*########################################################################################################################*/
@@ -555,17 +555,17 @@ void launchAgent(const std::string &options) {
 					tDPP));
 
 	//The next call invoked the setJVM function on the JMX plugin
-	ibmras::monitoring::plugins::jmx::setJVM(tDPP.theVM);
+	ibmras::monitoring::plugins::j9::jmx::setJVM(tDPP.theVM);
 	// We now register the plugin with the agent
-	agent->addPlugin(ibmras::monitoring::plugins::jmx::getPlugin());
+	agent->addPlugin(ibmras::monitoring::plugins::j9::jmx::getPlugin());
 
-	ibmras::monitoring::plugins::jni::setTDPP(&tDPP);
+	ibmras::monitoring::plugins::j9::jni::setTDPP(&tDPP);
 	//We now register the plugin with the agent
-	agent->addPlugin(ibmras::monitoring::plugins::jni::getPlugin());
+	agent->addPlugin(ibmras::monitoring::plugins::j9::jni::getPlugin());
 
 	// Add the jni receiver
 	agent->addPlugin(
-			(ibmras::monitoring::Plugin*) new ibmras::monitoring::plugins::jni::JNIReceiver());
+			(ibmras::monitoring::Plugin*) new ibmras::monitoring::plugins::j9::jni::JNIReceiver());
 
 	agent->init();
 	agent->start();

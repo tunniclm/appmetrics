@@ -2,7 +2,7 @@
  * IBM Confidential
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
- * (C) Copyright IBM Corp. 2007, 2014 All Rights Reserved.
+ * (C) Copyright IBM Corp. 2007, 2015 All Rights Reserved.
  * The source code for this program is not published or otherwise
  * divested of its trade secrets, irrespective of what has
  * been deposited with the U.S. Copyright Office.
@@ -13,8 +13,9 @@
 #endif
 
 #include "node.h"
+#include "nan.h"
 #include "uv.h"
-#include "ibmras/monitoring/Monitoring.h"
+#include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/Logger.h"
 #include "ibmras/monitoring/agent/Agent.h"
@@ -35,7 +36,7 @@ IBMRAS_DEFINE_LOGGER("node");
 
 static std::string ToStdString(Local<String> s) {
 	char *buf = new char[s->Length() + 1];
-	s->WriteAscii(buf);
+	s->WriteUtf8(buf); // (FLORINCR) not sure if this or just Write()
 	std::string result(buf);
 	delete[] buf;
 	return result;
@@ -128,16 +129,16 @@ static ibmras::common::PropertiesFile* LoadPropertiesFile(const std::string& fil
 }
 
 static std::string* GetModuleDir(Handle<Object> module) {
-	std::string moduleFilename(ToStdString(module->Get(String::New("filename"))->ToString()));
+	std::string moduleFilename(ToStdString(module->Get(NanNew<String>("filename"))->ToString()));
 	return new std::string(port_dirname(moduleFilename));
 }
 
 static Local<Object> GetProcessObject() {
-	return Context::GetCurrent()->Global()->Get(String::New("process"))->ToObject();
+	return NanGetCurrentContext()->Global()->Get(NanNew<String>("process"))->ToObject();
 }
 
 static std::string* FindAppDir() {
-	Handle<Value> mainModule = GetProcessObject()->Get(String::New("mainModule"));
+	Handle<Value> mainModule = GetProcessObject()->Get(NanNew<String>("mainModule"));
 	if (!mainModule->IsUndefined()) {
 		return GetModuleDir(mainModule->ToObject());
 	}
@@ -170,60 +171,59 @@ static ibmras::common::PropertiesFile* LoadProperties() {
 	return props;
 }
 
-Handle<Value> Start(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(Start) {
+	NanScope();
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-
 	if (!running) {
 		running = true;
+
 		agent->init();
 	
 		// Force MQTT on for now
 		agent->setAgentProperty("mqtt", "on");
-	
+
 		agent->start();
 	}
-	
-	return scope.Close(Undefined());
+	NanReturnUndefined();
 }
 
-Handle<Value> Stop(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(Stop) {
+	NanScope();
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
 	if (running) {
 		running = false;
 		agent->stop();
 		agent->shutdown();
 	}
-	return scope.Close(Undefined());
+	NanReturnUndefined();
 }
 
-Handle<Value> spath(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(spath) {
+	NanScope();
 	Local<String> value = args[0]->ToString();
 	
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
 	agent->setAgentProperty("plugin.path", ToStdString(value));
 
-	return scope.Close(Undefined());
+	NanReturnUndefined();
 }
 
-Handle<Value> setLogLevel(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(setLogLevel) {
+	NanScope();
 	Local<Number> level = Local<Number>::Cast(args[0]);
 	ibmras::common::logging::Level lvl = static_cast<ibmras::common::logging::Level>(level->Int32Value());
 	ibmras::common::LogManager::getInstance()->setLevel(lvl); 
-	return scope.Close(Undefined());
+	NanReturnUndefined();
 }
 
 void Init(Handle<Object> exports, Handle<Object> module) {
 //	monitoring::NodePlugin<pullsource>::Init(exports);
 //	monitoring::NodePlugin<pushsource>::Init(exports);
 
-	exports->Set(String::NewSymbol("start"), FunctionTemplate::New(Start)->GetFunction());
-	exports->Set(String::NewSymbol("spath"), FunctionTemplate::New(spath)->GetFunction());
-	exports->Set(String::NewSymbol("stop"), FunctionTemplate::New(Stop)->GetFunction());
-	exports->Set(String::NewSymbol("setLogLevel"), FunctionTemplate::New(setLogLevel)->GetFunction());
+	exports->Set(NanNew<String>("start"), NanNew<FunctionTemplate>(Start)->GetFunction());
+	exports->Set(NanNew<String>("spath"), NanNew<FunctionTemplate>(spath)->GetFunction());
+	exports->Set(NanNew<String>("stop"), NanNew<FunctionTemplate>(Stop)->GetFunction());
+	exports->Set(NanNew<String>("setLogLevel"), NanNew<FunctionTemplate>(setLogLevel)->GetFunction());
 
 	// Defaults
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
