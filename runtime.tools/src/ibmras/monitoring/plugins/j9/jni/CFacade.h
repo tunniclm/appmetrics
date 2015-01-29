@@ -43,6 +43,7 @@ extern uint64_t tm_stt;
 #define PITRACE_ERROR					-1
 
 std::string getString(JNIEnv* env, const char* cname, const char* mname, const char* signature);
+extern "C" DECL const char* getVersionJNI(void);
 
 
 /*

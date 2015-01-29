@@ -42,10 +42,11 @@ const char* SYM_STOP = "ibmras_monitoring_plugin_stop";
 const char* SYM_START = "ibmras_monitoring_plugin_start";
 const char* SYM_CONNECTOR_FACTORY = "ibmras_monitoring_getConnector";
 const char* SYM_RECEIVER_FACTORY = "ibmras_monitoring_getReceiver";
+const char* SYM_VERSION = "ibmras_monitoring_getVersion";
 
 Plugin::Plugin() :
 		name(""), init(NULL), push(NULL), pull(NULL), start(NULL), stop(NULL), confactory(
-				NULL), recvfactory(NULL), type(0) {
+				NULL), recvfactory(NULL), type(0), version(0), getVersion(NULL) {
 }
 
 std::vector<Plugin*> Plugin::scan(const std::string& dir) {
@@ -124,6 +125,7 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 
 			Plugin *plugin = processLibrary(filePath);
 			if (plugin != NULL) {
+				IBMRAS_LOG_2(info, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
 				plugins.push_back(plugin);
 			}
 
@@ -156,6 +158,8 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 				SYM_START);
 		void* stop = ibmras::common::util::LibraryUtils::getSymbol(handle,
 				SYM_STOP);
+		void* getVersion = ibmras::common::util::LibraryUtils::getSymbol(handle,
+				SYM_VERSION);
 		void* connectorFactory = ibmras::common::util::LibraryUtils::getSymbol(
 				handle, SYM_CONNECTOR_FACTORY);
 		void* receiverFactory = ibmras::common::util::LibraryUtils::getSymbol(
@@ -163,8 +167,8 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 
 		IBMRAS_DEBUG_3(fine, "Library %s: start=%p stop=%p", filePath.c_str(), start, stop);
 
-		/* External plugins MUST implement both start and stop */
-		if (start && stop) {
+		/* External plugins MUST implement both start, stop and getVersion */
+		if (start && stop && getVersion) {
 			plugin = new Plugin;
 
 			plugin->name = filePath;
@@ -172,13 +176,15 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 
 			plugin->init =reinterpret_cast<PLUGIN_INITIALIZE>(init);
 
-			plugin->pull = reinterpret_cast<pullsource* (*)(uint32)>(pull);
+			plugin->pull = reinterpret_cast<pullsource* (*)(agentCoreFunctions, uint32)>(pull);
 
-			plugin->push = reinterpret_cast<pushsource* (*)(void (*)(monitordata*), uint32)>(push);
+			plugin->push = reinterpret_cast<pushsource* (*)(agentCoreFunctions, uint32)>(push);
 
 			plugin->stop = reinterpret_cast<int (*)()>(stop);
 
 			plugin->start = reinterpret_cast<int (*)()>(start);
+
+			plugin->getVersion = reinterpret_cast<const char* (*)()>(getVersion);
 
 			plugin->confactory = reinterpret_cast<CONNECTOR_FACTORY>(connectorFactory);
 
@@ -189,6 +195,12 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 			/* not a plugin so close the handle	*/
 			ibmras::common::util::LibraryUtils::closeLibrary(handle);
 		}
+	} else {
+#if defined(WINDOWS)
+
+#else
+		IBMRAS_DEBUG_2(fine, "Not valid handler for library candidate %s. \ndlerror output: \"%s\"", filePath.c_str(), dlerror());
+#endif
 	}
 	return plugin;
 }

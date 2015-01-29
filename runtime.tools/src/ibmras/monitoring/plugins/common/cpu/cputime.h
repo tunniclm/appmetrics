@@ -11,7 +11,8 @@
 #ifndef ibmras_monitoring_plugins_common_cpu_cputime_h
 #define ibmras_monitoring_plugins_common_cpu_cputime_h
 
-#include "ibmras/common/types.h"
+//#include "ibmras/common/types.h"
+#include "ibmras/monitoring/AgentExtensions.h"
 
 // TODO Should rewrite this as a class and not expose timestamp
 //      use the platform specific time values in an opaque way

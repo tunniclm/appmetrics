@@ -79,7 +79,7 @@ void NativeMemoryDataProvider::pullComplete(monitordata* data) {
 
 
 
-pullsource* NativeMemoryDataProvider::registerPullSource(uint32 provID) {
+pullsource* NativeMemoryDataProvider::registerPullSource(agentCoreFunctions aCF,uint32 provID) {
 
 	IBMRAS_DEBUG(info, "Registering pull sources");
 	pullsource *src = new pullsource();

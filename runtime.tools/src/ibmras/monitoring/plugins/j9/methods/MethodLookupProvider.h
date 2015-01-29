@@ -12,6 +12,7 @@
 #ifndef ibmras_monitoring_plugins_j9_methods
 #define ibmras_monitoring_plugins_j9_methods
 
+#include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/common/port/Lock.h"
@@ -26,7 +27,7 @@ namespace plugins {
 namespace j9 {
 namespace methods {
 
-
+const char* getmlpVersion(void);
 
 class MethodLookupProvider: public ibmras::monitoring::connector::Receiver, public ibmras::monitoring::Plugin {
 public:
@@ -38,7 +39,8 @@ public:
 	static void* getReceiver();
 	void receiveMessage(const std::string &id, uint32 size, void *data);
 
-	static pullsource* registerPullSource(uint32 provID);
+	static pullsource* registerPullSource(agentCoreFunctions aCF, uint32 provID);
+
 
 
 	static monitordata* getData(void);			/* shortcut definition for the pull source callback */

@@ -18,6 +18,7 @@
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/monitoring/plugins/j9/trace/TraceReceiver.h"
+#include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/common/port/ThreadData.h"
 
 
@@ -51,6 +52,7 @@ jvmtiError verboseGCAlarm(jvmtiEnv *env, void *subscriptionID, void *userData);
 void handleVerboseGCSetting(std::string value);
 std::string getWriteableDirectory();
 std::string getString(JNIEnv* env, const std::string& cname, const std::string& mname, const std::string& signature, jstring args);
+const char* tdppVersion(void);
 
 
 class TraceDataProvider : public ibmras::monitoring::Plugin {

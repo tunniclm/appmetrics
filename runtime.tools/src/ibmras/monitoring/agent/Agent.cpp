@@ -25,8 +25,8 @@
 #include "ibmras/common/LogManager.h"
 #include "ibmras/monitoring/agent/SystemReceiver.h"
 
-#define AGENT(func) ibmras::monitoring::agent::Agent::getInstance()->func();
-#define AGENTP(func,param) ibmras::monitoring::agent::Agent::getInstance()->func(param);
+//#define AGENT(func) ibmras::monitoring::agent::Agent::getInstance()->func();
+//#define AGENTP(func,param) ibmras::monitoring::agent::Agent::getInstance()->func(param);
 
 
 #if defined(WINDOWS)
@@ -49,7 +49,10 @@ static const char* HEARTBEAT_TOPIC = "heartbeat";
 bool running = false;
 bool updateNow = false;
 
-Agent* Agent::instance = new Agent;
+Agent* instance = new Agent;
+agentCoreFunctions aCF;
+
+//Agent* agentInstance = ibmras::monitoring::agent::Agent::getInstance();
 
 IBMRAS_DEFINE_LOGGER("Agent")
 ;
@@ -138,7 +141,7 @@ DataSource<pushsource>* Agent::getPushSource(std::string uniqueID) {
 	return NULL;
 }
 
-void callback(monitordata* data) {
+void pushDataImpl(monitordata* data) {
 	Agent* agent = Agent::getInstance();
 	agent->addData(data);
 }
@@ -215,7 +218,7 @@ void Agent::republish(const std::string &topicPrefix) {
 void Agent::addPushSource(std::vector<ibmras::monitoring::Plugin*>::iterator i,
 		uint32 provID) {
 	if ((*i)->push) {
-		pushsource *push = (*i)->push(callback, provID);
+		pushsource *push = (*i)->push(aCF, provID);
 		if (push) {
 			IBMRAS_DEBUG(debug, "Push sources were defined");
 			pushSourceList.add(provID, push, (*i)->name);
@@ -231,7 +234,7 @@ void Agent::addPushSource(std::vector<ibmras::monitoring::Plugin*>::iterator i,
 void Agent::addPullSource(std::vector<ibmras::monitoring::Plugin*>::iterator i,
 		uint32 provID) {
 	if ((*i)->pull) {
-		pullsource *pull = (*i)->pull(provID);
+		pullsource *pull = (*i)->pull(aCF,provID);
 		if (pull) {
 			IBMRAS_DEBUG(debug, "Pull sources were defined");
 			pullSourceList.add(provID, pull, (*i)->name);
@@ -257,6 +260,7 @@ void Agent::addPlugin(ibmras::monitoring::Plugin* plugin) {
 	if (plugin) {
 		IBMRAS_DEBUG_1(info, "Adding plugin %s", plugin->name.c_str());IBMRAS_DEBUG_4(info, "Push source %p, Pull source %p, start %p, stop %p",
 				plugin->push, plugin->pull, plugin->start, plugin->stop);
+		IBMRAS_LOG_2(info, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
 		plugins.push_back(plugin);
 		IBMRAS_DEBUG(info, "Plugin added");
 	} else {
@@ -267,6 +271,7 @@ void Agent::addPlugin(ibmras::monitoring::Plugin* plugin) {
 void Agent::addPlugin(const std::string &dir, const std::string library) {
 	ibmras::monitoring::Plugin *plugin = ibmras::monitoring::Plugin::processLibrary(dir + PATHSEPARATOR + LIBPREFIX + library + LIBSUFFIX);
 	if (plugin) {
+		IBMRAS_LOG_2(info, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
 		plugins.push_back(plugin);
 	}
 }
@@ -285,8 +290,16 @@ void Agent::removeConnector(ibmras::monitoring::connector::Connector* con) {
 	connectionManager.removeConnector(con);
 }
 
+int sendMessageWrapper(const char *sourceId, uint32 size, void *data) {
+	return instance->getConnectionManager()->sendMessage(std::string(sourceId), size, data);
+}
+
+
 void Agent::init() {
 	IBMRAS_DEBUG(info, "Agent initialisation : start");
+
+	aCF.agentPushData = pushDataImpl;
+	aCF.agentSendMessage = sendMessageWrapper;
 
 	std::string searchPath = getAgentProperty("plugin.path");
 	IBMRAS_DEBUG_1(debug, "Plugin search path : %s", searchPath.c_str());
@@ -538,6 +551,26 @@ void Agent::setAgentProperty(const std::string& agentProp, const std::string& va
 
 bool Agent::agentPropertyExists(const std::string& agentProp) {
 	return propertyExists(getAgentPropertyPrefix() + agentProp);
+}
+
+
+
+
+
+bool AgentLoader::loadPropertiesFile(const std::string& filename){
+	ibmras::common::PropertiesFile props;
+	if (!props.load(filename)) {
+		((Agent*)(AgentLoader::getInstance()))->setProperties(props);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+
+AgentLoader* AgentLoader::getInstance() {
+	return (AgentLoader*)instance;
 }
 
 

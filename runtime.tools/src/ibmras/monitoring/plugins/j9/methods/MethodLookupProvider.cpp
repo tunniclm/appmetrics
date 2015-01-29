@@ -34,16 +34,20 @@ namespace methods {
 IBMRAS_DEFINE_LOGGER("methodlookup")
 ;
 
+const char* mlpVersion = "99.99.99";
+
 MethodLookupProvider* MethodLookupProvider::instance = NULL;
 
 MethodLookupProvider::MethodLookupProvider(jvmFunctions functions) :
 		providerID(0), sendHeader(true), initialHeaderSent(false), env(NULL), getAllMethods(
 				false), enabled(false) {
+	version = "asdf";
 	vmFunctions = functions;
 	name = "Method Lookup";
 	pull = registerPullSource;
 	type = ibmras::monitoring::plugin::data
 			| ibmras::monitoring::plugin::receiver;
+	getVersion = getmlpVersion;
 	recvfactory = (RECEIVER_FACTORY) getReceiver;
 
 	ibmras::monitoring::agent::Agent* agent =
@@ -58,7 +62,11 @@ MethodLookupProvider::MethodLookupProvider(jvmFunctions functions) :
 MethodLookupProvider::~MethodLookupProvider() {
 }
 
-pullsource* MethodLookupProvider::registerPullSource(uint32 provID) {
+const char* getmlpVersion(void) {
+	return mlpVersion;
+}
+
+pullsource* MethodLookupProvider::registerPullSource(agentCoreFunctions aCF,uint32 provID) {
 	instance->providerID = provID;
 
 	pullsource *src = new pullsource();

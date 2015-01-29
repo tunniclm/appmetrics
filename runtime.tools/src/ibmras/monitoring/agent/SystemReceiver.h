@@ -18,9 +18,12 @@
 
 extern "C" DECL void* ibmras_getSystemReceiver();
 
+
 namespace ibmras{
 namespace monitoring {
 namespace agent {
+
+extern "C" DECL const char* getVersionSys();
 
 class SystemReceiver: public ibmras::monitoring::connector::Receiver, public ibmras::monitoring::Plugin {
 public:

@@ -19,6 +19,8 @@ namespace monitoring {
 namespace plugins {
 namespace j9 {
 
+const char* getDumpVersion();
+
 class DumpHandler: public ibmras::monitoring::Plugin {
 public:
 	DumpHandler(jvmFunctions functions);

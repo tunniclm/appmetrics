@@ -14,6 +14,7 @@
 
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
+#include "ibmras/monitoring/AgentExtensions.h"
 
 
 namespace ibmras {
@@ -22,6 +23,7 @@ namespace plugins {
 namespace j9 {
 namespace classhistogram {
 
+const char* getchpVersion();
 
 class ClassHistogramProvider: public ibmras::monitoring::connector::Receiver, public ibmras::monitoring::Plugin {
 public:
@@ -31,7 +33,7 @@ public:
 	int stopReceiver();
 	void publishConfig();
 	void receiveMessage(const std::string &id, uint32 size, void *data);
-	static pushsource* registerPushSource(void (*callback)(monitordata* data), uint32 provID);
+	static pushsource* registerPushSource(agentCoreFunctions aCF, uint32 provID);
 	static uint32 providerID;
 	static ClassHistogramProvider* getInstance(jvmFunctions functions);
 	static void* getInstance();

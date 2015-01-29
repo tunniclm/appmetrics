@@ -21,11 +21,18 @@ namespace headless {
 HLConnectorPlugin* instance = NULL;
 static HLConnector* hlConnector = NULL;
 
+const char* hlVersion = "99.99.99";
+
+const char* getVersionHL() {
+	return hlVersion;
+}
+
 HLConnectorPlugin::HLConnectorPlugin(JavaVM* theVM) : vm(theVM) {
 	name = "Headless Connector";
 	type = ibmras::monitoring::plugin::connector;
 	start = NULL;
 	stop = NULL;
+	getVersion = ibmras::monitoring::connector::headless::getVersionHL;
 	confactory = getConnector;
 	pull = NULL;
 	push = NULL;

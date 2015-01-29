@@ -21,6 +21,8 @@ namespace monitoring {
 namespace connector {
 namespace headless {
 
+const char* getVersionHL();
+
 class HLConnectorPlugin: public ibmras::monitoring::Plugin {
 public:
 	static HLConnectorPlugin* getInstance(JavaVM* theVM);

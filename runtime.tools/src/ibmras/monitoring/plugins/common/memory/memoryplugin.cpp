@@ -9,10 +9,10 @@
  */
 
 #include "ibmras/monitoring/AgentExtensions.h"
-#include "ibmras/common/types.h"
-#include "ibmras/common/logging.h"
-#include "ibmras/common/Logger.h"
-#include "ibmras/common/Properties.h"
+//#include "ibmras/common/types.h"
+//#include "ibmras/common/logging.h"
+//#include "ibmras/common/Logger.h"
+//#include "ibmras/common/Properties.h"
 #include <cstring>
 #include <string>
 #include <sstream>
@@ -137,7 +137,7 @@ struct vminfo_psize
 #define MEMSOURCE_PULL_INTERVAL 2
 #define DEFAULT_CAPACITY 1024*10
 
-IBMRAS_DEFINE_LOGGER("MemoryPlugin");
+//IBMRAS_DEFINE_LOGGER("MemoryPlugin");
 
 int64 getProcessPhysicalMemorySize();
 int64 getProcessPrivateMemorySize();
@@ -477,7 +477,7 @@ int64 getProcessPrivateMemorySize() {
         }
 #elif defined(WINDOWS)
 
-        IBMRAS_DEBUG(debug, ">>MEMPullSource::getProcessPrivateMemorySizeImpl()");
+        //IBMRAS_DEBUG(debug, ">>MEMPullSource::getProcessPrivateMemorySizeImpl()");
 
         PROCESS_MEMORY_COUNTERS_EX procMemCount;
 
@@ -489,7 +489,7 @@ int64 getProcessPrivateMemorySize() {
         return -1;
 
 #endif
-        IBMRAS_DEBUG(debug, "<<MEMPullSource::getProcessPrivateMemorySizeImpl()[ERROR]");
+       // IBMRAS_DEBUG(debug, "<<MEMPullSource::getProcessPrivateMemorySizeImpl()[ERROR]");
         return -1;
 }
 
@@ -596,10 +596,10 @@ monitordata* OnRequestData() {
         char* sval = reinterpret_cast<char*>(malloc(len + 1));
 		if (sval) {
 			strcpy(sval, memorydata.c_str());
-			IBMRAS_DEBUG(debug, "MEMORY REPORT\n"); IBMRAS_DEBUG_1(debug, "%s", sval);
+			//IBMRAS_DEBUG(debug, "MEMORY REPORT\n"); IBMRAS_DEBUG_1(debug, "%s", sval);
 			data->size = len;
 			data->data = sval;
-			IBMRAS_DEBUG(debug, "<<MEMPullSource::sourceData(DATA)");
+			//IBMRAS_DEBUG(debug, "<<MEMPullSource::sourceData(DATA)");
 		}
         return data;
 }
@@ -629,31 +629,35 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 }
 
 extern "C" {
-MEMPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(uint32 provID) {
-	IBMRAS_DEBUG(info,  "Registering pull sources");
+MEMPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
+	//IBMRAS_DEBUG(info,  "Registering pull sources");
 	pullsource *head = createPullSource(0, "memory_os");
 	plugin::provid = provID;
 	return head;
 }
 
 MEMPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
-	ibmras::common::Properties props;
-	props.add(properties);
-
-	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
-	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
-	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.MemoryPlugin");
-	ibmras::common::LogManager::getInstance()->setLevel("MemoryPlugin", loggingProp);
+//	ibmras::common::Properties props;
+//	props.add(properties);
+//
+//	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
+//	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
+//	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.MemoryPlugin");
+//	ibmras::common::LogManager::getInstance()->setLevel("MemoryPlugin", loggingProp);
 	
 	return 0;
 }
 
 MEMPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	IBMRAS_DEBUG(info,  "Starting");
+	//IBMRAS_DEBUG(info,  "Starting");
 	return 0;
 }
 
 MEMPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 	return 0;
+}
+
+MEMPLUGIN_DECL char* ibmras_monitoring_getVersion() {
+	return "1.0";
 }
 }

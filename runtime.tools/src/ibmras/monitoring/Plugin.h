@@ -43,12 +43,14 @@ public:
 	static Plugin* processLibrary(const std::string &filePath);
 
 	std::string name;										/* name of the library - typically this is the full path */
+	const char* version;
 
 	int (*init)(const char *properties);				/* Plugin inialization method */
-	pushsource* (*push)(void (*callback)(monitordata*), uint32);	/* push source function pointer or NULL */
-	pullsource* (*pull)(uint32);							/* pull source function pointer or NULL */
+	pushsource* (*push)(agentCoreFunctions, uint32);	/* push source function pointer or NULL */
+	pullsource* (*pull)(agentCoreFunctions, uint32);							/* pull source function pointer or NULL */
 	int (*start)(void);									/* start function to begin data production */
 	int (*stop)(void);										/* stop function to end data production */
+	const char* (*getVersion)(void);								/* returns plugin version, used to enforce versioning */
 	CONNECTOR_FACTORY confactory;							/* Connector factory */
 	RECEIVER_FACTORY recvfactory;                           /* Receiver factory */
 	ibmras::common::util::LibraryUtils::Handle handle;	/* handle to be used when closing the dynamically loaded plugin */

@@ -46,8 +46,7 @@ int stopReceiver() {
 	return 0;
 }
 
-pushsource* MethodLookupProvider::registerPushSource(
-		void (*callback)(monitordata* data), uint32 provID) {
+pushsource* MethodLookupProvider::registerPushSource(agentCoreFunctions aCF, uint32 provID) {
 	pushsource *src = new pushsource();
 	src->header.name = "methoddictionary";
 	src->header.description =
@@ -56,7 +55,7 @@ pushsource* MethodLookupProvider::registerPushSource(
 	src->next = NULL;
 	src->header.capacity = 1048576; /* 1MB bucket capacity */
 	MethodLookupProvider::providerID = provID;
-	plugins::omr::methods::sendMethodData = callback;
+	plugins::omr::methods::sendMethodData = aCF.agentPushData;
 
 	return src;
 }

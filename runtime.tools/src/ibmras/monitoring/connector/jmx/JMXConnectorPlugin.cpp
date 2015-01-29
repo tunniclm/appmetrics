@@ -16,6 +16,7 @@ namespace monitoring {
 namespace connector {
 namespace jmx {
 
+const char* JMXConnectorVersion = "99.99.99";
 
 JMXConnectorPlugin* instance = NULL;
 JMXConnectorPlugin* JMXConnectorPlugin::getInstance(JavaVM *theVM) {
@@ -49,11 +50,16 @@ JMXConnector* JMXConnectorPlugin::getJMXConnector() {
 	return jmxConnector;
 }
 
+const char* getVersionJMX() {
+	return JMXConnectorVersion;
+}
+
 JMXConnectorPlugin::JMXConnectorPlugin(JavaVM *theVM) : jmxConnector(NULL), vm(theVM) {
 	name = "JMX Connector";
 	type = ibmras::monitoring::plugin::connector;
 	start = startPlugin;
 	stop = stopPlugin;
+	getVersion = getVersionJMX;
 	confactory = getConnector;
 	pull = NULL;
 	push = NULL;

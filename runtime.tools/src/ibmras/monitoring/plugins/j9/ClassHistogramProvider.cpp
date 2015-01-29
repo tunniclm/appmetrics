@@ -13,6 +13,7 @@
 #undef _ALL_SOURCE
 #endif
 
+
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/monitoring/plugins/j9/ClassHistogramProvider.h"
@@ -76,6 +77,8 @@ PUSH_CALLBACK sendClassHistogramData;
 uint32 ClassHistogramProvider::providerID = 0;
 IBMRAS_DEFINE_LOGGER("ClassHistogram");
 
+const char* chpVersion = "99.99.99";
+
 void publishConfig() {
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
@@ -98,7 +101,7 @@ int stopReceiver() {
 }
 
 pushsource* ClassHistogramProvider::registerPushSource(
-		void (*callback)(monitordata* data), uint32 provID) {
+		agentCoreFunctions aCF, uint32 provID) {
 	pushsource *src = new pushsource();
 	src->header.name = "classhistogram";
 	src->header.description =
@@ -107,7 +110,7 @@ pushsource* ClassHistogramProvider::registerPushSource(
 	src->next = NULL;
 	src->header.capacity = 1048576; /* 1MB bucket capacity */
 	ClassHistogramProvider::providerID = provID;
-	ibmras::monitoring::plugins::j9::classhistogram::sendClassHistogramData = callback;
+	ibmras::monitoring::plugins::j9::classhistogram::sendClassHistogramData = aCF.agentPushData;
 
 	return src;
 }
@@ -119,6 +122,7 @@ ClassHistogramProvider::ClassHistogramProvider(jvmFunctions functions) {
 	push = registerPushSource;
 	start = plugins::j9::classhistogram::startReceiver;
 	stop = plugins::j9::classhistogram::stopReceiver;
+	getVersion = getchpVersion;
 	type = ibmras::monitoring::plugin::data
 			| ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) ClassHistogramProvider::getInstance;
@@ -127,6 +131,10 @@ ClassHistogramProvider::ClassHistogramProvider(jvmFunctions functions) {
 }
 
 ClassHistogramProvider::~ClassHistogramProvider() {
+}
+
+const char* getchpVersion() {
+	return chpVersion;
 }
 
 ClassHistogramProvider* instance = NULL;

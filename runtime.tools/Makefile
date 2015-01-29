@@ -54,7 +54,8 @@ NODEGC_OBJS=${PLUGIN_OUT}/nodegcplugin.o
 NODEPROF_OBJS=${PLUGIN_OUT}/nodeprofplugin.o
 NODEENV_OBJS=${PLUGIN_OUT}/nodeenvplugin.o
 ENVPLUGIN_OBJS=${PLUGIN_OUT}/envplugin.o
-CPUPLUGIN_OBJS=${PLUGIN_OUT}/cpuplugin.o ${PLUGIN_OUT}/cputime.o
+CPUPLUGIN_OBJS=${PLUGIN_OUT}/cputime.o ${PLUGIN_OUT}/cpuplugin.o
+MEMPLUGIN_OBJS=${PLUGIN_OUT}/memoryplugin.o
 TEST_OBJS=${TEST_OUT}/test.o
 
 #-------------------------------------------------------------------------------------------
@@ -89,13 +90,13 @@ AGENT=${AGENT_OUT}/${LIB_PREFIX}monagent.${LIB_EXT}
 #PLUGINS=${PLUGIN_OUT}/libplugin.${LIB_EXT} ${PLUGIN_OUT}/libosplugin.${LIB_EXT}
 PLUGINS=${PLUGIN_OUT}/libplugin.${LIB_EXT}
 LOG_PLUGIN=${PLUGIN_OUT}/${LIB_PREFIX}logplugin.${LIB_EXT} 
-COMMON_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}envplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}cpuplugin.${LIB_EXT} #${PLUGIN_OUT}/libosplugin.${LIB_EXT} 
+COMMON_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}envplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}cpuplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}memoryplugin.${LIB_EXT}#${PLUGIN_OUT}/libosplugin.${LIB_EXT} 
 NODE_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}nodegcplugin.${LIB_EXT} ${PLUGIN_OUT}/${LIB_PREFIX}nodeenvplugin.${LIB_EXT}
 #NODE_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}nodeprofplugin.${LIB_EXT}
 PYPLUG=${PLUGIN_OUT}/libpyplugin.so
 TEST=${TEST_OUT}/test${EXE_EXT}
 OBJECTS=${AGENT} ${CONNECTORS} ${PLUGINS} ${TEST} 
-CORE_AGENT=${CORE_OUT}/${LIB_PREFIX}healthcentercore.${LIB_EXT}
+CORE_AGENT=${CORE_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT}
 JAVA_AGENT=${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 OMR_AGENT=${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 NODE_AGENT=${NODE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
@@ -140,7 +141,7 @@ test: setup common ${CONNECTORS} ${AGENT} ${TEST}
 	@echo "Test build complete"
 	
 core: HC_OUT=${CORE_OUT}
-core: setup common ${CORE_AGENT} ${CONNECTORS} 
+core: setup common ${CORE_AGENT} ${CONNECTORS} ${ENVPLUGIN_OBJS} ${CPUPLUGIN_OBJS} ${MEMPLUGIN_OBJS} ${COMMON_PLUGINS}
 	@echo "Core build complete"	
 
 #-------------------------------------------------------------------------------------------
@@ -160,7 +161,7 @@ ${PLUGIN_OUT}/libosplugin.${LIB_EXT}: ${OSPLUGIN_OBJS}
 	@echo "OSPlugin lib built"
 
 ${PLUGIN_OUT}/${LIB_PREFIX}cpuplugin.${LIB_EXT}: ${CPUPLUGIN_OBJS}
-	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} $^ ${COMMON_OBJS} ${EXELIBS}
+	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} $^ ${EXELIBS}
 	@echo "CPU lib built"
 	
 ${PLUGIN_OUT}/${LIB_PREFIX}nodegcplugin.${LIB_EXT}: ${NODEGC_OBJS}
@@ -176,8 +177,12 @@ ${PLUGIN_OUT}/${LIB_PREFIX}nodeenvplugin.${LIB_EXT}: ${NODEENV_OBJS}
 	@echo "NodeEnv lib built"
 	
 ${PLUGIN_OUT}/${LIB_PREFIX}envplugin.${LIB_EXT}: ${ENVPLUGIN_OBJS}
-	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} "$<" ${LIBPATH}"${HC_OUT}" ${HC_LIB_USE} ${EXELIBS} 
+	${LINK} ${LINK_PLUG} ${LIBFLAGS} ${LIB_OBJOPT} "$<" ${EXELIBS} 
 	@echo "Environment lib built"
+	
+${PLUGIN_OUT}/${LIB_PREFIX}memoryplugin.${LIB_EXT}: ${MEMPLUGIN_OBJS}
+	${LINK} ${LINK_PLUG} ${LIBFLAGS} ${LIB_OBJOPT} "$<" ${EXELIBS} 
+	@echo "Memory lib built"
 	
 ${PLUGIN_OUT}/libpyplugin.${LIB_EXT}: ${PYPLUGIN_OBJS}
 	${LINK} ${LDFLAGS} ${LIBFLAGS} ${OBJOPT} ${PYPLUGIN_OBJS} ${COMMON_OBJS}
@@ -199,7 +204,7 @@ ${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${OMR_OBJS}
 	${LINK} ${LINK_OPT}  ${LIBFLAGS} ${LIB_OBJOPT} ${OMR_OBJS} ${AGENT_OBJS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
 	@echo "omr Healthcenter lib built"
 
-${CORE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS}
+${CORE_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT}: ${AGENT_OBJS}
 	${LINK} ${LINK_OPT}  ${LIBFLAGS} ${LIB_OBJOPT} ${AGENT_OBJS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
 	@echo "core Healthcenter lib built"
 
@@ -368,11 +373,14 @@ ${PLUGIN_OUT}/nodeenvplugin.o: ${SRC}/monitoring/plugins/nodeenv/nodeenvplugin.c
 ${PLUGIN_OUT}/envplugin.o: ${SRC}/monitoring/plugins/common/environment/envplugin.cpp
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/environment/envplugin.cpp
 	
-${PLUGIN_OUT}/cputime.o: ${SRC}/monitoring/plugins/cpu/cputime.cpp ${SRC}/monitoring/plugins/cpu/cputime.h
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/cpu/cputime.cpp
+${PLUGIN_OUT}/cputime.o: ${SRC}/monitoring/plugins/common/cpu/cputime.cpp
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/cpu/cputime.cpp
 	
-${PLUGIN_OUT}/cpuplugin.o: ${SRC}/monitoring/plugins/common/cpu/cpuplugin.cpp ${SRC}/monitoring/plugins/common/cpu/cputime.h
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/cpu/cpuplugin.cpp	
+${PLUGIN_OUT}/cpuplugin.o: ${SRC}/monitoring/plugins/common/cpu/cpuplugin.cpp
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/cpu/cpuplugin.cpp
+
+${PLUGIN_OUT}/memoryplugin.o: ${SRC}/monitoring/plugins/common/memory/memoryplugin.cpp
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/memory/memoryplugin.cpp	
 	
 #-------------------------------------------------------------------------------------------
 #JAVA vm files which make up various JAVA shim levels
@@ -565,7 +573,8 @@ coreinstall: core
 	mkdir -p ${INSTALL_DIR}/libs
 	${COPY_CONNECTOR}
 	cp src/properties/omr/healthcenter.properties ${INSTALL_DIR}
-	cp ${CORE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT} ${INSTALL_DIR}
+	cp ${CORE_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT} ${INSTALL_DIR}
+	cp ${PLUGIN_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
 	@echo "-----------------------------------------------------------------------------------------------------------------------"
              
 nodeinstall: node

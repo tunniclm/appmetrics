@@ -47,7 +47,7 @@ PUSH_CALLBACK sendDataToAgent;
 
 IBMRAS_DEFINE_LOGGER("TraceDataProvider");
 
-static const char* gc = "{omrmm.14, omrmm.15, omrmm.10, omrmm.11, omrmm.12, omrmm.13, omrmm.0, omrmm.1}";
+static const char* traceSet = "{omrmm.0, omrmm.1, omrmm.10, omrmm.11, omrmm.12, omrmm.13, omrmm.14, omrmm.15, omrti.8, omrti.9}";
 
 omrRunTimeProviderParameters vmData;
 UtSubscription *subscriptionID;
@@ -64,7 +64,7 @@ ibmras::common::port::Lock* traceLock = new ibmras::common::port::Lock;
  * of which data provider it comes from.  for us though in this provider, its invisible
  * that this happens as it may not scale.  but we just use the callback as given anyway
  */
-pushsource* registerPushSource(void (*callback)(monitordata* data),
+pushsource* registerPushSource(agentCoreFunctions aCF,
 		uint32 provID) {
 	pushsource *src = new pushsource();
 	src->header.name = "trace";
@@ -77,7 +77,7 @@ pushsource* registerPushSource(void (*callback)(monitordata* data),
 	src->next = NULL;
 	src->header.capacity = 1048576; /* 1MB bucket capacity */
 	plugins::omr::trace::provID = provID;
-	plugins::omr::trace::sendDataToAgent = callback;
+	plugins::omr::trace::sendDataToAgent = aCF.agentPushData;
 
 
 	return src;
@@ -122,7 +122,7 @@ int Tracestart() {
 	 * that this is a header record */
 	char METADATA_EYE_CATCHER[] = { 'H', 'C', 'T', 'H' };
 
-	const char *opts[] = { "maximal", gc, NULL };
+	const char *opts[] = { "maximal", traceSet, NULL };
 
 	if (OMR_ERROR_NONE == rc) {
 		rc = vmData.omrti->BindCurrentThread(vmData.theVm, "HC Tracestart", &vmThread);

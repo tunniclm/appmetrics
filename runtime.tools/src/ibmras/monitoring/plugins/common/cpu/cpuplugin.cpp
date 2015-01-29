@@ -10,13 +10,14 @@
 
 
 #include "ibmras/monitoring/AgentExtensions.h"
-#include "ibmras/common/logging.h"
-#include "ibmras/common/Logger.h"
-#include "ibmras/common/Properties.h"
+//#include "ibmras/common/logging.h"
+//#include "ibmras/common/Logger.h"
+//#include "ibmras/common/Properties.h"
 #include "ibmras/monitoring/plugins/common/cpu/cputime.h"
 #include <cstring>
 #include <string>
 #include <sstream>
+#include <cstdio>
 
 #if defined(_WINDOWS)
 #define CPUPLUGIN_DECL __declspec(dllexport)	/* required for DLLs to export the plugin functions */
@@ -27,7 +28,7 @@
 #define CPUSOURCE_PULL_INTERVAL 2
 #define DEFAULT_CAPACITY 1024*10
 
-IBMRAS_DEFINE_LOGGER("CPUPlugin");
+//IBMRAS_DEFINE_LOGGER("CPUPlugin");
 
 namespace plugin {
 	uint32 provid = 0;
@@ -44,7 +45,7 @@ static char* NewCString(const std::string& s) {
 static double CalculateTotalCPU(struct CPUTime* start, struct CPUTime* finish) {
 	double cpu = (double)(finish->total - start->total) / (double)(finish->time - start->time);
 	if (cpu > 1.0) {
-		IBMRAS_DEBUG_1(debug, "Total CPU reported > 1.0 (%lf)", cpu);
+		//IBMRAS_DEBUG_1(debug, "Total CPU reported > 1.0 (%lf)", cpu);
 		cpu = 1.0;
 	}
 	return cpu;
@@ -53,7 +54,7 @@ static double CalculateTotalCPU(struct CPUTime* start, struct CPUTime* finish) {
 static double CalculateProcessCPU(struct CPUTime* start, struct CPUTime* finish) {
 	double cpu = (double)(finish->process - start->process) / (double)(finish->time - start->time);
 	if (cpu > 1.0) {
-		IBMRAS_DEBUG_1(debug, "Process CPU reported > 1.0 (%lf)", cpu);
+		//IBMRAS_DEBUG_1(debug, "Process CPU reported > 1.0 (%lf)", cpu);
 		cpu = 1.0;
 	}
 	return cpu;
@@ -72,6 +73,7 @@ static bool IsValidData(struct CPUTime* cputime) {
 }
 
 monitordata* OnRequestData() {
+
 	monitordata *data = new monitordata;
 	data->provID = plugin::provid;
 	data->sourceID = 0;
@@ -123,31 +125,35 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 }
 
 extern "C" {
-CPUPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(uint32 provID) {
-	IBMRAS_DEBUG(info,  "Registering pull sources");
+CPUPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
+	//IBMRAS_DEBUG(info,  "Registering pull sources");
 	pullsource *head = createPullSource(0, "cpu_os");
 	plugin::provid = provID;
 	return head;
 }
 
 CPUPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
-	ibmras::common::Properties props;
-	props.add(properties);
-
-	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
-	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
-	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.CPUPlugin");
-	ibmras::common::LogManager::getInstance()->setLevel("CPUPlugin", loggingProp);
+//	ibmras::common::Properties props;
+//	props.add(properties);
+//
+//	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
+//	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
+//	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.CPUPlugin");
+//	ibmras::common::LogManager::getInstance()->setLevel("CPUPlugin", loggingProp);
 	
 	return 0;
 }
 
 CPUPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	IBMRAS_DEBUG(info,  "Starting");
+	//IBMRAS_DEBUG(info,  "Starting");
 	return 0;
 }
 
 CPUPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 	return 0;
+}
+
+CPUPLUGIN_DECL const char* ibmras_monitoring_getVersion() {
+	return "1.0";
 }
 }

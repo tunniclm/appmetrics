@@ -18,6 +18,7 @@
 #include "ibmras/common/logging.h"
 #include "ibmras/common/Properties.h"
 #include "ibmras/common/util/sysUtils.h"
+#include "ibmras/monitoring/plugins/GenericEnablingReceiver.h"
 #include <iostream>
 #include <cstring>
 #include <string>
@@ -34,15 +35,18 @@
 
 IBMRAS_DEFINE_LOGGER("NodeProfPlugin");
 
+#define PROFILING_INTERVAL 5000
+
 namespace plugin {
-	void (*callback)(monitordata*);
-	uint32 provid = 0;
-	int profileIdx = -1;
+	// NOTE(tunniclm): only access these variables from the V8/Node/uv thread
+	agentCoreFunctions api;
+	uint32 provid = 0;	
+	bool enabled = false;
+	bool profiling = false;
+	uv_timer_t *timer;
 }
 
 using namespace v8;
-
-CpuProfiler *cpu;
 
 static char* NewCString(const std::string& s) {
 	char *result = new char[s.length() + 1];
@@ -50,6 +54,8 @@ static char* NewCString(const std::string& s) {
 	return result;
 }
 
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls V8 APIs
 static bool ExtractV8String(const Handle<String> v8string, char **cstring) {
 	*cstring = new char[v8string->Length() + 1];
 	if (*cstring == NULL) return false;
@@ -109,27 +115,92 @@ static char * ConstructData(const CpuProfile *profile) {
 	return NewCString(result.str());
 }
 
+
+#if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
+
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls V8 APIs
+static Isolate* GetIsolate() {
+	Isolate *isolate = v8::Isolate::GetCurrent();
+	if (isolate == NULL) {
+		IBMRAS_DEBUG(debug, "No V8 Isolate found");
+	}
+	return isolate;
+}
+
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls V8 APIs
+static CpuProfiler* GetCpuProfiler(Isolate *isolate) {
+	CpuProfiler *cpu = isolate->GetCpuProfiler();
+	if (cpu == NULL) {
+		IBMRAS_DEBUG(debug, "No CpuProfiler found");
+	}
+	return cpu;
+}
+
+#endif
+
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls V8 APIs
+static void StartProfiling() {
+#if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
+	Isolate *isolate = GetIsolate();
+	if (isolate == NULL) return;
+	
+	CpuProfiler *cpu = GetCpuProfiler(isolate);
+	if (cpu == NULL) return;
+
+	StartProfiling(NanNew<String>("NodeProfPlugin"), false);
+#else
+	CpuProfiler::StartProfiling(NanNew<String>("NodeProfPlugin"));
+#endif
+}
+
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls V8 APIs
+static const CpuProfile* StopProfiling() {
+#if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
+	Isolate *isolate = GetIsolate();
+	if (isolate == NULL) return NULL;
+
+	CpuProfiler *cpu = GetCpuProfiler(isolate);
+	if (cpu == NULL) return NULL;
+	
+	return cpu->StopProfiling(NanNew<String>("NodeProfPlugin"), false);
+#else
+	return CpuProfiler::StopProfiling(NanNew<String>("NodeProfPlugin"));
+#endif
+}
+
+static void ReleaseProfile(const CpuProfile *profile) {
+	if (profile != NULL) {
+		//((CpuProfile *)profile)->Delete();
+		delete profile;
+	}
+}
+
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls V8 APIs
+//                 and accesses non thread-safe fields
 #if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
 void OnGatherDataOnV8Thread(uv_timer_s *data) {
 #else
 void OnGatherDataOnV8Thread(uv_timer_s *data, int status) {
 #endif
 
-	if (Isolate::GetCurrent() == NULL) { 
-		IBMRAS_DEBUG(debug, "No V8 Isolate found when gathering method profile"); // CHECK(tunniclm): Should this be a warning?
-		return; 
-	}
+	// Check if we just got disabled and the profiler
+	// isn't running
+	if (!plugin::enabled) return;
 	
 	NanScope();
 	
 	// Get profile
-	Handle<String> s = NanNew<String>("NodeProfPlugin");
-	const CpuProfile *profile = cpu->StopProfiling(s); // CHECK(tunniclm): do we need to release the CpuProfile here? Check the V8 API
-	cpu->StartProfiling(s);
+	const CpuProfile *profile = StopProfiling(); // CHECK(tunniclm): do we need to release the CpuProfile here? Check the V8 API
 
 	if (profile != NULL) {
 		char *serialisedProfile = ConstructData(profile);
-		((CpuProfile*) profile)->Delete();
+		ReleaseProfile(profile);
+		StartProfiling();
 		if (serialisedProfile != NULL) {
 			// Send data to agent
 			monitordata data;
@@ -138,7 +209,7 @@ void OnGatherDataOnV8Thread(uv_timer_s *data, int status) {
 			data.sourceID = 0;
 			data.size = static_cast<uint32>(strlen(serialisedProfile)); // should data->size be a size_t?
 			data.data = serialisedProfile;
-			plugin::callback(&data);
+			plugin::api.agentPushData(&data);
 			
 			delete[] serialisedProfile;
 		} else {
@@ -146,6 +217,7 @@ void OnGatherDataOnV8Thread(uv_timer_s *data, int status) {
 		}
 	} else {
 		IBMRAS_DEBUG(debug, "No method profile found"); // CHECK(tunniclm): Should this be a warning?
+		StartProfiling();
 	}
 
 }
@@ -162,15 +234,94 @@ pushsource* createPushSource(uint32 srcid, const char* name) {
 	return src;
 }
 
+void publishEnabled() {
+	std::string sourceName = "profiling_node";
+	std::string msg = sourceName + "_subsystem=";
+	if (plugin::enabled) {
+		msg += "on";
+	} else {
+		msg += "off";
+	}
+
+	IBMRAS_DEBUG_1(debug,  "Sending config message [%s]", msg.c_str());
+	plugin::api.agentSendMessage(("configuration/" + sourceName).c_str(), msg.length(),
+								  (void*) msg.c_str());
+} 
+
+
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls non thread-safe uv APIs
+//                 and accesses non thread-safe fields
+#if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
+static void enableOnV8Thread(uv_async_t *async) {
+#else
+static void enableOnV8Thread(uv_async_t *async, int status) {
+#endif
+	if (plugin::enabled) return;
+	plugin::enabled = true;
+	IBMRAS_DEBUG(debug,  "Publishing config");
+    publishEnabled();
+	
+	StartProfiling();
+
+	uv_timer_start(plugin::timer, OnGatherDataOnV8Thread, PROFILING_INTERVAL, PROFILING_INTERVAL);
+		
+	uv_close((uv_handle_t*) async, NULL);
+	delete async;
+}
+
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls non thread-safe uv APIs
+//                 and accesses non thread-safe fields
+#if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
+static void disableOnV8Thread(uv_async_t *async) {
+#else
+static void disableOnV8Thread(uv_async_t *async, int status) {
+#endif
+	if (!plugin::enabled) return;
+	plugin::enabled = false;
+	IBMRAS_DEBUG(debug,  "Publishing config");
+    publishEnabled();
+
+	uv_timer_stop(plugin::timer);
+	
+	const CpuProfile *profile = StopProfiling();
+	ReleaseProfile(profile);
+
+	uv_close((uv_handle_t*) async, NULL);
+	delete async;
+}
+
+// NOTE(tunniclm): Don't access plugin::enabled or plugin::profiling in here
+//                 since this function may not be running on the V8/Node/uv 
+//                 thread. uv_async_send() is thread-safe.
+void setEnabled(bool value) {
+	if (value) {
+		IBMRAS_DEBUG(debug,  "Enabling");
+		uv_async_t *async = new uv_async_t;
+		uv_async_init(uv_default_loop(), async, enableOnV8Thread);
+		uv_async_send(async); // close and cleanup in call back
+	} else {
+		IBMRAS_DEBUG(debug,  "Disabling");
+		uv_async_t *async = new uv_async_t;
+		uv_async_init(uv_default_loop(), async, disableOnV8Thread);
+		uv_async_send(async); // close and cleanup in call back
+	}
+}
+
 extern "C" {
-NODEPROFPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(void (*callback)(monitordata*), uint32 provID) {
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread as
+//                 it accesses non thread-safe fields
+NODEPROFPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
 	IBMRAS_DEBUG(info,  "Registering push sources");
 	pushsource *head = createPushSource(0, "profiling_node");
-	plugin::callback = callback;
+	plugin::api = api;
 	plugin::provid = provID;
 	return head;
 }
 
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread as
+//                 it accesses non thread-safe fields
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 	ibmras::common::Properties props;
 	props.add(properties);
@@ -179,28 +330,35 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
 	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.NodeProfPlugin");
 	ibmras::common::LogManager::getInstance()->setLevel("NodeProfPlugin", loggingProp);
+	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.GenericEnablingReceiver");
+	ibmras::common::LogManager::getInstance()->setLevel("GenericEnablingReceiver", loggingProp);
+	
+	std::string enabledProp = props.get("com.ibm.diagnostics.healthcenter.data.NodeProfPlugin");
+	plugin::enabled = (enabledProp == "on");
 	
 	return 0;
 }
 
+// NOTE(tunniclm): Must be called from the V8/Node/uv thread
+//                 since it calls non thread-safe V8 APIs and
+//                 uv APIs and accesses non thread-safe fields
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 	IBMRAS_DEBUG(info,  "Starting");
+
+	IBMRAS_DEBUG(debug,  "Publishing config");
+	publishEnabled();	
+
+	plugin::timer = new uv_timer_t;
+	uv_timer_init(uv_default_loop(), plugin::timer);
+	uv_unref((uv_handle_t*) plugin::timer); // don't prevent event loop exit
 	
-	NanScope();
-
-	#if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
-		cpu = v8::Isolate::GetCurrent()->GetCpuProfiler();
-		cpu->StartProfiling(NanNew<String>("NodeProfPlugin"), false);
-	#else
-		CpuProfiler::StartProfiling(NanNew<String>("NodeProfPlugin"));
-	#endif
-
-
-	uv_timer_t *timer = new uv_timer_t;
-	uv_timer_init(uv_default_loop(), timer);
-	uv_unref((uv_handle_t*) timer); // don't prevent event loop exit
-	uv_timer_start(timer, OnGatherDataOnV8Thread, 500, 500);
-	// TODO (florincr) shouldn't there be a delete somewhere for uv_timer_t ?
+	if (plugin::enabled) {	
+		IBMRAS_DEBUG(debug,  "Start profiling");
+		StartProfiling();
+	
+		IBMRAS_DEBUG(debug,  "Starting timer");
+		uv_timer_start(plugin::timer, OnGatherDataOnV8Thread, PROFILING_INTERVAL, PROFILING_INTERVAL);
+	}
 
 	return 0;
 }
@@ -208,9 +366,25 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 	IBMRAS_DEBUG(info,  "Stopping");
 
-	NanScope();
+	if (plugin::enabled) {
+		plugin::enabled = false;
 
-	const CpuProfile *profile = cpu->StopProfiling(NanNew<String>("NodeProfPlugin")); // CHECK(tunniclm): do we need to release the CpuProfile here? Check the V8 API
+		uv_timer_stop(plugin::timer);
+		uv_close((uv_handle_t*) plugin::timer, NULL);
+		delete plugin::timer;
+	
+		const CpuProfile *profile = StopProfiling();
+		ReleaseProfile(profile);
+	}
+
 	return 0;
+}
+
+NODEPROFPLUGIN_DECL void* ibmras_monitoring_getReceiver() {
+	return new ibmras::monitoring::plugins::GenericEnablingReceiver("profiling_node", setEnabled);
+}
+
+NODEPROFPLUGIN_DECL const char* ibmras_monitoring_getVersion() {
+	return "1.0";
 }
 }

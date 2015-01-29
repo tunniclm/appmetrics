@@ -12,6 +12,65 @@
 #ifndef ibmras_monitoring_monitoring_h
 #define ibmras_monitoring_monitoring_h
 
+#include <string>
+
+#ifndef NULL
+#define NULL 0
+#endif
+
+#if defined(_WINDOWS)
+	#include <basetsd.h>
+	#include <limits.h>
+#else
+	#include <stdint.h>
+	#include <limits.h>
+	#include <inttypes.h>
+#endif
+
+typedef signed int          INT;
+typedef unsigned int        UINT;
+typedef signed int          INT32;
+#ifndef UINT32
+   typedef unsigned int    UINT32;
+#endif
+typedef unsigned int        uint;
+typedef signed int          int32;
+typedef unsigned int        uint32;
+typedef signed int          int_t;
+typedef unsigned int        uint_t;
+
+#if defined(_WINDOWS)
+	typedef signed int          int32_t;
+	typedef unsigned int        uint32_t;
+
+	typedef signed __int64      INT64;
+	typedef unsigned __int64    UINT64;
+
+	typedef signed __int64      int64;
+	typedef unsigned __int64    uint64;
+
+	typedef signed __int64      int64_t;
+	typedef unsigned __int64    uint64_t;
+
+	#define _P64        "I64"
+#else
+    #if (__WORDSIZE == 64)
+       #define _P64         "l"
+    #else
+       #define _P64         "ll"
+    #endif
+
+    typedef int64_t             INT64;
+	#ifndef UINT64
+    	typedef uint64_t            UINT64;
+	#endif
+
+    typedef int64_t             int64;
+    typedef uint64_t            uint64;
+
+#endif
+
+
 /*
  * API definitions for data sources to connect to the monitoring
  * agent.
@@ -43,9 +102,6 @@ typedef struct pushsource {
 	pushsource *next;			/* next source or null if this is the last one in the list */
 } pushsource;
 
-typedef int (*PLUGIN_INITIALIZE)(const char* properties);
-typedef pushsource* (*PUSH_SOURCE_REGISTER)(void (*callback)(monitordata* data), unsigned int provID);
-typedef void (*PUSH_CALLBACK)(monitordata* data);
 
 typedef struct pullsource{
 	srcheader header;			/* common source header */
@@ -62,4 +118,54 @@ typedef void* (*CONNECTOR_FACTORY)(const char* properties);	/* short cut for the
 typedef void* (*RECEIVER_FACTORY)();	/* short cut for the function pointer to invoke in the receiver library */
 
 
+#if defined(_WINDOWS)
+#if defined(EXPORT)
+#define DECL __declspec(dllexport)	/* required for DLLs to export the plugin functions */
+#else
+#define DECL __declspec(dllimport)
+#endif
+#endif
+
+/* provide a default definition of DECL of the platform does not define one */
+#ifndef DECL
+#define DECL
+#endif
+
+
+typedef void (*pushData)(monitordata *data);
+typedef int (*sendMessage)(const char * sourceId, unsigned int size,void *data);
+
+typedef struct agentCoreFunctions {
+	pushData agentPushData;
+	sendMessage agentSendMessage;
+} agentCoreFunctions;
+
+typedef int (*PLUGIN_INITIALIZE)(const char* properties);
+typedef pushsource* (*PUSH_SOURCE_REGISTER)(agentCoreFunctions aCF, unsigned int provID);
+typedef void (*PUSH_CALLBACK)(monitordata* data);
+
+
+
+namespace ibmras {
+namespace monitoring {
+namespace agent {
+
+class DECL AgentLoader {
+	static AgentLoader* getInstance();		/* return the singleton instance of the agent */
+	virtual void init(){};							/* invoke to start the agent initialisation lifecycle event */
+	virtual void start(){};							/* invoke to start the agent start lifecycle event */
+	virtual void stop(){};							/* invoke to start the agent stop lifecycle event */
+	virtual void shutdown(){};						/* invoke to shutdown the agent, it cannot be restarted after this */
+	bool loadPropertiesFile(const std::string& filename);
+											/* the location of the healthcenter.properties file to load */
+};
+
+
+}
+}
+} /* end namespace agent */
+
 #endif /* ibmras_monitoring_monitoring_h */
+
+
+

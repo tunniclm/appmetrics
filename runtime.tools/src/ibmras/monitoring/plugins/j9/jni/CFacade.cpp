@@ -42,6 +42,7 @@ namespace j9 {
 namespace jni {
 
 uint64_t tm_stt;
+const char* JNIdpVersion ="99.99.99";
 
 #if defined(WINDOWS)
 uint64_t rdtsc()
@@ -79,7 +80,7 @@ PullSource* getJLAPullSource(uint32 id);
 extern "C" {
 #endif
 
-DECL pullsource* registerPullSourcejni(uint32 provID) {
+DECL pullsource* registerPullSourcejni(agentCoreFunctions aCF,uint32 provID) {
 	return ibmras::monitoring::plugins::j9::jni::mgr->registerPullSource(provID);
 }
 
@@ -89,6 +90,10 @@ DECL int startjni() {
 
 DECL int stopjni() {
 	return ibmras::monitoring::plugins::j9::jni::mgr->stop();
+}
+
+DECL const char* getVersionJNI() {
+	return JNIdpVersion;
 }
 
 #if defined(_ZOS)
@@ -284,6 +289,7 @@ DECL ibmras::monitoring::Plugin* getPlugin() {
 	plugin->name = "JNI data providers";
 	plugin->pull = ibmras::monitoring::plugins::j9::jni::registerPullSourcejni;
 	plugin->push = NULL;
+	plugin->getVersion = ibmras::monitoring::plugins::j9::jni::getVersionJNI;
 	plugin->start = ibmras::monitoring::plugins::j9::jni::startjni;
 	plugin->stop = ibmras::monitoring::plugins::j9::jni::stopjni;
 	plugin->type = ibmras::monitoring::plugin::data;

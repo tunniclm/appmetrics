@@ -11,9 +11,9 @@
 
 #include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/common/types.h"
-#include "ibmras/common/common.h"
-#include "ibmras/common/Logger.h"
-#include "ibmras/common/Properties.h"
+//#include "ibmras/common/common.h"
+//#include "ibmras/common/Logger.h"
+//#include "ibmras/common/Properties.h"
 #include <cstring>
 #include <string>
 #include <sstream>
@@ -33,7 +33,7 @@
 #include "windows.h"
 #define HOST_NAME_MAX 256
 #endif
-#include "ibmras/common/logging.h"
+//#include "ibmras/common/logging.h"
 
 #if defined (_LINUX) || defined (_AIX)
 extern "C" char **environ; // use GetEnvironmentStrings() on Windows (maybe getenv() on POSIX?)
@@ -45,11 +45,14 @@ extern "C" char **environ; // use GetEnvironmentStrings() on Windows (maybe gete
 #define ENVPLUGIN_DECL
 #endif
 
+template <class T>
+std::string itoa(T t);
+
 static void initStaticInfo();
 
 #define DEFAULT_BUCKET_CAPACITY 1024*10
 
-IBMRAS_DEFINE_LOGGER("EnvironmentPlugin");
+//IBMRAS_DEFINE_LOGGER("EnvironmentPlugin");
 
 namespace plugin {
 	uint32 provid = 0;
@@ -129,7 +132,7 @@ void OnComplete(monitordata* data) {
 
 pullsource* createPullSource(uint32 srcid, const char* name) {
 	pullsource *src = new pullsource();
-	src->header.name = name;
+	src->header.name = "COMMON ENVIRONMENT PLUGIN";
 	std::string desc("Description for ");
 	desc.append(name);
 	src->header.description = NewCString(desc);
@@ -143,35 +146,39 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 }
 
 extern "C" {
-ENVPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(uint32 provID) {
-	IBMRAS_DEBUG(info,  "Registering pull sources");
+ENVPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
+	//IBMRAS_DEBUG(info,  "Registering pull sources");
 	pullsource *head = createPullSource(0, "environment_os");
 	plugin::provid = provID;
 	return head;
 }
 
 ENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
-	ibmras::common::Properties props;
-	props.add(properties);
-	plugin::agentVersion = props.get("agent.version", "");
-	plugin::agentNativeBuildDate = props.get("agent.native.build.date", "");
-	
-	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
-	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
-	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.EnvironmentPlugin");
-	ibmras::common::LogManager::getInstance()->setLevel("EnvironmentPlugin", loggingProp);
+//	ibmras::common::Properties props;
+//	props.add(properties);
+//	plugin::agentVersion = props.get("agent.version", "");
+//	plugin::agentNativeBuildDate = props.get("agent.native.build.date", "");
+//
+//	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
+//	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
+//	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.EnvironmentPlugin");
+//	ibmras::common::LogManager::getInstance()->setLevel("EnvironmentPlugin", loggingProp);
 	
 	return 0;
 }
 
 ENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	IBMRAS_DEBUG(info,  "Starting");
+//	IBMRAS_DEBUG(info,  "Starting");
 	initStaticInfo(); // See below for platform-specific implementation, protected by ifdefs
 	return 0;
 }
 
 ENVPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 	return 0;
+}
+
+ENVPLUGIN_DECL const char* ibmras_monitoring_getVersion() {
+	return "1.0";
 }
 }
 
@@ -187,7 +194,7 @@ static std::string GetCommandLine() {
 	std::ifstream filestream(filename.c_str());
 
 	if (!filestream.is_open()) {
-		IBMRAS_LOG_1(debug, "Failed to open %s", filename.c_str());
+		//IBMRAS_LOG_1(debug, "Failed to open %s", filename.c_str());
 		return "";
 	}
 
@@ -216,8 +223,8 @@ static void initStaticInfo() {
 		plugin::osVersion = "";
 	}
 
-	plugin::nprocs = ibmras::common::itoa(get_nprocs());
-	plugin::pid = ibmras::common::itoa(getpid());
+	plugin::nprocs = itoa(get_nprocs());
+	plugin::pid = itoa(getpid());
 	plugin::commandLine = GetCommandLine();	
 }
 
@@ -235,7 +242,7 @@ static std::string GetCommandLine() {
 	proc.pi_pid = getpid();
 	int rc = getargs(&proc, sizeof(proc), procargs, sizeof(procargs));
 	if (rc < 0) {
-		IBMRAS_LOG_1(debug, "Failed to get command line (%d)", errno);
+		//IBMRAS_LOG_1(debug, "Failed to get command line (%d)", errno);
 		return std::string();
 	}
 	std::stringstream cmdliness;
@@ -273,8 +280,8 @@ static void initStaticInfo() {
 		plugin::osVersion = "";
 	}
 	// might be _SC_NPROCESSORS_ONLN -https://www.ibm.com/developerworks/community/forums/html/topic?id=77777777-0000-0000-0000-000014250083
-	plugin::nprocs = ibmras::common::itoa(sysconf(_SC_NPROCESSORS_CONF)); 
-	plugin::pid = ibmras::common::itoa(getpid());
+	plugin::nprocs = itoa(sysconf(_SC_NPROCESSORS_CONF));
+	plugin::pid = itoa(getpid());
 	plugin::commandLine = GetCommandLine();	
 }
 
@@ -401,8 +408,15 @@ static void initStaticInfo() {
 	}
 	plugin::osName = GetWindowsMajorVersion();
 	plugin::osVersion = GetWindowsBuild();
-	plugin::nprocs = ibmras::common::itoa(sysinfo.dwNumberOfProcessors);
-	plugin::pid = ibmras::common::itoa(GetCurrentProcessId());
+	plugin::nprocs = itoa(sysinfo.dwNumberOfProcessors);
+	plugin::pid = itoa(GetCurrentProcessId());
 	plugin::commandLine = std::string(GetCommandLine());	
 }
 #endif
+
+template <class T>
+std::string itoa(T t) {
+	std::stringstream s;
+	s << t;
+	return s.str();
+}

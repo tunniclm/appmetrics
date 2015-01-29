@@ -9,6 +9,7 @@
  */
 
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
+#include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/plugins/j9/Util.h"
 #include "ibmras/common/port/Process.h"
@@ -47,6 +48,8 @@ namespace monitoring {
 namespace plugins {
 namespace j9 {
 namespace trace {
+
+const char* tdppversion = "99.99.99";
 
 uint32 provID;
 PUSH_CALLBACK sendDataToAgent;
@@ -162,7 +165,8 @@ uint32 getBucketCapacity() {
  * of which data provider it comes from.  for us though in this provider, its invisible
  * that this happens as it may not scale.  but we just use the callback as given anyway
  */
-pushsource* registerPushSource(void (*callback)(monitordata* data),
+
+pushsource* registerPushSource(agentCoreFunctions aCF,
 		uint32 provID) {
 	pushsource *src = new pushsource();
 	src->header.name = "trace";
@@ -176,7 +180,7 @@ pushsource* registerPushSource(void (*callback)(monitordata* data),
 	src->header.capacity = getBucketCapacity();
 
 	ibmras::monitoring::plugins::j9::trace::provID = provID;
-	ibmras::monitoring::plugins::j9::trace::sendDataToAgent = callback;
+	ibmras::monitoring::plugins::j9::trace::sendDataToAgent = aCF.agentPushData;
 	return src;
 }
 
@@ -574,10 +578,15 @@ TraceDataProvider::TraceDataProvider(jvmFunctions tDPP) {
 	push = registerPushSource;
 	start = Tracestart;
 	stop = Tracestop;
+	getVersion = tdppVersion;
 	type = ibmras::monitoring::plugin::data
 			| ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) TraceDataProvider::getReceiver;
 	confactory = NULL;
+}
+
+const char* tdppVersion() {
+	return tdppversion;
 }
 
 void enableTracePoints(const char* tracePoints[]) {

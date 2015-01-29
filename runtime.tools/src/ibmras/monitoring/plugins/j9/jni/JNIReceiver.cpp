@@ -28,6 +28,8 @@ namespace plugins {
 namespace j9 {
 namespace jni {
 
+const char* JNIRecVersion = "99.99.99";
+
 int startReceiver() {
 	return 0;
 }
@@ -36,12 +38,17 @@ int stopReceiver() {
 	return 0;
 }
 
+const char* getVersionJNIRec() {
+	return JNIRecVersion;
+}
+
 JNIReceiver::JNIReceiver() {
 	name = "JNI receiver";
 	pull = NULL;
 	push = NULL;
 	start = ibmras::monitoring::plugins::j9::jni::startReceiver;
 	stop = ibmras::monitoring::plugins::j9::jni::stopReceiver;
+	getVersion = getVersionJNIRec;
 	type = ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) ibmras_getJNIReceiver;
 	confactory = NULL;

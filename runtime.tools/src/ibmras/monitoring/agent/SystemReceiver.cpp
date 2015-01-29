@@ -20,6 +20,8 @@ namespace ibmras {
 namespace monitoring {
 namespace agent {
 
+const char* sysRecVersion = "99.99.99";
+
 int startReceiver() {
 	return 0;
 }
@@ -28,12 +30,17 @@ int stopReceiver() {
 	return 0;
 }
 
+const char* getVersionSys() {
+	return sysRecVersion;
+}
+
 SystemReceiver::SystemReceiver() {
 	name = "System receiver";
 	pull = NULL;
 	push = NULL;
 	start = ibmras::monitoring::agent::startReceiver;
 	stop = ibmras::monitoring::agent::stopReceiver;
+	getVersion = getVersionSys;
 	type = ibmras::monitoring::plugin::receiver;
 	recvfactory = (RECEIVER_FACTORY) ibmras_getSystemReceiver;
 	confactory = NULL;

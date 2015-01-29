@@ -46,6 +46,10 @@ namespace mqttcon {
 IBMRAS_DEFINE_LOGGER("mqtt")
 ;
 
+const char* mqttConnVersion = "99.99.99";
+
+
+
 MQTTConnector::MQTTConnector(const std::string &host, const std::string &port,
 		const std::string &user, const std::string &pass,
 		const std::string &topicNamespace, const std::string &applicationId) :
@@ -338,6 +342,10 @@ MQTT_DECL int ibmras_monitoring_plugin_start() {
 
 MQTT_DECL int ibmras_monitoring_plugin_stop() {
 	return 0;
+}
+
+MQTT_DECL const char* ibmras_monitoring_getVersion() {
+	return ibmras::monitoring::connector::mqttcon::mqttConnVersion;
 }
 
 bool mqttInitialized = false;

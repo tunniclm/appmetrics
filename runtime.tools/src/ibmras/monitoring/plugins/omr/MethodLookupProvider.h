@@ -29,7 +29,7 @@ public:
 	int startReceiver();
 	int stopReceiver();
 	void receiveMessage(const std::string &id, uint32 size, void *data);
-	static pushsource* registerPushSource(void (*callback)(monitordata* data), uint32 provID);
+	static pushsource* registerPushSource(agentCoreFunctions aCF, uint32 provID);
 	static uint32 providerID;
 	static MethodLookupProvider* getInstance(omrRunTimeProviderParameters oRTPP);
 	static void* getInstance();

@@ -34,7 +34,7 @@ namespace plugins {
 				virtual ~MemoryCountersDataProvider() {};  //destructor
 				static int memstart();
 				static int memstop();
-				static pullsource* registerPullSource(uint32 provID);
+				static pullsource* registerPullSource(agentCoreFunctions aCF,uint32 provID);
 
 
 			private:

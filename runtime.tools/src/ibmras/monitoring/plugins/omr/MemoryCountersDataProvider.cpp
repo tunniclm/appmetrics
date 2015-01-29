@@ -87,7 +87,7 @@ void MemoryCountersDataProvider::pullComplete(monitordata* data) {
 
 
 
-pullsource* MemoryCountersDataProvider::registerPullSource(uint32 provID) {
+pullsource* MemoryCountersDataProvider::registerPullSource(agentCoreFunctions aCF,uint32 provID) {
 
 	IBMRAS_DEBUG(info, "Registering pull sources");
 	pullsource *src = new pullsource();

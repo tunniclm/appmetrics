@@ -9,7 +9,7 @@
  */
 
 #include "ibmras/monitoring/plugins/common/cpu/cputime.h"
-#include "ibmras/common/logging.h"
+//#include "ibmras/common/logging.h"
 #include <cstdio>
 #include <ctime>
 #include <string>
@@ -29,12 +29,13 @@
 #endif
 
 #if defined(_AIX)
+#include <unistd.h>
 #include <libperfstat.h>
 #endif
 
 using namespace std;
 
-extern IBMRAS_DECLARE_LOGGER;
+//extern IBMRAS_DECLARE_LOGGER;
 
 extern "C" {
 
@@ -62,7 +63,7 @@ static bool read_total_cpu_time(uint64* totaltime, const uint32 NS_PER_HZ) {
 	std::ifstream filestream("/proc/stat");
 
 	if (!filestream.is_open()) {
-		IBMRAS_DEBUG(warning, "Failed to open /proc/stat");
+		//IBMRAS_DEBUG(warning, "Failed to open /proc/stat");
 		return false;
 	}
 
@@ -72,7 +73,7 @@ static bool read_total_cpu_time(uint64* totaltime, const uint32 NS_PER_HZ) {
 	filestream.close();
 
 	if (!parsedSuccessfully) {
-		IBMRAS_DEBUG(warning, "Failed to parse /proc/stat");
+		//IBMRAS_DEBUG(warning, "Failed to parse /proc/stat");
 		return false;
 	}
 		
@@ -91,7 +92,7 @@ static bool read_process_cpu_time(uint64* proctime, const uint32 NS_PER_HZ) {
 	std::ifstream filestream(filename.c_str());
 
 	if (!filestream.is_open()) {
-		IBMRAS_DEBUG_1(warning, "Failed to open %s", filename.c_str());
+		//IBMRAS_DEBUG_1(warning, "Failed to open %s", filename.c_str());
 		return false;
 	}
 
@@ -106,7 +107,7 @@ static bool read_process_cpu_time(uint64* proctime, const uint32 NS_PER_HZ) {
 	filestream.close();
 
 	if (!parsedSuccessfully) {
-		IBMRAS_DEBUG_1(warning, "Failed to parse %s", filename.c_str());
+		//IBMRAS_DEBUG_1(warning, "Failed to parse %s", filename.c_str());
 		return false;
 	}
 		
@@ -158,7 +159,7 @@ static inline bool FILETIME_to_unixtimestamp(FILETIME wintime, uint64* unixtimes
 	uint64 ns = FILETIME_to_ns(wintime);
 	if (ns < NSEC_TO_UNIX_EPOCH) {
 		// error, time is before unix epoch
-		IBMRAS_DEBUG(warning, "Failed to convert Windows time to UNIX timestamp (before UNIX epoch)");
+	//	IBMRAS_DEBUG(warning, "Failed to convert Windows time to UNIX timestamp (before UNIX epoch)");
 		return false; 
 	}
 	// convert to ns since UNIX epoch 1970-01-01T00:00:00Z
@@ -175,7 +176,7 @@ static bool read_process_cpu_time(uint64* proctime) {
 	BOOL rc = GetProcessTimes(process, &create, &exit, &kernel, &user);
 	
 	if (!rc) {
-		IBMRAS_DEBUG(warning, "Failed to get process cpu time");
+	//	IBMRAS_DEBUG(warning, "Failed to get process cpu time");
 		return false;
 	}
 
@@ -194,7 +195,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 
 	Status = PdhOpenQuery(NULL, (DWORD_PTR) NULL, &Query);
 	if (ERROR_SUCCESS != Status) {
-		IBMRAS_DEBUG(warning, "Failed to open pdh query for total cpu");
+//		IBMRAS_DEBUG(warning, "Failed to open pdh query for total cpu");
 		return false;
 	}
 
@@ -203,7 +204,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 		
 	if (ERROR_SUCCESS != Status) {
         PdhCloseQuery(Query);
-		IBMRAS_DEBUG(warning, "Failed to add user time pdh counter for total cpu");
+//		IBMRAS_DEBUG(warning, "Failed to add user time pdh counter for total cpu");
 		return false;
   	}
 
@@ -211,21 +212,21 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 		"\\Processor(_Total)\\% Privileged Time", 0, &privilegedCounter);
 	if (ERROR_SUCCESS != Status) {
         PdhCloseQuery(Query);
-		IBMRAS_DEBUG(warning, "Failed to add kernel time pdh counter for total cpu");
+//		IBMRAS_DEBUG(warning, "Failed to add kernel time pdh counter for total cpu");
 		return false;
 	}
 	
 	Status = PdhCollectQueryData(Query);
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
-		IBMRAS_DEBUG(warning, "Failed to collect pdh query data for total cpu");
+//		IBMRAS_DEBUG(warning, "Failed to collect pdh query data for total cpu");
 		return false;
 	}
 
 	Status = PdhGetRawCounterValue(privilegedCounter, NULL, &counterValue);
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
-		IBMRAS_DEBUG(warning, "Failed to get kernel time counter value for total cpu");
+//		IBMRAS_DEBUG(warning, "Failed to get kernel time counter value for total cpu");
 		return false;
 	}
 	user = counterValue.FirstValue;
@@ -233,7 +234,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	Status = PdhGetRawCounterValue(userCounter, NULL, &counterValue);
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
-		IBMRAS_DEBUG(warning, "Failed to get user time counter value for total cpu");
+//		IBMRAS_DEBUG(warning, "Failed to get user time counter value for total cpu");
 		return false;
 	}
 	kernel = counterValue.FirstValue;
@@ -242,7 +243,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	
 	(*totaltime) = (static_cast<uint64>(user) + static_cast<uint64>(kernel)) * 100; // to ns
 	if (!LocalFileTimeToFileTime(&counterValue.TimeStamp, &utcTimeStamp)) {
-		IBMRAS_DEBUG(warning, "Failed to convert local time to UTC");
+//		IBMRAS_DEBUG(warning, "Failed to convert local time to UTC");
 		return false;
 	}
 	if (!FILETIME_to_unixtimestamp(utcTimeStamp, unixtimestamp)) {

@@ -35,7 +35,7 @@
 IBMRAS_DEFINE_LOGGER("NodeGCPlugin");
 
 namespace plugin {
-	void (*callback)(monitordata*);
+	agentCoreFunctions api;
 	uint32 provid = 0;
 	bool timingOK;
 	
@@ -136,7 +136,7 @@ void afterGC(GCType type, GCCallbackFlags flags) {
 	data.sourceID = 0;
 	data.size = static_cast<uint32>(content.length()); // should data->size be a size_t?
 	data.data = content.c_str();
-	plugin::callback(&data);
+	plugin::api.agentPushData(&data);
 }
 
 pushsource* createPushSource(uint32 srcid, const char* name) {
@@ -152,10 +152,11 @@ pushsource* createPushSource(uint32 srcid, const char* name) {
 }
 
 extern "C" {
-NODEGCPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(void (*callback)(monitordata*), uint32 provID) {
+
+NODEGCPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
         IBMRAS_DEBUG(info,  "Registering push sources");
         pushsource *head = createPushSource(0, "gc_node");
-        plugin::callback = callback;
+        plugin::api = api;
         plugin::provid = provID;
         return head;
 }
@@ -185,5 +186,9 @@ NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 	IBMRAS_DEBUG(info,  "Stopping");
 	// TODO Unhook GC hooks...
 	return 0;
+}
+
+NODEGCPLUGIN_DECL const char* ibmras_monitoring_getVersion() {
+	return "1.0";
 }
 }

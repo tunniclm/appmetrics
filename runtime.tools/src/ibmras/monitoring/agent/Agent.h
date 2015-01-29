@@ -35,16 +35,17 @@ namespace ibmras {
 namespace monitoring {
 namespace agent {
 
-class DECL Agent {
+class DECL Agent : public AgentLoader {
 public:
-	static Agent* getInstance();					/* return the singleton instance of the agent */
-	static std::string getBuildDate();
-	static std::string getVersion();
+
+	static Agent* getInstance();			/* return the singleton instance of the agent */
 	void init();							/* invoke to start the agent initialisation lifecycle event */
-	void start();						/* invoke to start the agent start lifecycle event */
+	void start();							/* invoke to start the agent start lifecycle event */
 	void stop();							/* invoke to start the agent stop lifecycle event */
 	void shutdown();						/* invoke to shutdown the agent, it cannot be restarted after this */
 
+	static std::string getBuildDate();
+	static std::string getVersion();
 
 	void addConnector(ibmras::monitoring::connector::Connector* con);
 	void removeConnector(ibmras::monitoring::connector::Connector* con);
@@ -81,10 +82,9 @@ public:
 		
 	std::string getConfig(const std::string& name);
 	bool readOnly();
+	Agent();					/* public constructor */
 
 private:
-	Agent();					/* private constructor */
-	static Agent* instance;		/* singleton instance */
 	void addPushSource(std::vector<ibmras::monitoring::Plugin*>::iterator i, uint32 provID);
 	void addPullSource(std::vector<ibmras::monitoring::Plugin*>::iterator i, uint32 provID);
 	void addSystemPlugins(); /* adds agent internal / system push or pull sources */
@@ -100,7 +100,7 @@ private:
 	DataSourceList<pullsource> pullSourceList;
 	std::vector<ibmras::monitoring::Plugin*> plugins;
 	uint32 activeThreadCount;		/* number of active threads */
-	
+	//static Agent* instance;		/* singleton instance */
 	ibmras::common::Properties properties;
 	ibmras::monitoring::connector::ConfigurationConnector configConn;
 

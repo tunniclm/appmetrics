@@ -27,6 +27,8 @@ namespace plugins {
 namespace j9 {
 namespace jmx {
 
+const char* JMXdpVersion = "99.99.99";
+
 JMXSourceManager* mgr = new JMXSourceManager;
 
 #if defined(_ZOS)
@@ -34,7 +36,7 @@ JMXSourceManager* mgr = new JMXSourceManager;
 extern "C" {
 #endif
 
-DECL pullsource* registerPullSourceJMX(uint32 provID) {
+DECL pullsource* registerPullSourceJMX(agentCoreFunctions aCF,uint32 provID) {
 
 	return ibmras::monitoring::plugins::j9::jmx::mgr->registerPullSource(provID);
 }
@@ -45,6 +47,10 @@ DECL int startJMX() {
 
 DECL int stopJMX() {
 	return ibmras::monitoring::plugins::j9::jmx::mgr->stop();
+}
+
+DECL const char* getVersionJMX() {
+	return JMXdpVersion;
 }
 
 #if defined(_ZOS)
@@ -217,6 +223,7 @@ DECL ibmras::monitoring::Plugin* getPlugin() {
 	plugin->push = NULL;
 	plugin->start = ibmras::monitoring::plugins::j9::jmx::startJMX;
 	plugin->stop = ibmras::monitoring::plugins::j9::jmx::stopJMX;
+	plugin->getVersion = ibmras::monitoring::plugins::j9::jmx::getVersionJMX;
 	plugin->type = ibmras::monitoring::plugin::data;
 	plugin->confactory = NULL;
 	plugin->recvfactory = NULL;

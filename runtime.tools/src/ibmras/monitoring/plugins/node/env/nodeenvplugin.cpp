@@ -31,7 +31,7 @@
 IBMRAS_DEFINE_LOGGER("NodeEnvPlugin");
 
 namespace plugin {
-void (*callback)(monitordata*);
+agentCoreFunctions api;
 uint32 provid = 0;
 
 std::string nodeVersion;
@@ -170,7 +170,7 @@ static void GetNodeInformation(uv_async_t *handle, int status) {
 		data.sourceID = 0;
 		data.size = static_cast<uint32>(content.length()); // should data->size be a size_t?
 		data.data = content.c_str();
-		plugin::callback(&data);
+		plugin::api.agentPushData(&data);
 	} else {
 		IBMRAS_LOG(debug, "Unable to get Node.js environment information");
 	}
@@ -178,10 +178,10 @@ static void GetNodeInformation(uv_async_t *handle, int status) {
 }
 
 extern "C" {
-NODEENVPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(void (*callback)(monitordata*), uint32 provID) {
+NODEENVPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
 	IBMRAS_DEBUG(info,  "Registering push sources");
 	pushsource *head = createPushSource(0, "environment_node");
-	plugin::callback = callback;
+	plugin::api = api;
 	plugin::provid = provID;
 	return head;
 }
@@ -210,5 +210,9 @@ NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 	IBMRAS_DEBUG(info,  "Stopping");
 	return 0;
+}
+
+NODEENVPLUGIN_DECL const char* ibmras_monitoring_getVersion() {
+	return "1.0";
 }
 }

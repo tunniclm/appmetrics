@@ -20,6 +20,8 @@ namespace monitoring {
 namespace connector {
 namespace jmx {
 
+const char* getVersionJMX();
+
 class JMXConnectorPlugin: public ibmras::monitoring::Plugin {
 public:
 	static JMXConnectorPlugin* getInstance(JavaVM *theVM);

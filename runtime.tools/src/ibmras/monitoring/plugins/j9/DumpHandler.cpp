@@ -36,12 +36,18 @@ namespace j9 {
 
 uint32 DumpHandler::providerID = 0;
 
+const char* dumpVersion = "99.99.99";
+
 int startHandler() {
 	return 0;
 }
 
 int stopHandler() {
 	return 0;
+}
+
+const char* getDumpVersion() {
+	return dumpVersion;
 }
 
 DumpHandler::DumpHandler(jvmFunctions functions) {
@@ -51,6 +57,7 @@ DumpHandler::DumpHandler(jvmFunctions functions) {
 	push = NULL;
 	start = ibmras::monitoring::plugins::j9::startHandler;
 	stop = ibmras::monitoring::plugins::j9::stopHandler;
+	getVersion = getDumpVersion;
 	type = ibmras::monitoring::plugin::none;
 	recvfactory = NULL;
 	confactory = NULL;

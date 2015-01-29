@@ -29,7 +29,7 @@ namespace plugins {
 				virtual ~CpuDataProvider() {};  //destructor
 				static int cpustart();
 				static int cpustop();
-				static pullsource* registerPullSource(uint32 provID);
+				static pullsource* registerPullSource(agentCoreFunctions aCF,uint32 provID);
 
 
 			private:
