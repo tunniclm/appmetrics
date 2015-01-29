@@ -165,6 +165,7 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/node/prof/nodeprofplugin.cpp",
+        "<(srcdir)/monitoring/plugins/GenericEnablingReceiver.cpp",
         "<(srcdir)/common/Logger.cpp",
         "<(srcdir)/common/LogManager.cpp",
         "<(srcdir)/common/port/<(portdir)/Process.cpp",
