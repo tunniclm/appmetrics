@@ -46,7 +46,7 @@ namespace mqttcon {
 IBMRAS_DEFINE_LOGGER("mqtt")
 ;
 
-const char* mqttConnVersion = "99.99.99";
+const char* mqttConnVersion = "1.0";
 
 
 

@@ -14,12 +14,8 @@
 #include "nan.h"
 #include "node_version.h"
 #include "ibmras/monitoring/AgentExtensions.h"
-#include "ibmras/common/types.h"
-#include "ibmras/common/logging.h"
-#include "ibmras/common/Properties.h"
 #include "ibmras/common/util/sysUtils.h"
 #include "ibmras/monitoring/plugins/GenericEnablingReceiver.h"
-#include <iostream>
 #include <cstring>
 #include <string>
 #include <sstream>
@@ -33,8 +29,6 @@
 #define NODEPROFPLUGIN_DECL
 #endif
 
-IBMRAS_DEFINE_LOGGER("NodeProfPlugin");
-
 #define PROFILING_INTERVAL 5000
 
 namespace plugin {
@@ -47,6 +41,7 @@ namespace plugin {
 }
 
 using namespace v8;
+using namespace ibmras::common::logging;
 
 static char* NewCString(const std::string& s) {
 	char *result = new char[s.length() + 1];
@@ -123,7 +118,7 @@ static char * ConstructData(const CpuProfile *profile) {
 static Isolate* GetIsolate() {
 	Isolate *isolate = v8::Isolate::GetCurrent();
 	if (isolate == NULL) {
-		IBMRAS_DEBUG(debug, "No V8 Isolate found");
+		plugin::api.logMessage(debug, "[NodeProfPlugin] No V8 Isolate found");
 	}
 	return isolate;
 }
@@ -133,7 +128,7 @@ static Isolate* GetIsolate() {
 static CpuProfiler* GetCpuProfiler(Isolate *isolate) {
 	CpuProfiler *cpu = isolate->GetCpuProfiler();
 	if (cpu == NULL) {
-		IBMRAS_DEBUG(debug, "No CpuProfiler found");
+		plugin::api.logMessage(debug, "[NodeProfPlugin] No CpuProfiler found");
 	}
 	return cpu;
 }
@@ -142,7 +137,7 @@ static CpuProfiler* GetCpuProfiler(Isolate *isolate) {
 
 // NOTE(tunniclm): Must be called from the V8/Node/uv thread
 //                 since it calls V8 APIs
-static void StartProfiling() {
+static void StartTheProfiler() {
 #if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
 	Isolate *isolate = GetIsolate();
 	if (isolate == NULL) return;
@@ -150,7 +145,7 @@ static void StartProfiling() {
 	CpuProfiler *cpu = GetCpuProfiler(isolate);
 	if (cpu == NULL) return;
 
-	StartProfiling(NanNew<String>("NodeProfPlugin"), false);
+	cpu->StartProfiling(NanNew<String>("NodeProfPlugin"), false);
 #else
 	CpuProfiler::StartProfiling(NanNew<String>("NodeProfPlugin"));
 #endif
@@ -158,7 +153,7 @@ static void StartProfiling() {
 
 // NOTE(tunniclm): Must be called from the V8/Node/uv thread
 //                 since it calls V8 APIs
-static const CpuProfile* StopProfiling() {
+static const CpuProfile* StopTheProfiler() {
 #if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
 	Isolate *isolate = GetIsolate();
 	if (isolate == NULL) return NULL;
@@ -195,12 +190,12 @@ void OnGatherDataOnV8Thread(uv_timer_s *data, int status) {
 	NanScope();
 	
 	// Get profile
-	const CpuProfile *profile = StopProfiling(); // CHECK(tunniclm): do we need to release the CpuProfile here? Check the V8 API
+	const CpuProfile *profile = StopTheProfiler(); // CHECK(tunniclm): do we need to release the CpuProfile here? Check the V8 API
 
 	if (profile != NULL) {
 		char *serialisedProfile = ConstructData(profile);
 		ReleaseProfile(profile);
-		StartProfiling();
+		StartTheProfiler();
 		if (serialisedProfile != NULL) {
 			// Send data to agent
 			monitordata data;
@@ -213,11 +208,11 @@ void OnGatherDataOnV8Thread(uv_timer_s *data, int status) {
 			
 			delete[] serialisedProfile;
 		} else {
-			IBMRAS_DEBUG(debug, "Failed to serialise method profile"); // CHECK(tunniclm): Should this be a warning?
+			plugin::api.logMessage(debug, "[NodeProfPlugin] Failed to serialise method profile"); // CHECK(tunniclm): Should this be a warning?
 		}
 	} else {
-		IBMRAS_DEBUG(debug, "No method profile found"); // CHECK(tunniclm): Should this be a warning?
-		StartProfiling();
+		plugin::api.logMessage(debug, "[NodeProfPlugin] No method profile found"); // CHECK(tunniclm): Should this be a warning?
+		StartTheProfiler();
 	}
 
 }
@@ -234,7 +229,7 @@ pushsource* createPushSource(uint32 srcid, const char* name) {
 	return src;
 }
 
-void publishEnabled() {
+static void publishEnabled() {
 	std::string sourceName = "profiling_node";
 	std::string msg = sourceName + "_subsystem=";
 	if (plugin::enabled) {
@@ -243,11 +238,17 @@ void publishEnabled() {
 		msg += "off";
 	}
 
-	IBMRAS_DEBUG_1(debug,  "Sending config message [%s]", msg.c_str());
+	std::stringstream logMsg;
+	logMsg << "[NodeProfPlugin] Sending config message [" << msg << "]";
+	plugin::api.logMessage(debug,  logMsg.str().c_str());
+	
 	plugin::api.agentSendMessage(("configuration/" + sourceName).c_str(), msg.length(),
 								  (void*) msg.c_str());
 } 
 
+static void cleanupHandle(uv_handle_t *handle) {
+	delete handle;
+}
 
 // NOTE(tunniclm): Must be called from the V8/Node/uv thread
 //                 since it calls non thread-safe uv APIs
@@ -259,15 +260,14 @@ static void enableOnV8Thread(uv_async_t *async, int status) {
 #endif
 	if (plugin::enabled) return;
 	plugin::enabled = true;
-	IBMRAS_DEBUG(debug,  "Publishing config");
+	plugin::api.logMessage(debug, "[NodeProfPlugin] Publishing config");
     publishEnabled();
 	
-	StartProfiling();
+	StartTheProfiler();
 
 	uv_timer_start(plugin::timer, OnGatherDataOnV8Thread, PROFILING_INTERVAL, PROFILING_INTERVAL);
 		
-	uv_close((uv_handle_t*) async, NULL);
-	delete async;
+	uv_close((uv_handle_t*) async, cleanupHandle);
 }
 
 // NOTE(tunniclm): Must be called from the V8/Node/uv thread
@@ -280,16 +280,15 @@ static void disableOnV8Thread(uv_async_t *async, int status) {
 #endif
 	if (!plugin::enabled) return;
 	plugin::enabled = false;
-	IBMRAS_DEBUG(debug,  "Publishing config");
+	plugin::api.logMessage(debug, "[NodeProfPlugin] Publishing config");
     publishEnabled();
 
 	uv_timer_stop(plugin::timer);
 	
-	const CpuProfile *profile = StopProfiling();
+	const CpuProfile *profile = StopTheProfiler();
 	ReleaseProfile(profile);
 
-	uv_close((uv_handle_t*) async, NULL);
-	delete async;
+	uv_close((uv_handle_t*) async, cleanupHandle);
 }
 
 // NOTE(tunniclm): Don't access plugin::enabled or plugin::profiling in here
@@ -297,12 +296,12 @@ static void disableOnV8Thread(uv_async_t *async, int status) {
 //                 thread. uv_async_send() is thread-safe.
 void setEnabled(bool value) {
 	if (value) {
-		IBMRAS_DEBUG(debug,  "Enabling");
+		plugin::api.logMessage(debug, "[NodeProfPlugin] Enabling");
 		uv_async_t *async = new uv_async_t;
 		uv_async_init(uv_default_loop(), async, enableOnV8Thread);
 		uv_async_send(async); // close and cleanup in call back
 	} else {
-		IBMRAS_DEBUG(debug,  "Disabling");
+		plugin::api.logMessage(debug, "[NodeProfPlugin] Disabling");
 		uv_async_t *async = new uv_async_t;
 		uv_async_init(uv_default_loop(), async, disableOnV8Thread);
 		uv_async_send(async); // close and cleanup in call back
@@ -313,9 +312,13 @@ extern "C" {
 // NOTE(tunniclm): Must be called from the V8/Node/uv thread as
 //                 it accesses non thread-safe fields
 NODEPROFPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
-	IBMRAS_DEBUG(info,  "Registering push sources");
-	pushsource *head = createPushSource(0, "profiling_node");
 	plugin::api = api;
+
+	std::string enabledProp(plugin::api.getProperty("data.NodeProfPlugin"));
+	plugin::enabled = (enabledProp == "on");
+
+	plugin::api.logMessage(debug, "[NodeProfPlugin] Registering push sources");
+	pushsource *head = createPushSource(0, "profiling_node");
 	plugin::provid = provID;
 	return head;
 }
@@ -323,19 +326,8 @@ NODEPROFPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFu
 // NOTE(tunniclm): Must be called from the V8/Node/uv thread as
 //                 it accesses non thread-safe fields
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
-	ibmras::common::Properties props;
-	props.add(properties);
-
-	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
-	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
-	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.NodeProfPlugin");
-	ibmras::common::LogManager::getInstance()->setLevel("NodeProfPlugin", loggingProp);
-	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.GenericEnablingReceiver");
-	ibmras::common::LogManager::getInstance()->setLevel("GenericEnablingReceiver", loggingProp);
-	
-	std::string enabledProp = props.get("com.ibm.diagnostics.healthcenter.data.NodeProfPlugin");
-	plugin::enabled = (enabledProp == "on");
-	
+	// NOTE(tunniclm): We don't have the agentCoreFunctions yet, so we can't do any init that requires
+	//                 calling into the API (eg getting properties.)	
 	return 0;
 }
 
@@ -343,9 +335,13 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 //                 since it calls non thread-safe V8 APIs and
 //                 uv APIs and accesses non thread-safe fields
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	IBMRAS_DEBUG(info,  "Starting");
+	if (plugin::enabled) {	
+		plugin::api.logMessage(info, "[NodeProfPlugin] Starting enabled");
+	} else {
+		plugin::api.logMessage(info, "[NodeProfPlugin] Starting disabled");
+	}
 
-	IBMRAS_DEBUG(debug,  "Publishing config");
+	plugin::api.logMessage(debug, "[NodeProfPlugin] Publishing config");
 	publishEnabled();	
 
 	plugin::timer = new uv_timer_t;
@@ -353,10 +349,10 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 	uv_unref((uv_handle_t*) plugin::timer); // don't prevent event loop exit
 	
 	if (plugin::enabled) {	
-		IBMRAS_DEBUG(debug,  "Start profiling");
-		StartProfiling();
+		plugin::api.logMessage(debug, "[NodeProfPlugin] Start profiling");
+		StartTheProfiler();
 	
-		IBMRAS_DEBUG(debug,  "Starting timer");
+		plugin::api.logMessage(debug, "[NodeProfPlugin] Starting timer");
 		uv_timer_start(plugin::timer, OnGatherDataOnV8Thread, PROFILING_INTERVAL, PROFILING_INTERVAL);
 	}
 
@@ -364,7 +360,7 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 }
 
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
-	IBMRAS_DEBUG(info,  "Stopping");
+	plugin::api.logMessage(info, "[NodeProfPlugin] Stopping");
 
 	if (plugin::enabled) {
 		plugin::enabled = false;
@@ -373,7 +369,7 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 		uv_close((uv_handle_t*) plugin::timer, NULL);
 		delete plugin::timer;
 	
-		const CpuProfile *profile = StopProfiling();
+		const CpuProfile *profile = StopTheProfiler();
 		ReleaseProfile(profile);
 	}
 

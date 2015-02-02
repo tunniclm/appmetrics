@@ -21,7 +21,7 @@ namespace headless {
 HLConnectorPlugin* instance = NULL;
 static HLConnector* hlConnector = NULL;
 
-const char* hlVersion = "99.99.99";
+const char* hlVersion = "1.0";
 
 const char* getVersionHL() {
 	return hlVersion;

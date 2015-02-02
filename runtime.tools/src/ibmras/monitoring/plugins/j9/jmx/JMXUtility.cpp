@@ -27,7 +27,7 @@ namespace plugins {
 namespace j9 {
 namespace jmx {
 
-const char* JMXdpVersion = "99.99.99";
+const char* JMXdpVersion = "1.0";
 
 JMXSourceManager* mgr = new JMXSourceManager;
 

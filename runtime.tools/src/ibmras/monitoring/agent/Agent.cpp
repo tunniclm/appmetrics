@@ -1,5 +1,4 @@
- /**
- * IBM Confidential
+/**
  * OCO Source Materials
  * IBM Monitoring and Diagnostic Tools - Health Center
  * (C) Copyright IBM Corp. 2007, 2015 All Rights Reserved.
@@ -54,8 +53,9 @@ agentCoreFunctions aCF;
 
 //Agent* agentInstance = ibmras::monitoring::agent::Agent::getInstance();
 
-IBMRAS_DEFINE_LOGGER("Agent")
-;
+IBMRAS_DEFINE_LOGGER("Agent");
+
+ibmras::common::Logger* pluginlogger = (ibmras::common::Logger*)ibmras_common_LogManager_getLogger( "plugins" );
 
 Agent::Agent() {
 	activeThreadCount = 0;
@@ -141,9 +141,19 @@ DataSource<pushsource>* Agent::getPushSource(std::string uniqueID) {
 	return NULL;
 }
 
+/* This is the function callback a plugin gets to send data
+ * to its bucket
+ */
 void pushDataImpl(monitordata* data) {
 	Agent* agent = Agent::getInstance();
 	agent->addData(data);
+}
+
+/* This is the function callback that a plugin will get if
+ * they want to log a message.
+ */
+void logMessageImpl(ibmras::common::logging::Level lev, const char * message){
+	pluginlogger->log(lev, message);
 }
 
 /* thread entry point for publishing data from buckets to the registered connector */
@@ -294,12 +304,18 @@ int sendMessageWrapper(const char *sourceId, uint32 size, void *data) {
 	return instance->getConnectionManager()->sendMessage(std::string(sourceId), size, data);
 }
 
+const char* getPropertyImpl(const char * key){
+	std::string property = Agent::getInstance()->getAgentProperty(std::string(key));
+	return property.c_str();
+}
 
 void Agent::init() {
 	IBMRAS_DEBUG(info, "Agent initialisation : start");
 
 	aCF.agentPushData = pushDataImpl;
 	aCF.agentSendMessage = sendMessageWrapper;
+	aCF.logMessage = logMessageImpl;
+	aCF.getProperty = getPropertyImpl;
 
 	std::string searchPath = getAgentProperty("plugin.path");
 	IBMRAS_DEBUG_1(debug, "Plugin search path : %s", searchPath.c_str());
@@ -527,6 +543,8 @@ ibmras::common::Properties Agent::getProperties() {
 void Agent::setProperty(const std::string& prop, const std::string& value) {
 	properties.put(prop, value);
 }
+
+
 
 std::string Agent::getProperty(const std::string& prop) {
 	return properties.get(prop);

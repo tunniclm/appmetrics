@@ -20,7 +20,7 @@ namespace ibmras {
 namespace monitoring {
 namespace agent {
 
-const char* sysRecVersion = "99.99.99";
+const char* sysRecVersion = "1.0";
 
 int startReceiver() {
 	return 0;

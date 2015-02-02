@@ -34,7 +34,7 @@ namespace methods {
 IBMRAS_DEFINE_LOGGER("methodlookup")
 ;
 
-const char* mlpVersion = "99.99.99";
+const char* mlpVersion = "1.0";
 
 MethodLookupProvider* MethodLookupProvider::instance = NULL;
 

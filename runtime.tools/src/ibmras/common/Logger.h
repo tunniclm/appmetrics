@@ -13,22 +13,12 @@
 #define ibmras_common_logger_h
 
 #include "ibmras/export.h"
+#include "ibmras/monitoring/AgentExtensions.h"
 
 #include <string>
 
 namespace ibmras {
 namespace common {
-
-namespace logging {
-/*
- * Enumeration levels to set for the logger
- */
-enum Level {
-	/* log levels are ranked with debug being the most verbose */
-	none, warning, info, fine, finest, debug
-};
-
-}
 
 class DECL Logger;
 

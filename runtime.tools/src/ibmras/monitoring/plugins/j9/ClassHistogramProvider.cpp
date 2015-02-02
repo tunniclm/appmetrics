@@ -77,7 +77,7 @@ PUSH_CALLBACK sendClassHistogramData;
 uint32 ClassHistogramProvider::providerID = 0;
 IBMRAS_DEFINE_LOGGER("ClassHistogram");
 
-const char* chpVersion = "99.99.99";
+const char* chpVersion = "1.0";
 
 void publishConfig() {
 	ibmras::monitoring::agent::Agent* agent =

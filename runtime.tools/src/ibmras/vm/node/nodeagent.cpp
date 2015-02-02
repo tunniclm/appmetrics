@@ -240,8 +240,8 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 		agent->setProperties(*props);
 		delete props;
 	}
-	agent->setProperty("agent.version", agent->getVersion());
-	agent->setProperty("agent.native.build.date", agent->getBuildDate());
+	agent->setAgentProperty("agent.version", agent->getVersion());
+	agent->setAgentProperty("agent.native.build.date", agent->getBuildDate());
 	agent->setLogLevels();
 
 	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());

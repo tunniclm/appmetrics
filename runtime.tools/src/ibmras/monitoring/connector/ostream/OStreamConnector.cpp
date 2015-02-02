@@ -71,4 +71,8 @@ OSTREAMCONNECTOR_DECL int ibmras_monitoring_plugin_stop() {
 OSTREAMCONNECTOR_DECL void* ibmras_monitoring_getConnector(const char* properties) {
 	return new OStream::OStreamConnector(std::cout);
 }
+
+OSTREAMCONNECTOR_DECL char* ibmras_monitoring_getVersion() {
+	return "1.0";
+}
 }

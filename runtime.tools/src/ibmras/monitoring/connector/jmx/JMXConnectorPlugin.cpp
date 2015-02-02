@@ -16,7 +16,7 @@ namespace monitoring {
 namespace connector {
 namespace jmx {
 
-const char* JMXConnectorVersion = "99.99.99";
+const char* JMXConnectorVersion = "1.0";
 
 JMXConnectorPlugin* instance = NULL;
 JMXConnectorPlugin* JMXConnectorPlugin::getInstance(JavaVM *theVM) {

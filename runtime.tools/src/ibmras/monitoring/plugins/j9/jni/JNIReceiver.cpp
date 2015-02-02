@@ -28,7 +28,7 @@ namespace plugins {
 namespace j9 {
 namespace jni {
 
-const char* JNIRecVersion = "99.99.99";
+const char* JNIRecVersion = "1.0";
 
 int startReceiver() {
 	return 0;

@@ -92,6 +92,7 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 
 			Plugin *plugin = processLibrary(szDir);
 			if (plugin != NULL) {
+				IBMRAS_LOG_2(info, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
 				plugins.push_back(plugin);
 			}
 		}
@@ -165,10 +166,11 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 		void* receiverFactory = ibmras::common::util::LibraryUtils::getSymbol(
 				handle, SYM_RECEIVER_FACTORY);
 
-		IBMRAS_DEBUG_3(fine, "Library %s: start=%p stop=%p", filePath.c_str(), start, stop);
+		IBMRAS_DEBUG_4(fine, "Library %s: start=%p stop=%p getVersion=%p", filePath.c_str(), start, stop, getVersion);
 
 		/* External plugins MUST implement both start, stop and getVersion */
 		if (start && stop && getVersion) {
+			IBMRAS_DEBUG_1(fine, "Library %s was successfully recognised", filePath.c_str());
 			plugin = new Plugin;
 
 			plugin->name = filePath;

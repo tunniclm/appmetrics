@@ -9,10 +9,6 @@
  */
 
 #include "ibmras/monitoring/AgentExtensions.h"
-//#include "ibmras/common/types.h"
-//#include "ibmras/common/logging.h"
-//#include "ibmras/common/Logger.h"
-//#include "ibmras/common/Properties.h"
 #include <cstring>
 #include <string>
 #include <sstream>
@@ -35,6 +31,7 @@
 #include <pdhmsg.h>
 #include <winbase.h>
 #include <psapi.h>
+#pragma comment(lib, "psapi.lib")
 #endif
 
 #if defined(AIXPPC)
@@ -137,8 +134,6 @@ struct vminfo_psize
 #define MEMSOURCE_PULL_INTERVAL 2
 #define DEFAULT_CAPACITY 1024*10
 
-//IBMRAS_DEFINE_LOGGER("MemoryPlugin");
-
 int64 getProcessPhysicalMemorySize();
 int64 getProcessPrivateMemorySize();
 int64 getProcessVirtualMemorySize();
@@ -164,6 +159,12 @@ namespace plugin {
 	struct MemoryTime* last;
 	struct MemoryTime* current;
 }
+
+namespace memoryplugin {
+	agentCoreFunctions aCF;
+}
+
+using namespace ibmras::common::logging;
 
 static char* NewCString(const std::string& s) {
 	char *result = new char[s.length() + 1];
@@ -630,26 +631,19 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 
 extern "C" {
 MEMPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
-	//IBMRAS_DEBUG(info,  "Registering pull sources");
+	memoryplugin::aCF = aCF;
+	memoryplugin::aCF.logMessage(debug, "Registering common memory pull source");
 	pullsource *head = createPullSource(0, "memory_os");
 	plugin::provid = provID;
 	return head;
 }
 
-MEMPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
-//	ibmras::common::Properties props;
-//	props.add(properties);
-//
-//	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
-//	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
-//	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.MemoryPlugin");
-//	ibmras::common::LogManager::getInstance()->setLevel("MemoryPlugin", loggingProp);
-	
+MEMPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {	
 	return 0;
 }
 
 MEMPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	//IBMRAS_DEBUG(info,  "Starting");
+	memoryplugin::aCF.logMessage(info, "Starting common memory pull source");
 	return 0;
 }
 

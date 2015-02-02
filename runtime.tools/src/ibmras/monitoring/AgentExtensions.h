@@ -131,13 +131,33 @@ typedef void* (*RECEIVER_FACTORY)();	/* short cut for the function pointer to in
 #define DECL
 #endif
 
+namespace ibmras {
+namespace common {
+namespace logging {
+/*
+ * Enumeration levels to set for the logger
+ */
+enum Level {
+	/* log levels are ranked with debug being the most verbose */
+	none, warning, info, fine, finest, debug
+};
+}
+}
+}
+
+
+
 
 typedef void (*pushData)(monitordata *data);
 typedef int (*sendMessage)(const char * sourceId, unsigned int size,void *data);
+typedef void (*pluginLogger)(ibmras::common::logging::Level lev, const char * message);
+typedef const char * (*agentProperty)(const char * key);
 
 typedef struct agentCoreFunctions {
 	pushData agentPushData;
 	sendMessage agentSendMessage;
+	pluginLogger logMessage;
+	agentProperty getProperty;
 } agentCoreFunctions;
 
 typedef int (*PLUGIN_INITIALIZE)(const char* properties);
@@ -164,6 +184,7 @@ class DECL AgentLoader {
 }
 }
 } /* end namespace agent */
+
 
 #endif /* ibmras_monitoring_monitoring_h */
 

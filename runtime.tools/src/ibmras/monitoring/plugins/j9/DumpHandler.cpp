@@ -36,7 +36,7 @@ namespace j9 {
 
 uint32 DumpHandler::providerID = 0;
 
-const char* dumpVersion = "99.99.99";
+const char* dumpVersion = "1.0";
 
 int startHandler() {
 	return 0;

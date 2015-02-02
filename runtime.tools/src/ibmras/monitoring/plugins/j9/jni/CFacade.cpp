@@ -42,7 +42,7 @@ namespace j9 {
 namespace jni {
 
 uint64_t tm_stt;
-const char* JNIdpVersion ="99.99.99";
+const char* JNIdpVersion ="1.0";
 
 #if defined(WINDOWS)
 uint64_t rdtsc()

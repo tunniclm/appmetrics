@@ -49,7 +49,7 @@ namespace plugins {
 namespace j9 {
 namespace trace {
 
-const char* tdppversion = "99.99.99";
+const char* tdppversion = "1.0";
 
 uint32 provID;
 PUSH_CALLBACK sendDataToAgent;

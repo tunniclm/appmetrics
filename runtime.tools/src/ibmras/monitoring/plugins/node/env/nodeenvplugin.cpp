@@ -10,9 +10,6 @@
 
 
 #include "ibmras/monitoring/AgentExtensions.h"
-#include "ibmras/common/types.h"
-#include "ibmras/common/logging.h"
-#include "ibmras/common/Properties.h"
 #include <cstring>
 #include <string>
 #include <sstream>
@@ -28,20 +25,19 @@
 #define NODEENVPLUGIN_DECL
 #endif
 
-IBMRAS_DEFINE_LOGGER("NodeEnvPlugin");
-
 namespace plugin {
-agentCoreFunctions api;
-uint32 provid = 0;
-
-std::string nodeVersion;
-std::string nodeTag;
-std::string nodeVendor;
-std::string nodeName;
-std::string commandLineArguments;
+	agentCoreFunctions api;
+	uint32 provid = 0;
+	
+	std::string nodeVersion;
+	std::string nodeTag;
+	std::string nodeVendor;
+	std::string nodeName;
+	std::string commandLineArguments;
 }
 
 using namespace v8;
+using namespace ibmras::common::logging;
 
 static char* NewCString(const std::string& s) {
 	char *result = new char[s.length() + 1];
@@ -124,12 +120,14 @@ static std::string GetNodeArguments(const std::string separator="@@@") {
 //	}
 //}
 
-uv_async_t async;
+static void cleanupHandle(uv_handle_t *handle) {
+	delete handle;
+}
 
 #if NODE_VERSION_AT_LEAST(0, 11, 0) // > v0.11+
-static void GetNodeInformation(uv_async_t *handle) {
+static void GetNodeInformation(uv_async_t *async) {
 #else
-static void GetNodeInformation(uv_async_t *handle, int status) {
+static void GetNodeInformation(uv_async_t *async, int status) {
 #endif
 
 	NanScope();
@@ -143,7 +141,7 @@ static void GetNodeInformation(uv_async_t *handle, int status) {
 	}
 	plugin::commandLineArguments = GetNodeArguments();
 	//PrintComponentVersions();
-	uv_close((uv_handle_t*) &async, NULL);
+	uv_close((uv_handle_t*) async, cleanupHandle);
 	
 	if (plugin::nodeVersion != "") {
 		std::stringstream contentss;
@@ -172,43 +170,38 @@ static void GetNodeInformation(uv_async_t *handle, int status) {
 		data.data = content.c_str();
 		plugin::api.agentPushData(&data);
 	} else {
-		IBMRAS_LOG(debug, "Unable to get Node.js environment information");
+		plugin::api.logMessage(debug, "[NodeEnvPlugin] Unable to get Node.js environment information");
 	}
 
 }
 
 extern "C" {
 NODEENVPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
-	IBMRAS_DEBUG(info,  "Registering push sources");
-	pushsource *head = createPushSource(0, "environment_node");
 	plugin::api = api;
+	plugin::api.logMessage(debug, "[NodeEnvPlugin] Registering push sources");
+
+	pushsource *head = createPushSource(0, "environment_node");
 	plugin::provid = provID;
 	return head;
 }
 
 NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
-	ibmras::common::Properties props;
-	props.add(properties);
-
-	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
-	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
-	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.NodeEnvPlugin");
-	ibmras::common::LogManager::getInstance()->setLevel("NodeEnvPlugin", loggingProp);
-	
 	return 0;
 }
 
 NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	IBMRAS_DEBUG(info,  "Starting");
+	plugin::api.logMessage(info, "[NodeEnvPlugin] Starting");
 	
 	// Run GetNodeInformation() on the Node event loop
-	uv_async_init(uv_default_loop(), &async, GetNodeInformation);
-	uv_async_send(&async);
+	uv_async_t *async = new uv_async_t;
+	uv_async_init(uv_default_loop(), async, GetNodeInformation);
+	uv_async_send(async); // close and cleanup in call back
+	
 	return 0;
 }
 
 NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
-	IBMRAS_DEBUG(info,  "Stopping");
+	plugin::api.logMessage(info, "[NodeEnvPlugin] Stopping");
 	return 0;
 }
 

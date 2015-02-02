@@ -80,7 +80,6 @@
         "<(srcdir)/common/port/ThreadData.cpp",
         "<(srcdir)/common/Properties.cpp",
         "<(srcdir)/common/PropertiesFile.cpp",
-#        "<(srcdir)/common/data/legacy/LegacyData.cpp",
         "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
         "<(INTERMEDIATE_DIR)/monitoring/agent/Agent.cpp",
@@ -150,14 +149,6 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/node/env/nodeenvplugin.cpp",
-        "<(srcdir)/common/Logger.cpp",
-        "<(srcdir)/common/LogManager.cpp",
-        "<(srcdir)/common/port/<(portdir)/Process.cpp",
-        "<(srcdir)/common/port/Lock.cpp",
-        "<(srcdir)/common/Properties.cpp",
-        "<(srcdir)/common/util/strUtils.cpp",
-        "<(srcdir)/common/util/sysUtils.cpp",
-        "<(srcdir)/common/MemoryManager.cpp",
       ],
     },
     {
@@ -166,14 +157,7 @@
       "sources": [
         "<(srcdir)/monitoring/plugins/node/prof/nodeprofplugin.cpp",
         "<(srcdir)/monitoring/plugins/GenericEnablingReceiver.cpp",
-        "<(srcdir)/common/Logger.cpp",
-        "<(srcdir)/common/LogManager.cpp",
-        "<(srcdir)/common/port/<(portdir)/Process.cpp",
-        "<(srcdir)/common/port/Lock.cpp",
-        "<(srcdir)/common/Properties.cpp",
-        "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
-        "<(srcdir)/common/MemoryManager.cpp",
       ],
     },
     {
@@ -181,14 +165,7 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/node/gc/nodegcplugin.cpp",
-        "<(srcdir)/common/Logger.cpp",
-        "<(srcdir)/common/LogManager.cpp",
-        "<(srcdir)/common/port/<(portdir)/Process.cpp",
-        "<(srcdir)/common/port/Lock.cpp",
-        "<(srcdir)/common/Properties.cpp",
-        "<(srcdir)/common/util/strUtils.cpp",
         "<(srcdir)/common/util/sysUtils.cpp",
-        "<(srcdir)/common/MemoryManager.cpp",
       ],
     },
     {
@@ -197,14 +174,6 @@
       "sources": [
         "<(srcdir)/monitoring/plugins/common/cpu/cpuplugin.cpp",
         "<(srcdir)/monitoring/plugins/common/cpu/cputime.cpp",
-        "<(srcdir)/common/Logger.cpp",
-        "<(srcdir)/common/LogManager.cpp",
-        "<(srcdir)/common/port/<(portdir)/Process.cpp",
-        "<(srcdir)/common/port/Lock.cpp",
-        "<(srcdir)/common/Properties.cpp",
-        "<(srcdir)/common/util/strUtils.cpp",
-        "<(srcdir)/common/util/sysUtils.cpp",
-        "<(srcdir)/common/MemoryManager.cpp",
       ],
       "conditions": [
         ['OS=="win"', {
@@ -220,14 +189,6 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/common/memory/memoryplugin.cpp",
-        "<(srcdir)/common/Logger.cpp",
-        "<(srcdir)/common/LogManager.cpp",
-        "<(srcdir)/common/port/<(portdir)/Process.cpp",
-        "<(srcdir)/common/port/Lock.cpp",
-        "<(srcdir)/common/Properties.cpp",
-        "<(srcdir)/common/util/strUtils.cpp",
-        "<(srcdir)/common/util/sysUtils.cpp",
-        "<(srcdir)/common/MemoryManager.cpp",
       ],
       "conditions": [
         ['OS=="win"', {
@@ -240,14 +201,6 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/common/environment/envplugin.cpp",
-        "<(srcdir)/common/Logger.cpp",
-        "<(srcdir)/common/LogManager.cpp",
-        "<(srcdir)/common/port/<(portdir)/Process.cpp",
-        "<(srcdir)/common/port/Lock.cpp",
-        "<(srcdir)/common/Properties.cpp",
-        "<(srcdir)/common/util/strUtils.cpp",
-        "<(srcdir)/common/util/sysUtils.cpp",
-        "<(srcdir)/common/MemoryManager.cpp",
       ],
     },
     {

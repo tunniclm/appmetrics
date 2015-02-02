@@ -11,14 +11,10 @@
 
 #include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/common/types.h"
-//#include "ibmras/common/common.h"
-//#include "ibmras/common/Logger.h"
-//#include "ibmras/common/Properties.h"
 #include <cstring>
 #include <string>
 #include <sstream>
 #include <fstream>
-// #include <thread>
 #if defined(_LINUX) || defined(_AIX)
 #include <sys/utsname.h> // uname()
 #include <sys/sysinfo.h> // get_nprocs()
@@ -33,7 +29,6 @@
 #include "windows.h"
 #define HOST_NAME_MAX 256
 #endif
-//#include "ibmras/common/logging.h"
 
 #if defined (_LINUX) || defined (_AIX)
 extern "C" char **environ; // use GetEnvironmentStrings() on Windows (maybe getenv() on POSIX?)
@@ -52,7 +47,9 @@ static void initStaticInfo();
 
 #define DEFAULT_BUCKET_CAPACITY 1024*10
 
-//IBMRAS_DEFINE_LOGGER("EnvironmentPlugin");
+namespace envplugin {
+agentCoreFunctions aCF;
+}
 
 namespace plugin {
 	uint32 provid = 0;
@@ -67,6 +64,8 @@ namespace plugin {
 	std::string agentNativeBuildDate;
 
 }
+
+using namespace ibmras::common::logging;
 
 static char* NewCString(const std::string& s) {
 	char *result = new char[s.length() + 1];
@@ -147,28 +146,23 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 
 extern "C" {
 ENVPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
-	//IBMRAS_DEBUG(info,  "Registering pull sources");
+	envplugin::aCF = aCF;
+
+	plugin::agentVersion = std::string(envplugin::aCF.getProperty("agent.version"));
+	plugin::agentNativeBuildDate = std::string(envplugin::aCF.getProperty("agent.native.build.date"));
+
+	envplugin::aCF.logMessage(debug, "Registering common environment pull source");
 	pullsource *head = createPullSource(0, "environment_os");
 	plugin::provid = provID;
 	return head;
 }
 
-ENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
-//	ibmras::common::Properties props;
-//	props.add(properties);
-//	plugin::agentVersion = props.get("agent.version", "");
-//	plugin::agentNativeBuildDate = props.get("agent.native.build.date", "");
-//
-//	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
-//	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
-//	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.EnvironmentPlugin");
-//	ibmras::common::LogManager::getInstance()->setLevel("EnvironmentPlugin", loggingProp);
-	
+ENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {	
 	return 0;
 }
 
 ENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-//	IBMRAS_DEBUG(info,  "Starting");
+	envplugin::aCF.logMessage(info, "Starting common environment pull source");
 	initStaticInfo(); // See below for platform-specific implementation, protected by ifdefs
 	return 0;
 }
@@ -194,7 +188,10 @@ static std::string GetCommandLine() {
 	std::ifstream filestream(filename.c_str());
 
 	if (!filestream.is_open()) {
-		//IBMRAS_LOG_1(debug, "Failed to open %s", filename.c_str());
+
+		std::stringstream envss;
+		envss << "Failed to open " << filename.c_str();
+
 		return "";
 	}
 
@@ -242,7 +239,13 @@ static std::string GetCommandLine() {
 	proc.pi_pid = getpid();
 	int rc = getargs(&proc, sizeof(proc), procargs, sizeof(procargs));
 	if (rc < 0) {
-		//IBMRAS_LOG_1(debug, "Failed to get command line (%d)", errno);
+
+
+
+		std::stringstream envss;
+		envss << "Failed to get command line " << errno;
+		envplugin::aCF.logMessage(debug, envss.str().c_str());
+
 		return std::string();
 	}
 	std::stringstream cmdliness;

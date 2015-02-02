@@ -10,9 +10,6 @@
 
 
 #include "ibmras/monitoring/AgentExtensions.h"
-#include "ibmras/common/types.h"
-#include "ibmras/common/logging.h"
-#include "ibmras/common/Properties.h"
 #include "ibmras/common/util/sysUtils.h"
 #include <cstring>
 #include <sstream>
@@ -32,8 +29,6 @@
 #define NODEGCPLUGIN_DECL
 #endif
 
-IBMRAS_DEFINE_LOGGER("NodeGCPlugin");
-
 namespace plugin {
 	agentCoreFunctions api;
 	uint32 provid = 0;
@@ -48,6 +43,7 @@ namespace plugin {
 }
 
 using namespace v8;
+using namespace ibmras::common::logging;
 
 static char* NewCString(const std::string& s) {
 	char *result = new char[s.length() + 1];
@@ -154,27 +150,20 @@ pushsource* createPushSource(uint32 srcid, const char* name) {
 extern "C" {
 
 NODEGCPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
-        IBMRAS_DEBUG(info,  "Registering push sources");
-        pushsource *head = createPushSource(0, "gc_node");
-        plugin::api = api;
-        plugin::provid = provID;
-        return head;
+    plugin::api = api;
+    plugin::api.logMessage(debug, "[NodeGCPlugin] Registering push sources");
+
+    pushsource *head = createPushSource(0, "gc_node");
+    plugin::provid = provID;
+    return head;
 }
 
 NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
-	ibmras::common::Properties props;
-	props.add(properties);
-
-	std::string loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.level");
-	ibmras::common::LogManager::getInstance()->setLevel("level", loggingProp);
-	loggingProp = props.get("com.ibm.diagnostics.healthcenter.logging.NodeGCPlugin");
-	ibmras::common::LogManager::getInstance()->setLevel("NodeGCPlugin", loggingProp);
-	
 	return 0;
 }
 
 NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	IBMRAS_DEBUG(info,  "Starting");
+	plugin::api.logMessage(info, "[NodeGCPlugin] Starting");
 
 	// TODO (florincr) SEE HOW TO DO THIS WITH NAN
 	V8::AddGCPrologueCallback(*beforeGC);
@@ -183,7 +172,7 @@ NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 }
 
 NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
-	IBMRAS_DEBUG(info,  "Stopping");
+	plugin::api.logMessage(info, "[NodeGCPlugin] Stopping");
 	// TODO Unhook GC hooks...
 	return 0;
 }
