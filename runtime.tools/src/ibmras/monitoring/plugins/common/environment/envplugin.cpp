@@ -21,7 +21,7 @@
 #include <unistd.h> // gethostname()
 #endif
 #if defined(_AIX)
-#include <sys/systemcfg.h>
+#include <usr/include/sys/systemcfg.h>
 #include <procinfo.h>
 #include <sys/types.h>
 #endif
@@ -29,6 +29,11 @@
 #include "windows.h"
 #define HOST_NAME_MAX 256
 #endif
+#ifdef _ZOS
+#define HOST_NAME_MAX 256
+#endif
+
+
 
 #if defined (_LINUX) || defined (_AIX)
 extern "C" char **environ; // use GetEnvironmentStrings() on Windows (maybe getenv() on POSIX?)

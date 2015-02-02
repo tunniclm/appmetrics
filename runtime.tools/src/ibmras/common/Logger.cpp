@@ -84,7 +84,7 @@ void Logger::log(logging::Level lev, const char* format, ...) {
 	char buffer[1024];
 	int result = VPRINT(buffer, 1024, format, messages);
 	va_end(messages);
-	if (result > 0) {
+	if (result >= 0) {
 		str << buffer;
 	} else {
 		str << "(warning) failed to write replacements for :" << format;
@@ -102,7 +102,7 @@ void Logger::debug(logging::Level lev, const char* format, ...) {
 	char buffer[1024];
 	int result = VPRINT(buffer, 1024, format, messages);
 	va_end(messages);
-	if (result > 0) {
+	if (result >= 0) {
 		str << buffer;
 	} else {
 		str << "(warning) failed to write replacements for :" << format;

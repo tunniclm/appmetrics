@@ -19,7 +19,7 @@ INSTALL_DIR=${OUTPUT}/deploy
 JAVA_OUT=${OUTPUT}/java
 OMR_OUT=${OUTPUT}/omr
 NODE_OUT=${OUTPUT}/node
-CORE_OUT=${OUTPUT}/core
+#CORE_OUT=${OUTPUT}/core
 PAHO_OUT=${OUTPUT}/paho
 HC_OUT=${JAVA_OUT}
 
@@ -96,7 +96,7 @@ NODE_PLUGINS=${PLUGIN_OUT}/${LIB_PREFIX}nodegcplugin.${LIB_EXT} ${PLUGIN_OUT}/${
 PYPLUG=${PLUGIN_OUT}/libpyplugin.so
 TEST=${TEST_OUT}/test${EXE_EXT}
 OBJECTS=${AGENT} ${CONNECTORS} ${PLUGINS} ${TEST} 
-CORE_AGENT=${CORE_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT}
+CORE_AGENT=${JAVA_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT}
 JAVA_AGENT=${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 OMR_AGENT=${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 NODE_AGENT=${NODE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
@@ -140,7 +140,7 @@ pyplug: ${PYPLUG}
 test: setup common ${CONNECTORS} ${AGENT} ${TEST}
 	@echo "Test build complete"
 	
-core: HC_OUT=${CORE_OUT}
+#core: HC_OUT=${CORE_OUT}
 core: setup common ${CORE_AGENT} ${CONNECTORS} ${ENVPLUGIN_OBJS} ${CPUPLUGIN_OBJS} ${MEMPLUGIN_OBJS} ${COMMON_PLUGINS}
 	@echo "Core build complete"	
 
@@ -204,7 +204,7 @@ ${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${OMR_OBJS}
 	${LINK} ${LINK_OPT}  ${LIBFLAGS} ${LIB_OBJOPT} ${OMR_OBJS} ${AGENT_OBJS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
 	@echo "omr Healthcenter lib built"
 
-${CORE_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT}: ${AGENT_OBJS}
+${JAVA_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT}: ${AGENT_OBJS}
 	${LINK} ${LINK_OPT}  ${LIBFLAGS} ${LIB_OBJOPT} ${AGENT_OBJS} ${LD_OPT} ${EXELIBS} ${EXEFLAGS}
 	@echo "core Healthcenter lib built"
 
@@ -542,8 +542,6 @@ ${OUTPUT}:
 	mkdir -p ${OMR_OUT}
 	mkdir -p ${NODE_OUT}
 	mkdir -p ${PAHO_OUT}
-	mkdir -p ${CORE_OUT}
-	
 
 
 clean: 
@@ -573,7 +571,7 @@ coreinstall: core
 	mkdir -p ${INSTALL_DIR}/libs
 	${COPY_CONNECTOR}
 	cp src/properties/omr/healthcenter.properties ${INSTALL_DIR}
-	cp ${CORE_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT} ${INSTALL_DIR}
+	cp ${JAVA_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT} ${INSTALL_DIR}
 	cp ${PLUGIN_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
 	@echo "-----------------------------------------------------------------------------------------------------------------------"
              

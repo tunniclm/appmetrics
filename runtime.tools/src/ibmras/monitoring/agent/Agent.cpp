@@ -23,6 +23,7 @@
 #include "ibmras/common/PropertiesFile.h"
 #include "ibmras/common/LogManager.h"
 #include "ibmras/monitoring/agent/SystemReceiver.h"
+#include "ibmras/common/util/strUtils.h"
 
 //#define AGENT(func) ibmras::monitoring::agent::Agent::getInstance()->func();
 //#define AGENTP(func,param) ibmras::monitoring::agent::Agent::getInstance()->func(param);
@@ -306,7 +307,8 @@ int sendMessageWrapper(const char *sourceId, uint32 size, void *data) {
 
 const char* getPropertyImpl(const char * key){
 	std::string property = Agent::getInstance()->getAgentProperty(std::string(key));
-	return property.c_str();
+	const char * retString = ibmras::common::util::createAsciiString(property.c_str());
+	return retString;
 }
 
 void Agent::init() {
