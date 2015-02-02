@@ -21,7 +21,7 @@
 #include <unistd.h> // gethostname()
 #endif
 #if defined(_AIX)
-#include <usr/include/sys/systemcfg.h>
+#include </usr/include/sys/systemcfg.h>
 #include <procinfo.h>
 #include <sys/types.h>
 #endif
