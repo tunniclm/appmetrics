@@ -42,25 +42,31 @@ static char* NewCString(const std::string& s) {
 	return result;
 }
 
+static double clamp(double value, double min, double max) {
+	if (value > max) return max;
+	if (value < min) return min;
+	return value;
+}
+
 static double CalculateTotalCPU(struct CPUTime* start, struct CPUTime* finish) {
 	double cpu = (double)(finish->total - start->total) / (double)(finish->time - start->time);
-	if (cpu > 1.0) {
+	if (cpu < 0.0 || cpu > 1.0) {
 		std::stringstream cpuss;
-		cpuss <<  "Total CPU reported > 1.0 ("<<cpu<<")";
+		cpuss <<  "Total CPU reported is out of range 0.0 to 1.0 ("<<cpu<<")";
 		cpuplugin::aCF.logMessage(debug, cpuss.str().c_str());
-		cpu = 1.0;
 	}
+	cpu = clamp(cpu, 0.0, 1.0);
 	return cpu;
 }
 
 static double CalculateProcessCPU(struct CPUTime* start, struct CPUTime* finish) {
 	double cpu = (double)(finish->process - start->process) / (double)(finish->time - start->time);
-	if (cpu > 1.0) {
+	if (cpu < 0.0 || cpu > 1.0) {
 		std::stringstream cpuss;
-		cpuss <<  "Total CPU reported > 1.0 ("<<cpu<<")";
+		cpuss <<  "Process CPU reported is out of range 0.0 to 1.0 ("<<cpu<<")";
 		cpuplugin::aCF.logMessage(debug, cpuss.str().c_str());
-		cpu = 1.0;
 	}
+	cpu = clamp(cpu, 0.0, 1.0);
 	return cpu;
 }
 
@@ -74,6 +80,10 @@ static void AppendCPUTime(std::stringstream& contentss) {
 
 static bool IsValidData(struct CPUTime* cputime) {
 	return cputime != NULL;
+}
+
+static bool TimesAreDifferent(struct CPUTime* start, struct CPUTime* finish) {
+	return finish->time != start->time;
 }
 
 monitordata* OnRequestData() {
@@ -91,7 +101,9 @@ monitordata* OnRequestData() {
 	plugin::last = plugin::current;
 	plugin::current = getCPUTime();
 	
-	if (IsValidData(plugin::last) && IsValidData(plugin::current)) {
+	if (IsValidData(plugin::last) && IsValidData(plugin::current)
+		&& TimesAreDifferent(plugin::last, plugin::current)) {
+		
 		std::stringstream contentss;
 		contentss << "#CPUSource\n";
 		AppendCPUTime(contentss);

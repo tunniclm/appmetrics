@@ -170,7 +170,7 @@ static void GetNodeInformation(uv_async_t *async, int status) {
 		data.data = content.c_str();
 		plugin::api.agentPushData(&data);
 	} else {
-		plugin::api.logMessage(debug, "[NodeEnvPlugin] Unable to get Node.js environment information");
+		plugin::api.logMessage(debug, "[environment_node] Unable to get Node.js environment information");
 	}
 
 }
@@ -178,7 +178,7 @@ static void GetNodeInformation(uv_async_t *async, int status) {
 extern "C" {
 NODEENVPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
 	plugin::api = api;
-	plugin::api.logMessage(debug, "[NodeEnvPlugin] Registering push sources");
+	plugin::api.logMessage(debug, "[environment_node] Registering push sources");
 
 	pushsource *head = createPushSource(0, "environment_node");
 	plugin::provid = provID;
@@ -190,7 +190,7 @@ NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 }
 
 NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	plugin::api.logMessage(info, "[NodeEnvPlugin] Starting");
+	plugin::api.logMessage(fine, "[environment_node] Starting");
 	
 	// Run GetNodeInformation() on the Node event loop
 	uv_async_t *async = new uv_async_t;
@@ -201,7 +201,7 @@ NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 }
 
 NODEENVPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
-	plugin::api.logMessage(info, "[NodeEnvPlugin] Stopping");
+	plugin::api.logMessage(fine, "[environment_node] Stopping");
 	return 0;
 }
 

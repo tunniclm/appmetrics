@@ -118,7 +118,7 @@ static char * ConstructData(const CpuProfile *profile) {
 static Isolate* GetIsolate() {
 	Isolate *isolate = v8::Isolate::GetCurrent();
 	if (isolate == NULL) {
-		plugin::api.logMessage(debug, "[NodeProfPlugin] No V8 Isolate found");
+		plugin::api.logMessage(debug, "[profiling_node] No V8 Isolate found");
 	}
 	return isolate;
 }
@@ -128,7 +128,7 @@ static Isolate* GetIsolate() {
 static CpuProfiler* GetCpuProfiler(Isolate *isolate) {
 	CpuProfiler *cpu = isolate->GetCpuProfiler();
 	if (cpu == NULL) {
-		plugin::api.logMessage(debug, "[NodeProfPlugin] No CpuProfiler found");
+		plugin::api.logMessage(debug, "[profiling_node] No CpuProfiler found");
 	}
 	return cpu;
 }
@@ -169,8 +169,7 @@ static const CpuProfile* StopTheProfiler() {
 
 static void ReleaseProfile(const CpuProfile *profile) {
 	if (profile != NULL) {
-		//((CpuProfile *)profile)->Delete();
-		delete profile;
+		const_cast<CpuProfile *>(profile)->Delete();
 	}
 }
 
@@ -208,10 +207,10 @@ void OnGatherDataOnV8Thread(uv_timer_s *data, int status) {
 			
 			delete[] serialisedProfile;
 		} else {
-			plugin::api.logMessage(debug, "[NodeProfPlugin] Failed to serialise method profile"); // CHECK(tunniclm): Should this be a warning?
+			plugin::api.logMessage(debug, "[profiling_node] Failed to serialise method profile"); // CHECK(tunniclm): Should this be a warning?
 		}
 	} else {
-		plugin::api.logMessage(debug, "[NodeProfPlugin] No method profile found"); // CHECK(tunniclm): Should this be a warning?
+		plugin::api.logMessage(debug, "[profiling_node] No method profile found"); // CHECK(tunniclm): Should this be a warning?
 		StartTheProfiler();
 	}
 
@@ -239,7 +238,7 @@ static void publishEnabled() {
 	}
 
 	std::stringstream logMsg;
-	logMsg << "[NodeProfPlugin] Sending config message [" << msg << "]";
+	logMsg << "[profiling_node] Sending config message [" << msg << "]";
 	plugin::api.logMessage(debug,  logMsg.str().c_str());
 	
 	plugin::api.agentSendMessage(("configuration/" + sourceName).c_str(), msg.length(),
@@ -260,7 +259,7 @@ static void enableOnV8Thread(uv_async_t *async, int status) {
 #endif
 	if (plugin::enabled) return;
 	plugin::enabled = true;
-	plugin::api.logMessage(debug, "[NodeProfPlugin] Publishing config");
+	plugin::api.logMessage(debug, "[profiling_node] Publishing config");
     publishEnabled();
 	
 	StartTheProfiler();
@@ -280,7 +279,7 @@ static void disableOnV8Thread(uv_async_t *async, int status) {
 #endif
 	if (!plugin::enabled) return;
 	plugin::enabled = false;
-	plugin::api.logMessage(debug, "[NodeProfPlugin] Publishing config");
+	plugin::api.logMessage(debug, "[profiling_node] Publishing config");
     publishEnabled();
 
 	uv_timer_stop(plugin::timer);
@@ -296,12 +295,12 @@ static void disableOnV8Thread(uv_async_t *async, int status) {
 //                 thread. uv_async_send() is thread-safe.
 void setEnabled(bool value) {
 	if (value) {
-		plugin::api.logMessage(debug, "[NodeProfPlugin] Enabling");
+		plugin::api.logMessage(fine, "[profiling_node] Enabling");
 		uv_async_t *async = new uv_async_t;
 		uv_async_init(uv_default_loop(), async, enableOnV8Thread);
 		uv_async_send(async); // close and cleanup in call back
 	} else {
-		plugin::api.logMessage(debug, "[NodeProfPlugin] Disabling");
+		plugin::api.logMessage(fine, "[profiling_node] Disabling");
 		uv_async_t *async = new uv_async_t;
 		uv_async_init(uv_default_loop(), async, disableOnV8Thread);
 		uv_async_send(async); // close and cleanup in call back
@@ -314,10 +313,10 @@ extern "C" {
 NODEPROFPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
 	plugin::api = api;
 
-	std::string enabledProp(plugin::api.getProperty("data.NodeProfPlugin"));
+	std::string enabledProp(plugin::api.getProperty("data.profiling"));
 	plugin::enabled = (enabledProp == "on");
 
-	plugin::api.logMessage(debug, "[NodeProfPlugin] Registering push sources");
+	plugin::api.logMessage(debug, "[profiling_node] Registering push sources");
 	pushsource *head = createPushSource(0, "profiling_node");
 	plugin::provid = provID;
 	return head;
@@ -336,12 +335,12 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 //                 uv APIs and accesses non thread-safe fields
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 	if (plugin::enabled) {	
-		plugin::api.logMessage(info, "[NodeProfPlugin] Starting enabled");
+		plugin::api.logMessage(info, "[profiling_node] Starting enabled");
 	} else {
-		plugin::api.logMessage(info, "[NodeProfPlugin] Starting disabled");
+		plugin::api.logMessage(info, "[profiling_node] Starting disabled");
 	}
 
-	plugin::api.logMessage(debug, "[NodeProfPlugin] Publishing config");
+	plugin::api.logMessage(debug, "[profiling_node] Publishing config");
 	publishEnabled();	
 
 	plugin::timer = new uv_timer_t;
@@ -349,10 +348,10 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 	uv_unref((uv_handle_t*) plugin::timer); // don't prevent event loop exit
 	
 	if (plugin::enabled) {	
-		plugin::api.logMessage(debug, "[NodeProfPlugin] Start profiling");
+		plugin::api.logMessage(fine, "[profiling_node] Start profiling");
 		StartTheProfiler();
 	
-		plugin::api.logMessage(debug, "[NodeProfPlugin] Starting timer");
+		plugin::api.logMessage(fine, "[profiling_node] Starting timer");
 		uv_timer_start(plugin::timer, OnGatherDataOnV8Thread, PROFILING_INTERVAL, PROFILING_INTERVAL);
 	}
 
@@ -360,7 +359,7 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 }
 
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
-	plugin::api.logMessage(info, "[NodeProfPlugin] Stopping");
+	plugin::api.logMessage(fine, "[profiling_node] Stopping");
 
 	if (plugin::enabled) {
 		plugin::enabled = false;

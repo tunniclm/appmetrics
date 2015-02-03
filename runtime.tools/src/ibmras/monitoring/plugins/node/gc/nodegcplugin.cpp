@@ -151,7 +151,7 @@ extern "C" {
 
 NODEGCPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
     plugin::api = api;
-    plugin::api.logMessage(debug, "[NodeGCPlugin] Registering push sources");
+    plugin::api.logMessage(debug, "[gc_node] Registering push sources");
 
     pushsource *head = createPushSource(0, "gc_node");
     plugin::provid = provID;
@@ -163,16 +163,16 @@ NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 }
 
 NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	plugin::api.logMessage(info, "[NodeGCPlugin] Starting");
+	plugin::api.logMessage(fine, "[gc_node] Starting");
 
 	// TODO (florincr) SEE HOW TO DO THIS WITH NAN
-	V8::AddGCPrologueCallback(*beforeGC);
-	V8::AddGCEpilogueCallback(*afterGC);
+	V8::AddGCPrologueCallback(beforeGC);
+	V8::AddGCEpilogueCallback(afterGC);
 	return 0;
 }
 
 NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
-	plugin::api.logMessage(info, "[NodeGCPlugin] Stopping");
+	plugin::api.logMessage(fine, "[gc_node] Stopping");
 	// TODO Unhook GC hooks...
 	return 0;
 }

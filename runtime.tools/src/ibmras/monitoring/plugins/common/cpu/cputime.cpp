@@ -270,6 +270,7 @@ struct CPUTime* getCPUTime() {
 		delete cputime;
 		return NULL;
 	}
+	cputime->process /= cputime->nprocs; // process cpu is %age of 1 core (system cpu is %age of all cores)
 	return cputime;	
 }
 
