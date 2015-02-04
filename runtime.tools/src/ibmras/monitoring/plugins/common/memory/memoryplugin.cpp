@@ -43,11 +43,11 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 
-extern "C"
-{
-int getprocs(struct procsinfo*, int, struct fdsinfo*, int, pid_t*, int);
-int getprocs64(struct procentry64*, int, struct fdsinfo64*, int, pid_t*, int);
-}
+//extern "C"
+//{
+//int getprocs(struct procsinfo*, int, struct fdsinfo*, int, pid_t*, int);
+//int getprocs64(struct procentry64*, int, struct fdsinfo64*, int, pid_t*, int);
+//}
 
 #if !defined(VMINFO_GETPSIZES)
 

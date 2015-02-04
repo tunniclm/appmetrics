@@ -143,6 +143,11 @@
         "<(srcdir)/common/util/sysUtils.cpp",
         "<(srcdir)/common/MemoryManager.cpp",
       ],
+      "conditions": [
+        [ 'node_byteorder=="big"', {
+          "defines": [ "REVERSED" ], 
+        }],
+      ],
     },
     {
       "target_name": "nodeenvplugin",

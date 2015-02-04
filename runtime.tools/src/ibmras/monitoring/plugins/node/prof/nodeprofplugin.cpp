@@ -161,7 +161,7 @@ static const CpuProfile* StopTheProfiler() {
 	CpuProfiler *cpu = GetCpuProfiler(isolate);
 	if (cpu == NULL) return NULL;
 	
-	return cpu->StopProfiling(NanNew<String>("NodeProfPlugin"), false);
+	return cpu->StopProfiling(NanNew<String>("NodeProfPlugin"));
 #else
 	return CpuProfiler::StopProfiling(NanNew<String>("NodeProfPlugin"));
 #endif
@@ -335,9 +335,9 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 //                 uv APIs and accesses non thread-safe fields
 NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 	if (plugin::enabled) {	
-		plugin::api.logMessage(info, "[profiling_node] Starting enabled");
+		plugin::api.logMessage(fine, "[profiling_node] Starting enabled");
 	} else {
-		plugin::api.logMessage(info, "[profiling_node] Starting disabled");
+		plugin::api.logMessage(fine, "[profiling_node] Starting disabled");
 	}
 
 	plugin::api.logMessage(debug, "[profiling_node] Publishing config");
@@ -348,10 +348,10 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 	uv_unref((uv_handle_t*) plugin::timer); // don't prevent event loop exit
 	
 	if (plugin::enabled) {	
-		plugin::api.logMessage(fine, "[profiling_node] Start profiling");
+		plugin::api.logMessage(debug, "[profiling_node] Start profiling");
 		StartTheProfiler();
 	
-		plugin::api.logMessage(fine, "[profiling_node] Starting timer");
+		plugin::api.logMessage(debug, "[profiling_node] Starting timer");
 		uv_timer_start(plugin::timer, OnGatherDataOnV8Thread, PROFILING_INTERVAL, PROFILING_INTERVAL);
 	}
 

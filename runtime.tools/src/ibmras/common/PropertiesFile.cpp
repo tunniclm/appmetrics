@@ -13,11 +13,13 @@
 
 #include <fstream>
 #include <string>
+#include <cctype>
+#include <algorithm>
 
 namespace ibmras {
 namespace common {
 
-
+bool IsWhitespace(char x) { return std::isspace(x); }
 
 int PropertiesFile::load(const std::string &inputFile) {
 	std::ifstream in_file(inputFile.c_str());
@@ -33,6 +35,11 @@ int PropertiesFile::load(const std::string &inputFile) {
 		if (line.length() > 0 && line.at(line.length() - 1) == '\r') {
 			line.erase(line.length() - 1);
 		}
+		// erase whitespace
+				line.erase(std::remove_if(line.begin(),
+				                          line.end(),
+				                          IsWhitespace),
+				               line.end());
 		size_t pos = line.find('=');
 		if ((pos != std::string::npos) && (pos < line.size())) {
 			put(line.substr(0, pos), line.substr(pos + 1));

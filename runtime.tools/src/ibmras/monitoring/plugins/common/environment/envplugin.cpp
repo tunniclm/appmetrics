@@ -15,13 +15,13 @@
 #include <string>
 #include <sstream>
 #include <fstream>
-#if defined(_LINUX) || defined(_AIX)
+#if defined(_LINUX) || defined(_AIX) || defined(_ZOS)
 #include <sys/utsname.h> // uname()
 #include <sys/sysinfo.h> // get_nprocs()
 #include <unistd.h> // gethostname()
 #endif
 #if defined(_AIX)
-#include </usr/include/sys/systemcfg.h>
+#include_next </usr/include/sys/systemcfg.h>
 #include <procinfo.h>
 #include <sys/types.h>
 #endif
@@ -35,7 +35,7 @@
 
 
 
-#if defined (_LINUX) || defined (_AIX)
+#if defined (_LINUX) || defined (_AIX) || defined (_ZOS)
 extern "C" char **environ; // use GetEnvironmentStrings() on Windows (maybe getenv() on POSIX?)
 #endif
 
