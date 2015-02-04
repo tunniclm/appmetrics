@@ -8,8 +8,8 @@
  * been deposited with the U.S. Copyright Office.
  */
 
+#include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/monitoring/plugins/common/cpu/cputime.h"
-//#include "ibmras/common/logging.h"
 #include <cstdio>
 #include <ctime>
 #include <string>
@@ -33,9 +33,11 @@
 #include <libperfstat.h>
 #endif
 
+namespace cpuplugin {
+	extern agentCoreFunctions aCF;
+}
+using namespace ibmras::common::logging;
 using namespace std;
-
-//extern IBMRAS_DECLARE_LOGGER;
 
 extern "C" {
 
@@ -63,7 +65,7 @@ static bool read_total_cpu_time(uint64* totaltime, const uint32 NS_PER_HZ) {
 	std::ifstream filestream("/proc/stat");
 
 	if (!filestream.is_open()) {
-		//IBMRAS_DEBUG(warning, "Failed to open /proc/stat");
+		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to open /proc/stat");
 		return false;
 	}
 
@@ -73,7 +75,7 @@ static bool read_total_cpu_time(uint64* totaltime, const uint32 NS_PER_HZ) {
 	filestream.close();
 
 	if (!parsedSuccessfully) {
-		//IBMRAS_DEBUG(warning, "Failed to parse /proc/stat");
+		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to parse /proc/stat");
 		return false;
 	}
 		
@@ -92,7 +94,9 @@ static bool read_process_cpu_time(uint64* proctime, const uint32 NS_PER_HZ) {
 	std::ifstream filestream(filename.c_str());
 
 	if (!filestream.is_open()) {
-		//IBMRAS_DEBUG_1(warning, "Failed to open %s", filename.c_str());
+		std::stringstream ss;
+		ss << "[cpu] Failed to open " << filename;
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
 
@@ -107,7 +111,9 @@ static bool read_process_cpu_time(uint64* proctime, const uint32 NS_PER_HZ) {
 	filestream.close();
 
 	if (!parsedSuccessfully) {
-		//IBMRAS_DEBUG_1(warning, "Failed to parse %s", filename.c_str());
+		std::stringstream ss;
+		ss << "[cpu] Failed to parse " << filename;
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
 		
@@ -159,7 +165,7 @@ static inline bool FILETIME_to_unixtimestamp(FILETIME wintime, uint64* unixtimes
 	uint64 ns = FILETIME_to_ns(wintime);
 	if (ns < NSEC_TO_UNIX_EPOCH) {
 		// error, time is before unix epoch
-	//	IBMRAS_DEBUG(warning, "Failed to convert Windows time to UNIX timestamp (before UNIX epoch)");
+		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to convert Windows time to UNIX timestamp (before UNIX epoch)");
 		return false; 
 	}
 	// convert to ns since UNIX epoch 1970-01-01T00:00:00Z
@@ -176,7 +182,9 @@ static bool read_process_cpu_time(uint64* proctime) {
 	BOOL rc = GetProcessTimes(process, &create, &exit, &kernel, &user);
 	
 	if (!rc) {
-	//	IBMRAS_DEBUG(warning, "Failed to get process cpu time");
+		std::stringstream ss;
+		ss << "[cpu] Failed to get process cpu time (error=" << GetLastError() << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
 
@@ -195,7 +203,9 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 
 	Status = PdhOpenQuery(NULL, (DWORD_PTR) NULL, &Query);
 	if (ERROR_SUCCESS != Status) {
-//		IBMRAS_DEBUG(warning, "Failed to open pdh query for total cpu");
+        std::stringstream ss;
+        ss << "[cpu] Failed to open pdh query for total cpu (status=" << Status << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
 
@@ -204,7 +214,9 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 		
 	if (ERROR_SUCCESS != Status) {
         PdhCloseQuery(Query);
-//		IBMRAS_DEBUG(warning, "Failed to add user time pdh counter for total cpu");
+        std::stringstream ss;
+        ss << "[cpu] Failed to add user time pdh counter for total cpu (status=" << Status << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
   	}
 
@@ -212,21 +224,27 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 		"\\Processor(_Total)\\% Privileged Time", 0, &privilegedCounter);
 	if (ERROR_SUCCESS != Status) {
         PdhCloseQuery(Query);
-//		IBMRAS_DEBUG(warning, "Failed to add kernel time pdh counter for total cpu");
+        std::stringstream ss;
+        ss << "[cpu] Failed to add kernel time pdh counter for total cpu (status=" << Status << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
 	
 	Status = PdhCollectQueryData(Query);
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
-//		IBMRAS_DEBUG(warning, "Failed to collect pdh query data for total cpu");
+        std::stringstream ss;
+        ss << "[cpu] Failed to collect pdh query data for total cpu (status=" << Status << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
 
 	Status = PdhGetRawCounterValue(privilegedCounter, NULL, &counterValue);
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
-//		IBMRAS_DEBUG(warning, "Failed to get kernel time counter value for total cpu");
+        std::stringstream ss;
+        ss << "[cpu] Failed to get kernel time counter value for total cpu (status=" << Status << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
 	user = counterValue.FirstValue;
@@ -234,7 +252,9 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	Status = PdhGetRawCounterValue(userCounter, NULL, &counterValue);
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
-//		IBMRAS_DEBUG(warning, "Failed to get user time counter value for total cpu");
+        std::stringstream ss;
+        ss << "[cpu] Failed to get user time counter value for total cpu (status=" << Status << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
 	kernel = counterValue.FirstValue;
@@ -243,7 +263,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	
 	(*totaltime) = (static_cast<uint64>(user) + static_cast<uint64>(kernel)) * 100; // to ns
 	if (!LocalFileTimeToFileTime(&counterValue.TimeStamp, &utcTimeStamp)) {
-//		IBMRAS_DEBUG(warning, "Failed to convert local time to UTC");
+		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to convert local time to UTC");
 		return false;
 	}
 	if (!FILETIME_to_unixtimestamp(utcTimeStamp, unixtimestamp)) {
@@ -263,10 +283,12 @@ struct CPUTime* getCPUTime() {
 	cputime->nprocs = sysinfo.dwNumberOfProcessors;
 
 	if (!read_process_cpu_time(&cputime->process)) {
+		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to read process CPU");
 		delete cputime;
 		return NULL;
 	}
 	if (!read_total_cpu_time(&cputime->time, &cputime->total)) {
+		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to read total CPU");
 		delete cputime;
 		return NULL;
 	}
@@ -290,6 +312,10 @@ struct CPUTime* getCPUTime() {
 	nsStart = time_microseconds() * 1000;
 
 	if (perfstat_cpu_total(NULL, &stats, sizeof(perfstat_cpu_total_t), 1) == -1) {
+		std::stringstream ss;
+		ss << "[cpu] Failed to read total CPU (errno=" << errno << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
+
 		delete cputime;
 		return NULL;
 	}
@@ -297,6 +323,10 @@ struct CPUTime* getCPUTime() {
 	// psid.name is char[IDENTIIFER_LENGTH] (64); see libperfstat.h
 	sprintf(psid.name, "%d", getpid());
 	if (perfstat_process(&psid, &pstats, sizeof(perfstat_process_t), 1) == -1) {
+		std::stringstream ss;
+		ss << "[cpu] Failed to read process CPU (errno=" << errno << ")";
+		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
+
 		delete cputime;
 		return NULL;
 	}

@@ -28,6 +28,7 @@ namespace plugin {
 	uint32 provid = 0;
 	struct CPUTime* last;
 	struct CPUTime* current;
+	bool noFailures = true;
 }
 
 namespace cpuplugin {
@@ -52,7 +53,7 @@ static double CalculateTotalCPU(struct CPUTime* start, struct CPUTime* finish) {
 	double cpu = (double)(finish->total - start->total) / (double)(finish->time - start->time);
 	if (cpu < 0.0 || cpu > 1.0) {
 		std::stringstream cpuss;
-		cpuss <<  "Total CPU reported is out of range 0.0 to 1.0 ("<<cpu<<")";
+		cpuss <<  "[cpu] Total CPU reported is out of range 0.0 to 1.0 ("<<cpu<<")";
 		cpuplugin::aCF.logMessage(debug, cpuss.str().c_str());
 	}
 	cpu = clamp(cpu, 0.0, 1.0);
@@ -63,7 +64,7 @@ static double CalculateProcessCPU(struct CPUTime* start, struct CPUTime* finish)
 	double cpu = (double)(finish->process - start->process) / (double)(finish->time - start->time);
 	if (cpu < 0.0 || cpu > 1.0) {
 		std::stringstream cpuss;
-		cpuss <<  "Process CPU reported is out of range 0.0 to 1.0 ("<<cpu<<")";
+		cpuss <<  "[cpu] Process CPU reported is out of range 0.0 to 1.0 ("<<cpu<<")";
 		cpuplugin::aCF.logMessage(debug, cpuss.str().c_str());
 	}
 	cpu = clamp(cpu, 0.0, 1.0);
@@ -111,6 +112,20 @@ monitordata* OnRequestData() {
 		std::string content = contentss.str();
 		data->size = static_cast<uint32>(content.length()); // should data->size be a size_t?
 		data->data = NewCString(content);
+	} else {
+		if (!IsValidData(plugin::current)) {
+			cpuplugin::aCF.logMessage(debug, "[cpu] Skipped sending data (reason: invalid data)");
+			if (plugin::noFailures) {
+				cpuplugin::aCF.logMessage(warning, "[cpu] At least one data gathering failure occurred");
+				plugin::noFailures = false;
+			}
+		} else if (IsValidData(plugin::last) && !TimesAreDifferent(plugin::last, plugin::current)) {
+			cpuplugin::aCF.logMessage(debug, "[cpu] Skipped sending data (reason: time did not advance)");
+			if (plugin::noFailures) {
+				cpuplugin::aCF.logMessage(warning, "[cpu] At least one data gathering failure occurred");
+				plugin::noFailures = false;
+			}
+		}
 	}
 	
 	return data;
@@ -143,7 +158,7 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 extern "C" {
 CPUPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
 	cpuplugin::aCF = aCF;
-	cpuplugin::aCF.logMessage(debug, "Registering common CPU pull source");
+	cpuplugin::aCF.logMessage(debug, "[cpu] Registering pull source");
 	pullsource *head = createPullSource(0, "cpu_os");
 	plugin::provid = provID;
 	return head;
@@ -156,11 +171,13 @@ CPUPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 }
 
 CPUPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	cpuplugin::aCF.logMessage(info, "Starting common CPU pull source");
+	cpuplugin::aCF.logMessage(fine, "[cpu] Starting");
+	plugin::noFailures = true;
 	return 0;
 }
 
 CPUPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
+	cpuplugin::aCF.logMessage(fine, "[cpu] Stopping");
 	return 0;
 }
 
