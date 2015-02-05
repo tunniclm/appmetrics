@@ -92,7 +92,7 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 
 			Plugin *plugin = processLibrary(szDir);
 			if (plugin != NULL) {
-				IBMRAS_LOG_2(info, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
+				IBMRAS_LOG_2(fine, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
 				plugins.push_back(plugin);
 			}
 		}
@@ -126,7 +126,7 @@ std::vector<Plugin*> Plugin::scan(const std::string& dir) {
 
 			Plugin *plugin = processLibrary(filePath);
 			if (plugin != NULL) {
-				IBMRAS_LOG_2(info, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
+				IBMRAS_LOG_2(fine, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
 				plugins.push_back(plugin);
 			}
 

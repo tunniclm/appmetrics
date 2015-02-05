@@ -13,6 +13,7 @@
 
 #include "ibmras/monitoring/connector/Connector.h"
 
+
 #if defined(_WINDOWS)
 #define APICONNECTORPLUGIN_DECL __declspec(dllexport)   /* required for DLLs to export the plugin functions */
 #else

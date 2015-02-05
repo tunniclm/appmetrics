@@ -65,7 +65,7 @@ static bool read_total_cpu_time(uint64* totaltime, const uint32 NS_PER_HZ) {
 	std::ifstream filestream("/proc/stat");
 
 	if (!filestream.is_open()) {
-		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to open /proc/stat");
+		cpuplugin::aCF.logMessage(debug, "[cpu_os] Failed to open /proc/stat");
 		return false;
 	}
 
@@ -75,7 +75,7 @@ static bool read_total_cpu_time(uint64* totaltime, const uint32 NS_PER_HZ) {
 	filestream.close();
 
 	if (!parsedSuccessfully) {
-		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to parse /proc/stat");
+		cpuplugin::aCF.logMessage(debug, "[cpu_os] Failed to parse /proc/stat");
 		return false;
 	}
 		
@@ -95,7 +95,7 @@ static bool read_process_cpu_time(uint64* proctime, const uint32 NS_PER_HZ) {
 
 	if (!filestream.is_open()) {
 		std::stringstream ss;
-		ss << "[cpu] Failed to open " << filename;
+		ss << "[cpu_os] Failed to open " << filename;
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
@@ -112,7 +112,7 @@ static bool read_process_cpu_time(uint64* proctime, const uint32 NS_PER_HZ) {
 
 	if (!parsedSuccessfully) {
 		std::stringstream ss;
-		ss << "[cpu] Failed to parse " << filename;
+		ss << "[cpu_os] Failed to parse " << filename;
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
@@ -165,7 +165,7 @@ static inline bool FILETIME_to_unixtimestamp(FILETIME wintime, uint64* unixtimes
 	uint64 ns = FILETIME_to_ns(wintime);
 	if (ns < NSEC_TO_UNIX_EPOCH) {
 		// error, time is before unix epoch
-		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to convert Windows time to UNIX timestamp (before UNIX epoch)");
+		cpuplugin::aCF.logMessage(debug, "[cpu_os] Failed to convert Windows time to UNIX timestamp (before UNIX epoch)");
 		return false; 
 	}
 	// convert to ns since UNIX epoch 1970-01-01T00:00:00Z
@@ -183,7 +183,7 @@ static bool read_process_cpu_time(uint64* proctime) {
 	
 	if (!rc) {
 		std::stringstream ss;
-		ss << "[cpu] Failed to get process cpu time (error=" << GetLastError() << ")";
+		ss << "[cpu_os] Failed to get process cpu time (error=" << GetLastError() << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
@@ -204,7 +204,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	Status = PdhOpenQuery(NULL, (DWORD_PTR) NULL, &Query);
 	if (ERROR_SUCCESS != Status) {
         std::stringstream ss;
-        ss << "[cpu] Failed to open pdh query for total cpu (status=" << Status << ")";
+        ss << "[cpu_os] Failed to open pdh query for total cpu (status=" << Status << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
@@ -215,7 +215,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	if (ERROR_SUCCESS != Status) {
         PdhCloseQuery(Query);
         std::stringstream ss;
-        ss << "[cpu] Failed to add user time pdh counter for total cpu (status=" << Status << ")";
+        ss << "[cpu_os] Failed to add user time pdh counter for total cpu (status=" << Status << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
   	}
@@ -225,7 +225,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	if (ERROR_SUCCESS != Status) {
         PdhCloseQuery(Query);
         std::stringstream ss;
-        ss << "[cpu] Failed to add kernel time pdh counter for total cpu (status=" << Status << ")";
+        ss << "[cpu_os] Failed to add kernel time pdh counter for total cpu (status=" << Status << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
@@ -234,7 +234,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
         std::stringstream ss;
-        ss << "[cpu] Failed to collect pdh query data for total cpu (status=" << Status << ")";
+        ss << "[cpu_os] Failed to collect pdh query data for total cpu (status=" << Status << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
@@ -243,7 +243,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
         std::stringstream ss;
-        ss << "[cpu] Failed to get kernel time counter value for total cpu (status=" << Status << ")";
+        ss << "[cpu_os] Failed to get kernel time counter value for total cpu (status=" << Status << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
@@ -253,7 +253,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	if (ERROR_SUCCESS != Status) {
 		PdhCloseQuery(Query);
         std::stringstream ss;
-        ss << "[cpu] Failed to get user time counter value for total cpu (status=" << Status << ")";
+        ss << "[cpu_os] Failed to get user time counter value for total cpu (status=" << Status << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 		return false;
 	}
@@ -263,7 +263,7 @@ static bool read_total_cpu_time(uint64* unixtimestamp, uint64* totaltime) {
 	
 	(*totaltime) = (static_cast<uint64>(user) + static_cast<uint64>(kernel)) * 100; // to ns
 	if (!LocalFileTimeToFileTime(&counterValue.TimeStamp, &utcTimeStamp)) {
-		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to convert local time to UTC");
+		cpuplugin::aCF.logMessage(debug, "[cpu_os] Failed to convert local time to UTC");
 		return false;
 	}
 	if (!FILETIME_to_unixtimestamp(utcTimeStamp, unixtimestamp)) {
@@ -283,12 +283,12 @@ struct CPUTime* getCPUTime() {
 	cputime->nprocs = sysinfo.dwNumberOfProcessors;
 
 	if (!read_process_cpu_time(&cputime->process)) {
-		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to read process CPU");
+		cpuplugin::aCF.logMessage(debug, "[cpu_os] Failed to read process CPU");
 		delete cputime;
 		return NULL;
 	}
 	if (!read_total_cpu_time(&cputime->time, &cputime->total)) {
-		cpuplugin::aCF.logMessage(debug, "[cpu] Failed to read total CPU");
+		cpuplugin::aCF.logMessage(debug, "[cpu_os] Failed to read total CPU");
 		delete cputime;
 		return NULL;
 	}
@@ -313,7 +313,7 @@ struct CPUTime* getCPUTime() {
 
 	if (perfstat_cpu_total(NULL, &stats, sizeof(perfstat_cpu_total_t), 1) == -1) {
 		std::stringstream ss;
-		ss << "[cpu] Failed to read total CPU (errno=" << errno << ")";
+		ss << "[cpu_os] Failed to read total CPU (errno=" << errno << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 
 		delete cputime;
@@ -324,7 +324,7 @@ struct CPUTime* getCPUTime() {
 	sprintf(psid.name, "%d", getpid());
 	if (perfstat_process(&psid, &pstats, sizeof(perfstat_process_t), 1) == -1) {
 		std::stringstream ss;
-		ss << "[cpu] Failed to read process CPU (errno=" << errno << ")";
+		ss << "[cpu_os] Failed to read process CPU (errno=" << errno << ")";
 		cpuplugin::aCF.logMessage(debug, ss.str().c_str());
 
 		delete cputime;

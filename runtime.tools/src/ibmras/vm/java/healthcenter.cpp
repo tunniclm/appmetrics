@@ -498,7 +498,7 @@ void launchAgent(const std::string &options) {
 	agent->setLogLevels();
 
 	std::string agentVersion = agent->getVersion();
-	IBMRAS_LOG_1(info, "Health Center Agent %s", agentVersion.c_str());
+	IBMRAS_LOG_1(fine, "Health Center Agent %s", agentVersion.c_str());
 
 	// Add MQTT Connector plugin
 	// TODO load SSL or plain

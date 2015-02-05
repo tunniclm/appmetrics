@@ -9,13 +9,15 @@
  */
 
 
+#define _XOPEN_SOURCE_EXTENDED 1 //This macro makes zOS' unistd.h expose gethostname().
+
 #include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/common/types.h"
 #include <cstring>
 #include <string>
 #include <sstream>
 #include <fstream>
-#if defined(_LINUX) || defined(_AIX) || defined(_ZOS)
+#if defined(_LINUX) || defined(_AIX)
 #include <sys/utsname.h> // uname()
 #include <sys/sysinfo.h> // get_nprocs()
 #include <unistd.h> // gethostname()
@@ -156,7 +158,7 @@ ENVPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctio
 	plugin::agentVersion = std::string(envplugin::aCF.getProperty("agent.version"));
 	plugin::agentNativeBuildDate = std::string(envplugin::aCF.getProperty("agent.native.build.date"));
 
-	envplugin::aCF.logMessage(debug, "Registering common environment pull source");
+	envplugin::aCF.logMessage(debug, "[environment_os] Registering pull source");
 	pullsource *head = createPullSource(0, "environment_os");
 	plugin::provid = provID;
 	return head;
@@ -167,12 +169,13 @@ ENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 }
 
 ENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	envplugin::aCF.logMessage(info, "Starting common environment pull source");
+	envplugin::aCF.logMessage(fine, "[environment_os] Starting");
 	initStaticInfo(); // See below for platform-specific implementation, protected by ifdefs
 	return 0;
 }
 
 ENVPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
+	envplugin::aCF.logMessage(fine, "[environment_os] Stopping");
 	return 0;
 }
 

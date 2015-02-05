@@ -271,7 +271,7 @@ void Agent::addPlugin(ibmras::monitoring::Plugin* plugin) {
 	if (plugin) {
 		IBMRAS_DEBUG_1(info, "Adding plugin %s", plugin->name.c_str());IBMRAS_DEBUG_4(info, "Push source %p, Pull source %p, start %p, stop %p",
 				plugin->push, plugin->pull, plugin->start, plugin->stop);
-		IBMRAS_LOG_2(info, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
+		IBMRAS_LOG_2(fine, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
 		plugins.push_back(plugin);
 		IBMRAS_DEBUG(info, "Plugin added");
 	} else {
@@ -282,7 +282,7 @@ void Agent::addPlugin(ibmras::monitoring::Plugin* plugin) {
 void Agent::addPlugin(const std::string &dir, const std::string library) {
 	ibmras::monitoring::Plugin *plugin = ibmras::monitoring::Plugin::processLibrary(dir + PATHSEPARATOR + LIBPREFIX + library + LIBSUFFIX);
 	if (plugin) {
-		IBMRAS_LOG_2(info, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
+		IBMRAS_LOG_2(fine, "%s, version %s", (plugin->name).c_str(), (plugin->getVersion()));
 		plugins.push_back(plugin);
 	}
 }

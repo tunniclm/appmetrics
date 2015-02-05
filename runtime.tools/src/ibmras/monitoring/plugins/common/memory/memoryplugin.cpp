@@ -632,7 +632,7 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 extern "C" {
 MEMPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
 	memoryplugin::aCF = aCF;
-	memoryplugin::aCF.logMessage(debug, "Registering common memory pull source");
+	memoryplugin::aCF.logMessage(debug, "[memory_os] Registering pull source");
 	pullsource *head = createPullSource(0, "memory_os");
 	plugin::provid = provID;
 	return head;
@@ -643,11 +643,12 @@ MEMPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {
 }
 
 MEMPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	memoryplugin::aCF.logMessage(info, "Starting common memory pull source");
+	memoryplugin::aCF.logMessage(fine, "[memory_os] Starting");
 	return 0;
 }
 
 MEMPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
+	memoryplugin::aCF.logMessage(fine, "[memory_os] Stopping");
 	return 0;
 }
 
