@@ -138,7 +138,7 @@ void OnComplete(monitordata* data) {
 
 pullsource* createPullSource(uint32 srcid, const char* name) {
 	pullsource *src = new pullsource();
-	src->header.name = "COMMON ENVIRONMENT PLUGIN";
+	src->header.name = name;
 	std::string desc("Description for ");
 	desc.append(name);
 	src->header.description = NewCString(desc);
