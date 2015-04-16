@@ -33,11 +33,39 @@
 const char PATHSEPARATOR = '\\';
 const char* LIBPREFIX = "";
 const char* LIBSUFFIX = ".dll";
+#define AGENT_DECL __declspec(dllexport)
 #else
+#define AGENT_DECL
 const char PATHSEPARATOR = '/';
 const char* LIBPREFIX = "lib";
 const char* LIBSUFFIX = ".so";
 #endif
+
+//THIS IS THE EXTERNAL FUNCTION THAT WILL BE LOOKED FOR BY THE LOADER
+//--------------------------------------------------------------------
+extern "C" {
+AGENT_DECL loaderCoreFunctions* loader_entrypoint() {
+
+	loaderCoreFunctions* lCF = new loaderCoreFunctions;
+
+	lCF->init = ibmras::monitoring::agent::initWrapper;
+	lCF->start = ibmras::monitoring::agent::startWrapper;
+	lCF->stop = ibmras::monitoring::agent::stopWrapper;
+	lCF->shutdown = ibmras::monitoring::agent::shutdownWrapper;
+	lCF->getProperty = ibmras::monitoring::agent::getPropertyImpl;
+	lCF->setProperty = ibmras::monitoring::agent::setPropertyImpl;
+	lCF->logMessage = ibmras::monitoring::agent::logCoreMessageImpl;
+	lCF->loadPropertiesFile = ibmras::monitoring::agent::loadPropertiesFile;
+	lCF->getAgentVersion = ibmras::monitoring::agent::getVersionWrapper;
+	lCF->setLogLevels = ibmras::monitoring::agent::setLogLevelsWrapper;
+
+	return lCF;
+}
+
+
+}
+
+//--------------------------------------------------------------------
 
 namespace ibmras {
 namespace monitoring {
@@ -48,6 +76,7 @@ static const char* HEARTBEAT_TOPIC = "heartbeat";
 
 bool running = false;
 bool updateNow = false;
+bool headlessRunning = false;
 
 Agent* instance = new Agent;
 agentCoreFunctions aCF;
@@ -57,6 +86,7 @@ agentCoreFunctions aCF;
 IBMRAS_DEFINE_LOGGER("Agent");
 
 ibmras::common::Logger* pluginlogger = (ibmras::common::Logger*)ibmras_common_LogManager_getLogger( "plugins" );
+ibmras::common::Logger* corelogger = (ibmras::common::Logger*)ibmras_common_LogManager_getLogger( "loader" );
 
 Agent::Agent() {
 	activeThreadCount = 0;
@@ -142,12 +172,19 @@ DataSource<pushsource>* Agent::getPushSource(std::string uniqueID) {
 	return NULL;
 }
 
+//THESE ARE THE IMPLEMENTATIONS FOR THE FUNCTIONS THAT GET EXPOSED THRU THE API (PLUGINS)
+//---------------------------------------------------------------------------------------
+
 /* This is the function callback a plugin gets to send data
  * to its bucket
  */
 void pushDataImpl(monitordata* data) {
 	Agent* agent = Agent::getInstance();
 	agent->addData(data);
+}
+
+int sendMessageWrapper(const char *sourceId, uint32 size, void *data) {
+	return instance->getConnectionManager()->sendMessage(std::string(sourceId), size, data);
 }
 
 /* This is the function callback that a plugin will get if
@@ -157,14 +194,80 @@ void logMessageImpl(ibmras::common::logging::Level lev, const char * message){
 	pluginlogger->log(lev, message);
 }
 
+//THIS IMPLEMENTATION IS SHARED BETWEEN THE API EXPOSED TO PLUGINS AND THE ONE EXPOSED TO LOADERS
+//-----------------------------------------------------------------------------------------------
+const char* getPropertyImpl(const char * key){
+	std::string property = Agent::getInstance()->getProperty(std::string(key));
+	const char * retString = ibmras::common::util::createAsciiString(property.c_str());
+	return retString;
+}
+
+//WE CAN EXPOSE THIS IN THE FUTURE IF WE WANT TO, SO THE PLUGINS CAN ALSO SET PROPERTIES
+//--------------------------------------------------------------------------------------
+void setPropertyImpl(const char* key, const char* value) {
+	
+	Agent::getInstance()->setProperty(key, value);
+
+}
+
+
+//THESE ARE THE IMPLEMENTATIONS FOR THE FUNCTIONS THAT GET EXPOSED THRU THE API (CORE)
+//---------------------------------------------------------------------------------------
+
+void initWrapper() {
+	instance->init();
+}
+
+void startWrapper() {
+	instance->start();
+}
+
+void stopWrapper() {
+	instance->stop();
+}
+
+void shutdownWrapper() {
+	instance->shutdown();
+}
+
+void setLogLevelsWrapper() {
+	instance->setLogLevels();
+}
+
+std::string getVersionWrapper() {
+	return instance->getVersion();
+}
+
+void logCoreMessageImpl(ibmras::common::logging::Level lev, const char * message){
+	corelogger->log(lev, message);
+}
+
+bool loadPropertiesFile(const char* fileName) {
+	ibmras::common::PropertiesFile props;
+	if (!props.load(fileName)) { //This is counter intuitive, but if props.load returns 0 it means the processing was good.
+		instance->setProperties(props);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
 /* thread entry point for publishing data from buckets to the registered connector */
 void* processPublishLoop(ibmras::common::port::ThreadData* param) {
 	IBMRAS_DEBUG(info, "Starting agent publishing loop");
 	Agent* agent = Agent::getInstance();
+	std::string headless = agent->getAgentProperty("headless");
+
 	int count = 0;
 	while (running) {
 		ibmras::common::port::sleep(2);
 		agent->publish();
+
+		if (!headless.compare("on") && !agent->isHeadlessRunning()) {
+			running = false;
+			agent->stop();
+		}
 
 		// Send heartbeat ping every 20 seconds
 		if (++count > 10) {
@@ -174,7 +277,6 @@ void* processPublishLoop(ibmras::common::port::ThreadData* param) {
 
 	}
 	IBMRAS_DEBUG(info, "Exiting agent publishing loop");
-	agent->threadStop();
 	return NULL;
 }
 
@@ -182,7 +284,6 @@ void* processPublishLoop(ibmras::common::port::ThreadData* param) {
 void* processPullSourceLoop(ibmras::common::port::ThreadData* data) {
 	Agent* agent = Agent::getInstance();
 	uint32 pullcount = agent->getPullSources().getSize();
-
 
 	ibmras::monitoring::agent::threads::ThreadPool pool;
 
@@ -301,19 +402,12 @@ void Agent::removeConnector(ibmras::monitoring::connector::Connector* con) {
 	connectionManager.removeConnector(con);
 }
 
-int sendMessageWrapper(const char *sourceId, uint32 size, void *data) {
-	return instance->getConnectionManager()->sendMessage(std::string(sourceId), size, data);
-}
 
-const char* getPropertyImpl(const char * key){
-	std::string property = Agent::getInstance()->getAgentProperty(std::string(key));
-	const char * retString = ibmras::common::util::createAsciiString(property.c_str());
-	return retString;
-}
+
+
 
 void Agent::init() {
 	IBMRAS_DEBUG(info, "Agent initialisation : start");
-
 	aCF.agentPushData = pushDataImpl;
 	aCF.agentSendMessage = sendMessageWrapper;
 	aCF.logMessage = logMessageImpl;
@@ -328,6 +422,7 @@ void Agent::init() {
 	}
 
 	addSystemPlugins();
+	setProperty("agent.native.build.date", getBuildDate());
 
 	std::string pluginProperties = properties.toString();
 
@@ -346,7 +441,7 @@ void Agent::init() {
 	}
 	createBuckets();
 	addConnector(&configConn);
-	IBMRAS_DEBUG(finest, bucketList.toString().c_str());IBMRAS_DEBUG(info, "Agent initialisation : end");
+	IBMRAS_DEBUG(finest, bucketList.toString().c_str());
 }
 
 std::string Agent::getConfig(const std::string& name) {
@@ -364,9 +459,7 @@ bool Agent::readOnly() {
 
 void Agent::start() {
 	int result = 0;
-
 	IBMRAS_DEBUG(info, "Agent start : begin");
-
 
 	/* Receivers first as they are added to connection manager */
 	IBMRAS_DEBUG(info, "Agent start : receivers");
@@ -376,12 +469,10 @@ void Agent::start() {
 	IBMRAS_DEBUG(info, "Agent start : connectors");
 	startConnectors();
 
-
 	IBMRAS_DEBUG(info, "Agent start : data providers");
 	startPlugins();
 
 	running = true; /* if any of the thread creation below fails then running will be set to false and started threads will exit */
-
 
 	ibmras::common::port::ThreadData* data =
 			new ibmras::common::port::ThreadData(processPullSourceLoop);
@@ -394,11 +485,8 @@ void Agent::start() {
 		result = ibmras::common::port::createThread(data);
 		if (result) {
 			running = false;
-		} else {
-			activeThreadCount++; /* should end up with three active threads */
 		}
 	}
-
 	IBMRAS_DEBUG(info, "Agent start : finish");
 }
 
@@ -573,9 +661,24 @@ bool Agent::agentPropertyExists(const std::string& agentProp) {
 	return propertyExists(getAgentPropertyPrefix() + agentProp);
 }
 
+bool Agent::isHeadlessRunning(){
+	return headlessRunning;
+}
 
+void Agent::setHeadlessRunning(bool isRunning){
+	headlessRunning = isRunning;
 
-
+	// if we are in proper headless mode, then we need to toggle on/off
+	// whether the agent is running to allow late attach to query this property
+	std::string dataCollectionLevel = getAgentProperty("data.collection.level");
+	if (ibmras::common::util::equalsIgnoreCase(dataCollectionLevel,"headless")) {
+		if(headlessRunning) {
+			setProperty("com.ibm.java.diagnostics.healthcenter.running", "true");
+		} else {
+			setProperty("com.ibm.java.diagnostics.healthcenter.running", "false");
+		}
+	}
+}
 
 bool AgentLoader::loadPropertiesFile(const std::string& filename){
 	ibmras::common::PropertiesFile props;

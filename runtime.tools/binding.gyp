@@ -209,6 +209,13 @@
       ],
     },
     {
+      "target_name": "apiplugin",
+      "type": "shared_library",
+      "sources": [
+        "<(srcdir)/monitoring/connector/api/APIConnector.cpp"
+      ],
+    },
+    {
       "target_name": "ostream",
       "type": "shared_library",
       "sources": [
@@ -236,6 +243,7 @@
         "nodegcplugin",
         "nodeprofplugin",
         "memoryplugin",
+        "apiplugin",
      ],
       "copies": [
         {
@@ -250,6 +258,7 @@
             "<(PRODUCT_DIR)/healthcenter.node",
             "./src/properties/node/healthcenter.properties",
             "<(srcdir)/vm/node/index.js",
+	    	"<(srcdir)/vm/node/healthcenter-api.js",
             "<(srcdir)/vm/node/launcher.js",
             "<(srcdir)/vm/node/package.json",
           ],
@@ -264,6 +273,7 @@
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodegcplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)nodeprofplugin<(SHARED_LIB_SUFFIX)",
             "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)memoryplugin<(SHARED_LIB_SUFFIX)",
+            "<(PRODUCT_DIR)/<(SHARED_LIB_PREFIX)apiplugin<(SHARED_LIB_SUFFIX)",            
           ],
         },
       ],

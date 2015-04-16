@@ -29,9 +29,6 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#endif
-
-#if defined(_ZOS)
 #include <unistd.h>
 #endif
 
@@ -54,22 +51,6 @@ uint64_t rdtsc()
 jvmFunctions* jvmF;
 JavaVM* vm = NULL;
 SourceManager* mgr = new SourceManager;
-
-namespace env {
-PullSource* getENVPullSource(uint32 id);
-}
-
-namespace threads {
-PullSource* getTDPullSource(uint32 id);
-}
-
-namespace memory {
-PullSource* getMEMPullSource(uint32 id);
-}
-
-namespace memorycounter {
-PullSource* getMCPullSource(uint32 id);
-}
 
 namespace locking {
 PullSource* getJLAPullSource(uint32 id);
@@ -116,31 +97,10 @@ pullsource* SourceManager::registerPullSource(uint32 provID) {
 	provid = provID;
 	pullsources = new PullSource*[PULL_COUNT];
 
-	pullsources[ENV] = ibmras::monitoring::plugins::j9::jni::env::getENVPullSource(
-			provid);
-	pullsource* src = pullsources[ENV]->getDescriptor();
-	pullsource* curr = src;
-
-	pullsources[TD] =
-			ibmras::monitoring::plugins::j9::jni::threads::getTDPullSource(provid);
-	curr->next = pullsources[TD]->getDescriptor();
-	curr = curr->next;
-
-	pullsources[MEM] =
-			ibmras::monitoring::plugins::j9::jni::memory::getMEMPullSource(provid);
-	curr->next = pullsources[MEM]->getDescriptor();
-	curr = curr->next;
-
-	pullsources[MC] =
-			ibmras::monitoring::plugins::j9::jni::memorycounter::getMCPullSource(
-					provid);
-	curr->next = pullsources[MC]->getDescriptor();
-	curr = curr->next;
-
 	pullsources[JLA] =
-			ibmras::monitoring::plugins::j9::jni::locking::getJLAPullSource(provid);
-	curr->next = pullsources[JLA]->getDescriptor();
-	curr = curr->next;
+				ibmras::monitoring::plugins::j9::jni::locking::getJLAPullSource(provid);
+	pullsource* src = pullsources[JLA]->getDescriptor();
+	src->next = NULL;
 
 	return src;
 }
@@ -166,12 +126,13 @@ int SourceManager::start() {
 
 int SourceManager::stop() {
 	IBMRAS_DEBUG(info, "Stopping");
-	for (uint32 i = 0; i < PULL_COUNT; i++) {
-		PullSource* p = pullsources[i];
-		if (p) {
-			delete p;
-		}
-	}
+// Don't delete the sources when we are just stopping
+//	for (uint32 i = 0; i < PULL_COUNT; i++) {
+//		PullSource* p = pullsources[i];
+//		if (p) {
+//			delete p;
+//		}
+//	}
 	return 0;
 }
 

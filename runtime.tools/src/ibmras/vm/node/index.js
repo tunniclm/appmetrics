@@ -10,10 +10,14 @@
 
 var path = require("path")
 var module_dir = path.dirname(module.filename)
-
 var os = require("os")
 
 var agent = require("./healthcenter")
+// Set the plugin search path
+agent.spath(path.join(module_dir, "plugins"))
+agent.start();
+
+var hcAPI = require("./healthcenter-api.js");
 
 // Export any functions exported by the agent
 for (var prop in agent) {
@@ -22,6 +26,13 @@ for (var prop in agent) {
     }
 }
 
-// Set the plugin search path
-agent.spath(path.join(module_dir, "plugins"))
+// Export emit() API for JS data providers
+module.exports.emit = function (topic, data) {
+	agent.nativeEmit(topic, JSON.stringify(data));
+};
 
+// Export monitor() API for consuming data in-process
+module.exports.monitor = function() {
+	api = hcAPI.getAPI(agent);
+	return api;
+}

@@ -114,7 +114,7 @@ static const char* gc[] = { "j9mm.1", "j9mm.2", "j9mm.50", "j9mm.51", "j9mm.52",
 		"j9mm.468", "j9mm.469", "j9mm.470", "j9mm.560", "j9mm.474", "j9mm.475",
 		"j9mm.395", "j9mm.285", "j9mm.286", "" };
 static const char* classes[] = { "j9bcu.1", "j9shr.51", "j9bcverify.14",
-		"j9bcverify.18", "" };
+		"j9bcverify.18", "j9shr.1326", "" };
 static const char* jit[] = { "j9jit.1", "j9jit.20", "j9jit.21", "j9jit.22",
 		"j9jit.23", "j9jit.24", "j9jit.28", "j9jit.29", "" };
 static const char* io[] =

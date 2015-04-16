@@ -31,7 +31,7 @@ namespace j9 {
 namespace jni {
 
 enum PullSourceIDs {
-	ENV, TD, MEM, MC, JLA, PULL_COUNT
+	JLA, PULL_COUNT
 };
 
 

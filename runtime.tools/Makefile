@@ -5,7 +5,9 @@ PAHO_SRC=${PAHO_DIR}/src
 PYTHON_DIR=../OMR-Python
 SRC=./src/ibmras
 OUTPUT=./output
-OMR_SRC_INCLUDE=./omr/include_core
+OMR_SRC_INCLUDE=./buildDeps/omr/include_core
+PYTHON_SRC_INCLUDE=./buildDeps/python/python3.4m
+RUBY_SRC_INCLUDE=./buildDeps/ruby/ruby-2.1.0
 #-------------------------------------------------------------------------------------------
 #Output directories i.e. where the files are going to be built
 #-------------------------------------------------------------------------------------------
@@ -19,6 +21,8 @@ INSTALL_DIR=${OUTPUT}/deploy
 JAVA_OUT=${OUTPUT}/java
 OMR_OUT=${OUTPUT}/omr
 NODE_OUT=${OUTPUT}/node
+PYTHON_OUT=${OUTPUT}/python
+RUBY_OUT=${OUTPUT}/ruby
 #CORE_OUT=${OUTPUT}/core
 PAHO_OUT=${OUTPUT}/paho
 HC_OUT=${JAVA_OUT}
@@ -43,12 +47,14 @@ OSTREAM_CONNECTOR_OBJS = ${CONNECTOR_OUT}/OStreamConnector.o
 TESTPLUGIN_OBJS=${PLUGIN_OUT}/plugin.o
 OSPLUGIN_OBJS=${PLUGIN_OUT}/osplugin.o ${PLUGIN_OUT}/os${OS}.o
 
-JMXPLUGIN_OBJS=${PLUGIN_OUT}/JMXPullSource.o ${PLUGIN_OUT}/JMXSourceManager.o ${PLUGIN_OUT}/JMXUtility.o ${PLUGIN_OUT}/LegacyData.o ${PLUGIN_OUT}/OSJMXPullSource.o ${PLUGIN_OUT}/RTJMXPullSource.o
-JNIPLUGIN_OBJS=${PLUGIN_OUT}/CFacade.o ${PLUGIN_OUT}/ENVMXBean.o ${PLUGIN_OUT}/ThreadDataProvider.o ${PLUGIN_OUT}/MemoryDataProvider.o ${PLUGIN_OUT}/MemoryCounterDataProvider.o  ${PLUGIN_OUT}/LockingDataProvider.o ${PLUGIN_OUT}/JNIReceiver.o
-JAVA_OBJS = ${JAVA_OUT}/DumpHandler.o ${JAVA_OUT}/Util.o ${JAVA_OUT}/ClassHistogramProvider.o ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o  ${JAVA_OUT}/JVMTIMemoryManager.o ${JAVA_OUT}/MethodLookupProvider.o ${HL_CONNECTOR_OBJS}
+JNIPLUGIN_OBJS=${PLUGIN_OUT}/CFacade.o ${PLUGIN_OUT}/LockingDataProvider.o ${PLUGIN_OUT}/JNIReceiver.o
+#JAVA_OBJS = ${JAVA_OUT}/DumpHandler.o ${JAVA_OUT}/Util.o ${JAVA_OUT}/ClassHistogramProvider.o ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o  ${JAVA_OUT}/JVMTIMemoryManager.o ${JAVA_OUT}/MethodLookupProvider.o ${JAVA_OUT}/EnvironmentPlugin.o ${JAVA_OUT}/LockingPlugin.o ${JAVA_OUT}/ThreadsPlugin.o ${JAVA_OUT}/MemoryPlugin.o ${JAVA_OUT}/MemCountersPlugin.o ${HL_CONNECTOR_OBJS}
+JAVA_OBJS = ${JAVA_OUT}/DumpHandler.o ${JAVA_OUT}/Util.o ${JAVA_OUT}/ClassHistogramProvider.o ${JAVA_OUT}/TraceDataProvider.o ${JAVA_OUT}/TraceReceiver.o  ${JAVA_OUT}/JMXConnector.o ${JAVA_OUT}/JMXConnectorPlugin.o ${JAVA_OUT}/healthcenter.o  ${JAVA_OUT}/JVMTIMemoryManager.o ${JAVA_OUT}/MethodLookupProvider.o ${JAVA_OUT}/EnvironmentPlugin.o ${JAVA_OUT}/ThreadsPlugin.o ${JAVA_OUT}/MemoryPlugin.o ${JAVA_OUT}/MemCountersPlugin.o ${JAVA_OUT}/CpuPlugin.o ${HL_CONNECTOR_OBJS}
 
 OMR_OBJS = ${OMR_OUT}/MethodLookupProvider.o ${OMR_OUT}/NativeMemoryDataProvider.o ${OMR_OUT}/CpuDataProvider.o ${OMR_OUT}/TraceDataProvider.o  ${OMR_OUT}/MemoryCountersDataProvider.o ${OMR_OUT}/healthcenter.o
 NODE_SRCS = ${NODE_OUT}/nodeagent.cpp ${NODE_OUT}/wrapper.cpp ${NODE_OUT}/wrapper.h ${NODE_OUT}/binding.gyp
+PYTHON_OBJS = ${PYTHON_OUT}/healthcenter.o
+RUBY_OBJS = ${RUBY_OUT}/healthcenter.o
 PYPLUGIN_OBJS=${PLUGIN_OUT}/pyplugin.o
 NODEGC_OBJS=${PLUGIN_OUT}/nodegcplugin.o
 NODEPROF_OBJS=${PLUGIN_OUT}/nodeprofplugin.o
@@ -100,6 +106,8 @@ CORE_AGENT=${JAVA_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT}
 JAVA_AGENT=${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 OMR_AGENT=${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 NODE_AGENT=${NODE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
+PYTHON_AGENT=${PYTHON_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
+RUBY_AGENT=${RUBY_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}
 NODE_ADDON=${NODE_OUT}/build/Release/healthcenter.node
 
 #-------------------------------------------------------------------------------------------
@@ -124,7 +132,7 @@ agent: setup common ${AGENT}
 plugins: setup common ${PLUGINS}
 	@echo "Plugin build complete"
 
-java: setup res common ${JAVA_AGENT} ${CONNECTORS} ${PLUGINS}
+java: setup res common ${JAVA_AGENT} ${CONNECTORS} #${PLUGINS}
 	@echo "JAVA build complete"
 	
 omr: HC_OUT=${OMR_OUT}
@@ -134,6 +142,14 @@ omr: setup common ${OMR_AGENT} ${CONNECTORS} ${PLUGINS}
 node: HC_OUT=${NODE_OUT}
 node: setup common ${NODE_ADDON} ${CONNECTORS} ${COMMON_PLUGINS} ${NODE_PLUGINS} 	
 	@echo "node build complete"
+
+python: HC_OUT=${PYTHON_OUT}
+python: setup common ${CORE_AGENT} ${PYTHON_AGENT} ${CONNECTORS} ${COMMON_PLUGINS}   	
+		@echo "python build complete"
+
+ruby: HC_OUT=${RUBY_OUT}
+ruby: setup common ${CORE_AGENT} ${RUBY_AGENT} ${CONNECTORS} ${COMMON_PLUGINS}   	
+		@echo "ruby build complete"
 	
 pyplug: ${PYPLUG}
 	
@@ -141,7 +157,7 @@ test: setup common ${CONNECTORS} ${AGENT} ${TEST}
 	@echo "Test build complete"
 	
 #core: HC_OUT=${CORE_OUT}
-core: setup common ${CORE_AGENT} ${CONNECTORS} ${ENVPLUGIN_OBJS} ${CPUPLUGIN_OBJS} ${MEMPLUGIN_OBJS} ${COMMON_PLUGINS}
+core: setup res common ${CORE_AGENT} ${CONNECTORS} ${ENVPLUGIN_OBJS} ${CPUPLUGIN_OBJS} ${MEMPLUGIN_OBJS} ${COMMON_PLUGINS}
 	@echo "Core build complete"	
 
 #-------------------------------------------------------------------------------------------
@@ -196,8 +212,8 @@ ${CONNECTOR_OUT}/libostream.${LIB_EXT}: ${OSTREAM_CONNECTOR_OBJS}
 	${LINK} ${LINK_OPT} ${LIBPATH}"${AGENT_OUT}" ${LIBFLAGS} ${LIBPATH}"${HC_OUT}" ${HC_LIB_USE} ${LIB_OBJOPT} ${OSTREAM_CONNECTOR_OBJS} ${EXELIBS} ${EXEFLAGS}
 	@echo "OStream connector lib built"
  
-${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${JAVA_OBJS}  ${JMXPLUGIN_OBJS} ${JNIPLUGIN_OBJS} 
-	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} ${JAVA_OBJS} ${AGENT_OBJS} ${JMXPLUGIN_OBJS} ${JNIPLUGIN_OBJS} ${LD_OPT}  ${EXELIBS} ${EXEFLAGS} 
+${JAVA_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${JAVA_OBJS} ${JNIPLUGIN_OBJS} 
+	${LINK} ${LINK_OPT} ${LIBFLAGS} ${LIB_OBJOPT} ${JAVA_OBJS} ${AGENT_OBJS} ${LD_OPT}  ${EXELIBS} ${EXEFLAGS}  ${JNIPLUGIN_OBJS} 
 	@echo "JAVA Healthcenter lib built"
 	
 ${OMR_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS} ${OMR_OBJS}
@@ -216,6 +232,14 @@ ${NODE_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${AGENT_OBJS}
 ${NODE_OUT}/build/Release/healthcenter.node: ${NODE_AGENT} ${NODE_SRCS} ${NODE_OUT}/${LIB_PREFIX}nodecon.${LIB_EXT}
 	cd ${NODE_OUT} && ${NODE_GYP} configure build
 	@echo "node Healthcenter ADDON built"
+
+${PYTHON_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${PYTHON_OBJS} 
+	${LINK} ${LINK_OPT} ${LIB_OBJOPT} ${LIBFLAGS} ${PYTHON_OBJS} ${EXELIBS} ${EXEFLAGS} -Wl,-rpath,'$$ORIGIN/healthcenter'
+	@echo "python Healthcenter lib built"
+
+${RUBY_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT}: ${RUBY_OBJS} 
+	${LINK} ${LINK_OPT} ${LIB_OBJOPT} ${LIBFLAGS} ${RUBY_OBJS} ${EXELIBS} ${EXEFLAGS} -Wl,-rpath,'$$ORIGIN'
+	@echo "ruby Healthcenter lib built"
 
 #--------------------------------------------------------------------------------------------
 #Test harness
@@ -394,6 +418,24 @@ ${JAVA_OUT}/JVMTIMemoryManager.o:
 	
 ${JAVA_OUT}/ClassHistogramProvider.o: 
 	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/ClassHistogramProvider.cpp
+	
+${JAVA_OUT}/EnvironmentPlugin.o: 
+	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/environment/EnvironmentPlugin.cpp
+
+${JAVA_OUT}/LockingPlugin.o: 
+	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/locking/LockingPlugin.cpp
+	
+${JAVA_OUT}/ThreadsPlugin.o: 
+	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/threads/ThreadsPlugin.cpp
+
+${JAVA_OUT}/MemoryPlugin.o: 
+	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/memory/MemoryPlugin.cpp
+	
+${JAVA_OUT}/MemCountersPlugin.o: 
+	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/memorycounters/MemCountersPlugin.cpp
+	
+${JAVA_OUT}/CpuPlugin.o: 
+	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/cpu/CpuPlugin.cpp
 
 ${JAVA_OUT}/Util.o: 
 	${CC} ${INCS} -I${JAVA_PLAT_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/j9/Util.cpp
@@ -518,6 +560,19 @@ ${NODE_OUT}/${LIB_PREFIX}nodecon.${LIB_EXT}: ${NODE_OUT}/nodeconnector.o
 ${NODE_OUT}/nodeconnector.o: 
 	${CC} ${INCS} -I${NODE_SDK_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/vm/node/nodeconnector.cpp
 
+#-------------------------------------------------------------------------------------------
+#Python vm files which make up various Python shim levels
+#-------------------------------------------------------------------------------------------
+
+${PYTHON_OUT}/healthcenter.o: 
+	${CC} ${INCS} -I${PYTHON_SRC_INCLUDE} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/vm/python/healthcenter.cpp
+
+#-------------------------------------------------------------------------------------------
+#Ruby vm files which make up various Ruby shim levels
+#-------------------------------------------------------------------------------------------
+
+${RUBY_OUT}/healthcenter.o: 
+	${CC} ${INCS} -I${RUBY_SRC_INCLUDE} -I${RUBY_SRC_INCLUDE}/x86_64-linux ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/vm/ruby/healthcenter.cpp
 
 #-------------------------------------------------------------------------------------------
 
@@ -541,6 +596,8 @@ ${OUTPUT}:
 	mkdir -p ${JAVA_OUT}
 	mkdir -p ${OMR_OUT}
 	mkdir -p ${NODE_OUT}
+	mkdir -p ${PYTHON_OUT}
+	mkdir -p ${RUBY_OUT}
 	mkdir -p ${PAHO_OUT}
 
 
@@ -584,6 +641,26 @@ nodeinstall: node
 	cp ${NODE_OUT}/${LIB_PREFIX}nodecon.${LIB_EXT} ${INSTALL_DIR}/plugins
 	cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins
 	cp ${PLUGIN_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/plugins	
+	@echo "-----------------------------------------------------------------------------------------------------------------------"
+
+pythoninstall: python
+	@echo "installing to  ${INSTALL_DIR}"
+	mkdir -p ${INSTALL_DIR}/healthcenter/plugins
+	cp src/properties/python/healthcenter.properties ${INSTALL_DIR}/healthcenter
+	cp ${PYTHON_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT} ${INSTALL_DIR}
+	cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/healthcenter/plugins
+	cp ${PLUGIN_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/healthcenter/plugins
+	cp ${JAVA_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT} ${INSTALL_DIR}/healthcenter
+	@echo "-----------------------------------------------------------------------------------------------------------------------"
+
+rubyinstall: ruby
+	@echo "installing to  ${INSTALL_DIR}"
+	mkdir -p ${INSTALL_DIR}/healthcenter/plugins
+	cp src/properties/ruby/healthcenter.properties ${INSTALL_DIR}/healthcenter
+	cp ${RUBY_OUT}/${LIB_PREFIX}healthcenter.${LIB_EXT} ${INSTALL_DIR}
+	cp ${CONNECTOR_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/healthcenter/plugins
+	cp ${PLUGIN_OUT}/*.${LIB_EXT} ${INSTALL_DIR}/healthcenter/plugins
+	cp ${JAVA_OUT}/${LIB_PREFIX}agentcore.${LIB_EXT} ${INSTALL_DIR}/healthcenter
 	@echo "-----------------------------------------------------------------------------------------------------------------------"
 
 ${NODE_OUT}/%: ${SRC}/vm/node/%

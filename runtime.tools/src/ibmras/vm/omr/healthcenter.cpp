@@ -40,10 +40,19 @@ ibmras::monitoring::agent::Agent* agent;
 
 omrRunTimeProviderParameters omrParams;
 
-omr_error_t OMRAgent_OnLoad(OMR_TI const *ti, OMR_VM *vm, char const *options) {
+extern "C"
+omr_error_t OMRAgent_OnLoad(OMR_TI const *ti, OMR_VM *vm, char const *options, OMR_AgentCallbacks *agentCallbacks, ...) {
 	omr_error_t rc = OMR_ERROR_NONE;
 
 	IBMRAS_DEBUG(debug,  "OMRAgent_OnLoad enter");
+
+	/*
+	 * we will need to implement correct call back functions for the following
+	 * when we have forking worked out
+	 */
+	agentCallbacks->onPostForkChild = NULL;
+	agentCallbacks->onPostForkParent = NULL;
+	agentCallbacks->onPreFork = NULL;
 
 	omrParams.theVm = vm;
 	omrParams.omrti = ti;
@@ -54,6 +63,7 @@ omr_error_t OMRAgent_OnLoad(OMR_TI const *ti, OMR_VM *vm, char const *options) {
 	return rc;
 }
 
+extern "C"
 omr_error_t OMRAgent_OnUnload(OMR_TI const *ti, OMR_VM *vm) {
 	IBMRAS_DEBUG(debug,  "OMRAgent_OnUnload enter");
 

@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<module>
+	<artifact type="reference" name="j9includecore">
+	</artifact>
+</module>

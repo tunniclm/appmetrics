@@ -14,6 +14,7 @@
 #include "ibmras/monitoring/plugins/j9/jmx/os/legacy/LegacyData.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/monitoring/agent/Agent.h"
+#include "ibmras/common/MemoryManager.h"
 
 #include <cstring>
 #include "ibmras/common/logging.h"
@@ -118,6 +119,41 @@ void OSJMXPullSource::setState(const std::string &newState) {
 monitordata* OSJMXPullSource::generateData(JNIEnv* env, jclass* mgtBean) {
 
 	IBMRAS_DEBUG(debug, "Generating JMX CPU data");
+
+	if (!env) {
+			JavaVMAttachArgs threadArgs;
+
+			memset(&threadArgs, 0, sizeof(threadArgs));
+			threadArgs.version = JNI_VERSION_1_4;
+
+			threadArgs.name = ibmras::common::util::createAsciiString(name.c_str());
+			threadArgs.group = NULL;
+			IBMRAS_DEBUG_1(debug, "Attaching thread %s", name.c_str());
+			jint errcode = vm->AttachCurrentThreadAsDaemon((void **) &env, &threadArgs);
+			ibmras::common::memory::deallocate((unsigned char**)&threadArgs.name);
+			if (errcode != JNI_OK) {
+				return NULL;
+			}
+
+			IBMRAS_DEBUG_1(debug, "Attached thread %s", name.c_str());
+		}
+
+	#if defined(_ZOS)
+	#pragma convert("ISO8859-1")
+	#endif
+
+		jclass clazz = env->FindClass("java/lang/management/ManagementFactory");
+
+	#if defined(_ZOS)
+	#pragma convert(pop)
+	#endif
+
+		if (!clazz) {
+			IBMRAS_DEBUG(warning,  "!Failed to find ManagementFactory class");
+			return NULL;
+		}
+		IBMRAS_DEBUG(debug,  "Found management class");
+
 	monitordata* data = new monitordata;
 	data->size = 0;
 	data->data = NULL;
@@ -190,7 +226,7 @@ monitordata* OSJMXPullSource::generateData(JNIEnv* env, jclass* mgtBean) {
 				data->size = strlen(sval);
 				ibmras::common::util::native2Ascii(sval);
 				data->data = sval;
-				delete line; /* deleteing the line should cascade delete the values it is currently holding */
+				delete line; /* deleting the line should cascade delete the values it is currently holding THIS CAN BE A MEMORY LEAK*/
 				return data;
 			}
 		}

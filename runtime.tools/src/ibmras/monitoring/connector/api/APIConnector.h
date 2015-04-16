@@ -12,7 +12,9 @@
 #define ibmras_monitoring_connector_apiconnector_h
 
 #include "ibmras/monitoring/connector/Connector.h"
+#include "ibmras/monitoring/AgentExtensions.h"
 
+#include <cstring>
 
 #if defined(_WINDOWS)
 #define APICONNECTORPLUGIN_DECL __declspec(dllexport)   /* required for DLLs to export the plugin functions */
@@ -22,7 +24,11 @@
 
 namespace APIConnector {
 
+extern "C" {
 APICONNECTORPLUGIN_DECL void registerListener(void(*)(const std::string&, unsigned int, void*));
+APICONNECTORPLUGIN_DECL void deregisterListener();
+APICONNECTORPLUGIN_DECL void sendControl(const std::string, unsigned int length, void* message);
+}
 
 class APIConnector: public ibmras::monitoring::connector::Connector {
 public:
@@ -40,11 +46,19 @@ public:
     int stop();
 
     ~APIConnector();
+
 private:
 
 };
 
 /* end class Connector */
+
+namespace plugin {
+        agentCoreFunctions api;
+        uint32 provid;
+	ibmras::monitoring::connector::Receiver *receiver;
+}
+
 
 } /* end APIConnector monitoring */
 

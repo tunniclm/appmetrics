@@ -313,7 +313,7 @@ extern "C" {
 NODEPROFPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
 	plugin::api = api;
 
-	std::string enabledProp(plugin::api.getProperty("data.profiling"));
+	std::string enabledProp(plugin::api.getProperty("com.ibm.diagnostics.healthcenter.data.profiling"));
 	plugin::enabled = (enabledProp == "on");
 
 	plugin::api.logMessage(debug, "[profiling_node] Registering push sources");
@@ -365,8 +365,7 @@ NODEPROFPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 		plugin::enabled = false;
 
 		uv_timer_stop(plugin::timer);
-		uv_close((uv_handle_t*) plugin::timer, NULL);
-		delete plugin::timer;
+		uv_close((uv_handle_t*) plugin::timer, cleanupHandle);
 	
 		const CpuProfile *profile = StopTheProfiler();
 		ReleaseProfile(profile);

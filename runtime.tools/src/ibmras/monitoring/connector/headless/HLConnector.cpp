@@ -92,11 +92,20 @@ int HLConnector::start() {
 	std::string enabledProp = agent->getAgentProperty("headless");
 	if (ibmras::common::util::equalsIgnoreCase(enabledProp, "on")) {
 		enabled = true;
+		collect = true;
+		IBMRAS_LOG_1(info, "%s", agent->getVersion().c_str());
 	} else {
 		enabled = false;
 		collect = false;
 		return 0;
 	}
+
+	// initialise run values (in case of late attach causing multiple runs)
+	times_run = 0;
+	number_runs = 0;
+	createdFiles.clear();
+
+	agent->setHeadlessRunning(true);
 
 	std::string delay = agent->getAgentProperty("headless.delay.start");
 	if (delay.length()) {
@@ -209,8 +218,6 @@ int HLConnector::start() {
 	if (createdFiles.size() != sourceIDs.size()) {
 		return -1;
 	}
-
-
 
 	std::stringstream ss;
 	ss << userDefinedPath;
@@ -359,6 +366,16 @@ int HLConnector::stop() {
 		return 0;
 	}
 
+	ibmras::monitoring::agent::Agent* agent =
+				ibmras::monitoring::agent::Agent::getInstance();
+
+	// we don't want to pack files at stop if we are in headless level mode
+	// as this creates an extra file
+	std::string dataCollectionLevel = agent->getAgentProperty("data.collection.level");
+	if (ibmras::common::util::equalsIgnoreCase(dataCollectionLevel,"headless") && number_runs > 0) {  // defect 86374
+		collect=false;
+	}
+
 	if (collect) {
 		IBMRAS_DEBUG(debug, "Packing files at stop");
 		lockAndPackFiles();
@@ -391,6 +408,10 @@ int HLConnector::stop() {
 #endif
 
 	IBMRAS_DEBUG(debug, "<<<HLConnector::stop()");
+	// clean createdFiles
+	createdFiles.clear();
+
+
 	return 0;
 }
 
@@ -639,6 +660,9 @@ int HLConnector::packFiles() {
 
 void HLConnector::processLoop() {
 	IBMRAS_DEBUG(debug, ">> processLoop");
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+
 	if (startDelay) {
 		IBMRAS_LOG_1(info,
 				"Headless data collection starting with delay of %d minutes",
@@ -666,8 +690,7 @@ void HLConnector::processLoop() {
 
 	if (number_runs) {
 		IBMRAS_DEBUG_1(debug, "Produce HCDs for %d minutes", run_duration);
-		while (running) {
-			if (times_run < number_runs) {
+		while (running && (times_run < number_runs)) {
 				collect = true;
 				IBMRAS_DEBUG_2(debug, "We've run %d times and have to run %d in total", times_run, number_runs);
 				sleep(run_duration * 60);
@@ -675,15 +698,16 @@ void HLConnector::processLoop() {
 				if (running) {
 					lockAndPackFiles();
 				}
-			}
-			if (run_pause > 0) {
-				collect = false;
-				IBMRAS_DEBUG_1(warning, "Not producing HCDs for %d minutes", run_pause);
-				sleep(run_pause * 60);
-			}
 
-
+				if (run_pause > 0) {
+					collect = false;
+					IBMRAS_DEBUG_1(warning, "Not producing HCDs for %d minutes", run_pause);
+					sleep(run_pause * 60);
+				}
 		}
+		running = false;
+		agent->setHeadlessRunning(false);
+
 	} else if (run_duration || run_pause) {
 		while (running) {
 			collect = true;
@@ -699,10 +723,15 @@ void HLConnector::processLoop() {
 				sleep(run_pause * 60);
 			}
 		}
+		agent->setHeadlessRunning(false);
 	}
 
 	IBMRAS_DEBUG(debug, "<< processLoop");
 }
+
+
+
+
 
 void* HLConnector::thread(ibmras::common::port::ThreadData* tData) {
 

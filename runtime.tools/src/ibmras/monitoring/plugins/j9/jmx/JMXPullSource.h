@@ -60,7 +60,6 @@ public:
 	virtual void publishConfig() = 0;							/* sub classes must implement to publish their configuration details */
 protected:
 	virtual monitordata* generateData(JNIEnv* env, jclass* mgtBean) = 0 ;		/* sub classes must implement this to get the right JNI env to use to retrieve data */
-private:
 	uint32 provID;					/* JMX provider ID assigned by the agent */
 	JNIEnv* env;
 	std::string name;

@@ -14,6 +14,7 @@
 
 #include <jvmti.h>
 #include <string>
+#include <cstring>
 
 namespace ibmras {
 namespace monitoring {
@@ -34,6 +35,21 @@ public:
 
 	static std::string queryVmDump(jvmtiExtensionFunction jvmtiQueryVmDump, jvmtiEnv* pti);
 };
+
+unsigned char* hc_alloc(int size);
+void hc_dealloc(unsigned char** buffer);
+int setEnv(JNIEnv** env, std::string name, JavaVM* jvm);
+std::string getString(JNIEnv* env, const char* cname, const char* mname,
+		const char* signature);
+jmethodID getMethod(JNIEnv* env, const char* cname, const char* mname,
+		const char* sig, jclass* jc = NULL);
+jdouble getDouble(JNIEnv* env, jobject* obj, const char* cname,
+		const char* mname, jclass* jc = NULL);
+jlong getLong(JNIEnv* env, jobject* obj, const char* cname, const char* mname,
+		jclass* jc = NULL);
+jlong getTimestamp(JNIEnv* env);
+jobject getMXBean(JNIEnv* env, jclass* mgtBean, const char* name);
+
 
 } /* namespace j9 */
 } /* namespace plugins */

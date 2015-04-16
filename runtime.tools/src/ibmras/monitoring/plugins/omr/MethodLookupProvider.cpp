@@ -159,10 +159,10 @@ void MethodLookupProvider::getMethodIDs(std::vector<std::string> &jsMethodIds) {
 	}
 
 	size_t getPropertyCount = 0;
-	const char **getPropertyNames;
+	const char *const *getPropertyNames = NULL;
 	size_t getSizeof = 0;
-	vmData.omrti->GetMethodProperties(vmThread, &getPropertyCount,
-			&getPropertyNames, &getSizeof);
+
+	vmData.omrti->GetMethodProperties(vmThread, &getPropertyCount, &getPropertyNames, &getSizeof);
 	int calc = sizeof(OMR_SampledMethodDescription)
 			+ (getPropertyCount * sizeof(char*));
 

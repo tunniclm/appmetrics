@@ -36,14 +36,12 @@ pullsource* JMXSourceManager::registerPullSource(uint32 provID) {
 	pullsources[CPU] = ibmras::monitoring::plugins::j9::jmx::os::getOSPullSource(provID);
 	pullsource* src = pullsources[CPU]->getDescriptor();
 
-	// Remove RT for now
-//	pullsources[RT] = ibmras::monitoring::plugins::jmx::rt::getRTPullSource(provID);
-//	src->next = pullsources[RT]->getDescriptor();		/* create chain of pullsources */
 	return src;
 }
 
 int JMXSourceManager::start() {
 	IBMRAS_DEBUG(info, "Starting");
+
 	for (uint32 i = 0; i < PULL_COUNT; i++) {
 		JMXPullSource* p = pullsources[i];
 		if (p) {
@@ -55,10 +53,11 @@ int JMXSourceManager::start() {
 
 int JMXSourceManager::stop() {
 	IBMRAS_DEBUG(info, "Stopping");
-	for(uint32 i = 0; i < PULL_COUNT; i++) {
-		JMXPullSource* p = pullsources[i];
-		delete p;
-	}
+// Don't delete the sources when we are just stopping
+//	for(uint32 i = 0; i < PULL_COUNT; i++) {
+//		JMXPullSource* p = pullsources[i];
+//		delete p;
+//	}
 	return 0;
 }
 

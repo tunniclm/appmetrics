@@ -26,6 +26,12 @@
 #include <fstream>
 #include <cstdlib>
 
+#if defined(_WINDOWS)
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
+
 using namespace v8;
 
 static std::string* appDir;
@@ -216,6 +222,200 @@ NAN_METHOD(setLogLevel) {
 	NanReturnUndefined();
 }
 
+struct MessageData {
+    const std::string* source;
+    void* data;
+    unsigned int size;
+};
+
+struct Listener {
+    Persistent<Function> callback;
+};
+
+
+Listener* listener;
+
+static void cleanupData(uv_handle_t *handle) {
+    MessageData* payload = static_cast<MessageData*>(handle->data);
+	free(payload->data);
+    delete payload;
+    delete handle;
+}
+
+static void EmitMessage(uv_async_t *handle, int status) {
+    HandleScope scope;
+
+    MessageData* payload = static_cast<MessageData*>(handle->data);
+
+    TryCatch try_catch;
+    const unsigned argc = 2;
+    Local<Value> argv[argc];
+    const char * source = (*payload->source).c_str();
+
+    node::Buffer *message = node::Buffer::New(payload->size);
+    memcpy(node::Buffer::Data(message), payload->data, payload->size);
+
+    Local<Object> globalObj = Context::GetCurrent()->Global();
+    Local<Function> bufferConstructor = Local<Function>::Cast(globalObj->Get(String::New("Buffer")));
+    Handle<Value> constructorArgs[3] = { message->handle_, Integer::New(payload->size), Integer::New(0) };
+    Local<Object> buffer = bufferConstructor->NewInstance(3, constructorArgs);
+
+   	argv[0] = Local<Value>::New(String::New(source));
+    argv[1] = buffer;
+
+    listener->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+       	node::FatalException(try_catch);
+    }
+
+    uv_close((uv_handle_t*) handle, cleanupData);
+}
+
+void SendData(const std::string &sourceId, unsigned int size, void *data) {
+    uv_async_t *async = new uv_async_t;
+    uv_async_init(uv_default_loop(), async, EmitMessage);
+
+    MessageData* payload = new MessageData();
+	/* 
+	 * Make a copies of data and source as they will be freed when this function returns 
+	 */
+	void* dataCopy = malloc(size);
+    memcpy(dataCopy, data, size);
+	payload->source = new std::string(sourceId);
+    payload->data = dataCopy;
+	payload->size = size;
+
+    async->data = payload;
+    uv_async_send(async);
+}
+
+#if defined(_WINDOWS)
+void* getApiFunc(std::string pluginPath, std::string funcName) {
+	std::string apiPlugin = fileJoin(pluginPath, "apiplugin.dll");
+	HMODULE handle = LoadLibrary(apiPlugin.c_str());
+	if (handle == NULL) { 
+		std::cerr << "API Connector Listener: failed to open apiplugin.dll \n";
+		return NULL;
+	}
+	FARPROC apiFunc = GetProcAddress(handle, const_cast<char *>(funcName.c_str()));
+	if (apiFunc == NULL) {
+		std::cerr << "API Connector Listener: cannot find symbol '" << funcName << " in apiplugin.dll \n";
+		return NULL;
+	}
+	return (void*) apiFunc;
+}
+#else
+void* getApiFunc(std::string pluginPath, std::string funcName) {
+	std::string apiPlugin = fileJoin(pluginPath, "libapiplugin.so");
+	void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
+    if (!handle) {
+    	std::cerr << "API Connector Listener: failed to open libapiplugin.so: " << dlerror() << "\n";
+    	return NULL;
+    }
+	void* apiFunc = dlsym(handle, funcName.c_str());
+    const char *dlsym_error = dlerror();
+    if (dlsym_error) {
+       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in libapiplugin.so: " << dlsym_error <<
+       		'\n';
+       	dlclose(handle);
+       	return NULL;
+    }
+	return apiFunc;
+}
+#endif
+
+NAN_METHOD(nativeEmit) {
+	NanScope();
+
+	std::stringstream contentss;
+	if (args[0]->IsString()) {
+ 		String::Utf8Value str(args[0]->ToString());
+    	char *c_arg = *str;
+    	contentss << c_arg << ":";
+	} else {
+		/*
+		 *  Error handling as we don't have a valid parameter
+		 */
+		return ThrowException(Exception::TypeError(
+            String::New("First argument must a event name string")));
+	}
+	if (args[1]->IsString()) {
+		String::Utf8Value str(args[1]->ToString());
+                char *c_arg = *str;
+                contentss << c_arg;
+	} else {
+		/*
+		 *  Error handling as we don't have a valid parameter
+		 */
+		return ThrowException(Exception::TypeError(
+            String::New("Second argument must be a JSON string or a comma separated list of key value pairs")));
+	}
+  	contentss << '\n';
+  	std::string content = contentss.str();
+  	/*
+  	 * Lookup of pushData call should be done in init and cached
+  	 */
+  	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
+  	std::string pluginPath = agent->getAgentProperty("plugin.path");
+  	std::string funcName = std::string("pushData");
+  	void (*pushData)(std::string&) = (void (*)(std::string&)) getApiFunc(pluginPath, funcName);	
+  	pushData(content);
+  	NanReturnUndefined();
+}
+
+NAN_METHOD(sendControlCommand) {
+  	NanScope();
+
+  	/* lookup the sendControl function - should be done once in an init() function */
+  	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
+  	std::string pluginPath = agent->getAgentProperty("plugin.path");
+  	std::string funcName = std::string("sendControl");
+  	void (*sendControl)(std::string&, unsigned int, void*) = (void (*)(std::string&, unsigned int, void*)) getApiFunc(pluginPath, funcName);
+
+  	if (args[0]->IsString() && args[1]->IsString()) {
+    	String::Utf8Value topicArg(args[0]->ToString());
+    	String::Utf8Value commandArg(args[1]->ToString());
+    	std::string topic = std::string(*topicArg);
+    	std::string command = std::string(*commandArg); 
+    	unsigned int length = command.length();
+   		sendControl(topic, length, (void*)command.c_str());
+  	} else {
+    	return ThrowException(Exception::TypeError(
+        	String::New("Arguments must be strings containing the plugin name and control command")));
+  	}
+
+  	NanReturnUndefined();
+}
+
+
+NAN_METHOD(localConnect) {
+    NanScope();
+    if (!args[0]->IsFunction()) {
+	    return ThrowException(Exception::TypeError(
+    		String::New("First argument must be a callback function")));
+    }
+    Local<Function> callback = Local<Function>::Cast(args[0]);
+
+    listener = new Listener();
+    listener->callback = Persistent<Function>::New(callback);
+
+	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
+	std::string pluginPath = agent->getAgentProperty("plugin.path");
+	std::string funcName = std::string("registerListener");
+	void (*registerListener)(void (*)(const std::string&, unsigned int, void*)) = (void (*)(void (*func)(const std::string&, unsigned int, void*))) getApiFunc(pluginPath, funcName);
+
+	if (registerListener == NULL) {
+		NanReturnUndefined();
+	}
+
+    void (*func)(const std::string&, unsigned int, void*);
+    func = &SendData;
+    registerListener(func);
+
+    NanReturnUndefined();
+}
+
+
 void Init(Handle<Object> exports, Handle<Object> module) {
 //	monitoring::NodePlugin<pullsource>::Init(exports);
 //	monitoring::NodePlugin<pushsource>::Init(exports);
@@ -224,6 +424,9 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	exports->Set(NanNew<String>("spath"), NanNew<FunctionTemplate>(spath)->GetFunction());
 	exports->Set(NanNew<String>("stop"), NanNew<FunctionTemplate>(Stop)->GetFunction());
 	exports->Set(NanNew<String>("setLogLevel"), NanNew<FunctionTemplate>(setLogLevel)->GetFunction());
+    exports->Set(NanNew<String>("localConnect"), NanNew<FunctionTemplate>(localConnect)->GetFunction());
+	exports->Set(NanNew<String>("nativeEmit"), NanNew<FunctionTemplate>(nativeEmit)->GetFunction());
+	exports->Set(NanNew<String>("sendControlCommand"), NanNew<FunctionTemplate>(sendControlCommand)->GetFunction());
 
 	// Defaults
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
@@ -240,8 +443,8 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 		agent->setProperties(*props);
 		delete props;
 	}
-	agent->setAgentProperty("agent.version", agent->getVersion());
-	agent->setAgentProperty("agent.native.build.date", agent->getBuildDate());
+	agent->setProperty("agent.version", agent->getVersion());
+	agent->setProperty("agent.native.build.date", agent->getBuildDate());
 	agent->setLogLevels();
 
 	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());

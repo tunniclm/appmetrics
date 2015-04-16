@@ -35,6 +35,17 @@ namespace ibmras {
 namespace monitoring {
 namespace agent {
 
+void initWrapper();
+void startWrapper();
+void stopWrapper();
+void shutdownWrapper();
+void setLogLevelsWrapper();
+std::string getVersionWrapper();
+void logCoreMessageImpl(ibmras::common::logging::Level lev, const char * message);
+void setPropertyImpl(const char* key, const char* value);
+const char* getPropertyImpl(const char * key);
+bool loadPropertiesFile(const char* fileName);
+
 class DECL Agent : public AgentLoader {
 public:
 
@@ -79,6 +90,9 @@ public:
 	std::string getAgentProperty(const std::string &agentProp);
 	void setAgentProperty(const std::string &agentProp, const std::string &value);
 	bool agentPropertyExists(const std::string &agentProp);
+	
+	bool isHeadlessRunning();
+	void setHeadlessRunning(bool);
 		
 	std::string getConfig(const std::string& name);
 	bool readOnly();

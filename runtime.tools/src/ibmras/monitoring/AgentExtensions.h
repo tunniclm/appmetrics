@@ -150,15 +150,35 @@ enum Level {
 
 typedef void (*pushData)(monitordata *data);
 typedef int (*sendMessage)(const char * sourceId, unsigned int size,void *data);
-typedef void (*pluginLogger)(ibmras::common::logging::Level lev, const char * message);
+typedef void (*exposedLogger)(ibmras::common::logging::Level lev, const char * message);
 typedef const char * (*agentProperty)(const char * key);
+typedef void (*setAgentProp)(const char* key, const char* value);
+typedef void (*lifeCycle)();
+typedef bool (*loadPropFunc)(const char* filename);
+typedef std::string (*getVer)();
+typedef void (*setLogLvls)();
 
 typedef struct agentCoreFunctions {
 	pushData agentPushData;
 	sendMessage agentSendMessage;
-	pluginLogger logMessage;
+	exposedLogger logMessage;
 	agentProperty getProperty;
 } agentCoreFunctions;
+
+typedef struct loaderCoreFunctions {
+	lifeCycle init;
+	lifeCycle start;
+	lifeCycle stop;
+	lifeCycle shutdown;
+	exposedLogger logMessage;
+	agentProperty getProperty;
+	setAgentProp setProperty;
+	loadPropFunc loadPropertiesFile;
+    getVer getAgentVersion;
+    setLogLvls setLogLevels; 
+
+} loaderCoreFunctions;
+
 
 typedef int (*PLUGIN_INITIALIZE)(const char* properties);
 typedef pushsource* (*PUSH_SOURCE_REGISTER)(agentCoreFunctions aCF, unsigned int provID);

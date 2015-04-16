@@ -575,34 +575,34 @@ int64 getFreePhysicalMemorySize() {
 monitordata* OnRequestData() {
 	monitordata *data = new monitordata;
 	data->provID = plugin::provid;
-        data->size = 0;
-        data->data = NULL;
-
-		data->persistent = false;
-        data->sourceID = 0;
-
-        std::stringstream ss;
-
-        ss << MEMORY_SOURCE << COMMA;
-		ss << getTime() << COMMA;
-		ss << TOTAL_MEMORY    << EQUALS << getTotalPhysicalMemorySize()   << COMMA;
-        ss << PHYSICAL_MEMORY << EQUALS << getProcessPhysicalMemorySize() << COMMA;
-        ss << PRIVATE_MEMORY  << EQUALS << getProcessPrivateMemorySize()  << COMMA;
-        ss << VIRTUAL_MEMORY  << EQUALS << getProcessVirtualMemorySize()  << COMMA;
-        ss << FREE_PHYSICAL_MEMORY << EQUALS << getFreePhysicalMemorySize() << std::endl;
-
-		std::string memorydata = ss.str();
-
-        int len = memorydata.length();
-        char* sval = reinterpret_cast<char*>(malloc(len + 1));
-		if (sval) {
-			strcpy(sval, memorydata.c_str());
-			//IBMRAS_DEBUG(debug, "MEMORY REPORT\n"); IBMRAS_DEBUG_1(debug, "%s", sval);
-			data->size = len;
-			data->data = sval;
-			//IBMRAS_DEBUG(debug, "<<MEMPullSource::sourceData(DATA)");
-		}
-        return data;
+	data->size = 0;
+	data->data = NULL;
+	
+	data->persistent = false;
+	data->sourceID = 0;
+	
+	std::stringstream ss;
+	
+	ss << MEMORY_SOURCE << COMMA;
+	ss << getTime() << COMMA;
+	ss << TOTAL_MEMORY    << EQUALS << getTotalPhysicalMemorySize()   << COMMA;
+	ss << PHYSICAL_MEMORY << EQUALS << getProcessPhysicalMemorySize() << COMMA;
+	ss << PRIVATE_MEMORY  << EQUALS << getProcessPrivateMemorySize()  << COMMA;
+	ss << VIRTUAL_MEMORY  << EQUALS << getProcessVirtualMemorySize()  << COMMA;
+	ss << FREE_PHYSICAL_MEMORY << EQUALS << getFreePhysicalMemorySize() << std::endl;
+	
+	std::string memorydata = ss.str();
+	
+	int len = memorydata.length();
+	char* sval = new char[len + 1];
+	if (sval) {
+		strcpy(sval, memorydata.c_str());
+		//IBMRAS_DEBUG(debug, "MEMORY REPORT\n"); IBMRAS_DEBUG_1(debug, "%s", sval);
+		data->size = len;
+		data->data = sval;
+		//IBMRAS_DEBUG(debug, "<<MEMPullSource::sourceData(DATA)");
+	}
+	return data;
 }
 
 void OnComplete(monitordata* data) {

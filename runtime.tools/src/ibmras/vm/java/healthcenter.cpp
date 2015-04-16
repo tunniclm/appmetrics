@@ -25,12 +25,18 @@
 #include "ibmras/monitoring/plugins/j9/ClassHistogramProvider.h"
 #include "ibmras/monitoring/connector/jmx/JMXConnectorPlugin.h"
 #include "ibmras/monitoring/connector/headless/HLConnectorPlugin.h"
-#include "ibmras/monitoring/plugins/j9/jni/JNIReceiver.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/common/Properties.h"
 #include "ibmras/common/util/strUtils.h"
 #include "ibmras/common/port/Process.h"
 #include "ibmras/vm/java/JVMTIMemoryManager.h"
+
+#include "ibmras/monitoring/plugins/j9/environment/EnvironmentPlugin.h"
+#include "ibmras/monitoring/plugins/j9/locking/LockingPlugin.h"
+#include "ibmras/monitoring/plugins/j9/threads/ThreadsPlugin.h"
+#include "ibmras/monitoring/plugins/j9/memory/MemoryPlugin.h"
+#include "ibmras/monitoring/plugins/j9/memorycounters/MemCountersPlugin.h"
+#include "ibmras/monitoring/plugins/j9/cpu/CpuPlugin.h"
 
 struct __jdata;
 
@@ -39,7 +45,6 @@ struct __jdata;
 #include "ibmjvmti.h"
 #include "jni.h"
 #include "jniport.h"
-#include "ibmras/monitoring/plugins/j9/jmx/JMX.h"
 #include "ibmras/monitoring/plugins/j9/jni/Facade.h"
 
 /*########################################################################################################################*/
@@ -48,7 +53,8 @@ struct __jdata;
 static const char* HEALTHCENTER_PROPERTIES_PREFIX =
 		"com.ibm.java.diagnostics.healthcenter.";
 
-void launchAgent(const std::string &options);
+int launchAgent(const std::string &options);
+void addPlugins();
 std::string agentOptions;
 ibmras::common::Properties hcprops;
 static JavaVM *theVM;
@@ -61,7 +67,7 @@ typedef struct __jdata jdata_t;
 /* ensure common reporting of JNI version required */
 #define JNI_VERSION JNI_VERSION_1_4
 
-jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach);
+jint initialiseAgent(JavaVM *vm, char *options, void *reserved, int onAttach);
 
 static bool agentStarted = false;
 
@@ -118,22 +124,18 @@ ibmras::monitoring::agent::Agent* agent;
 /******************************/
 extern "C" JNIEXPORT void JNICALL
 cbVMInit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread) {
-
 	launchAgent(agentOptions);
-
 }
 /******************************/
 extern "C" JNIEXPORT void JNICALL
 cbVMDeath(jvmtiEnv *jvmti_env, JNIEnv* jni_env) {
 	IBMRAS_DEBUG(debug, "VmDeath event");
-
 	agent->stop();
 	agent->shutdown();
 }
 /******************************/
 JNIEXPORT void JNICALL
 Agent_OnUnload(JavaVM *vm) {
-
 	IBMRAS_DEBUG(debug, "OnUnload");
 }
 
@@ -144,13 +146,11 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
 	jint rc = 0;
 	IBMRAS_DEBUG(debug, "> Agent_OnAttach");
 	if (!agentStarted) {
-
-		agentStarted = true;
-		rc = agentStart(vm, options, reserved, 1);
-		launchAgent(options);
-	}
-
-	IBMRAS_DEBUG_1(debug, "< Agent_OnAttach. rc=%d", rc);
+		rc = initialiseAgent(vm, options, reserved, 1);
+		agentStarted=true;
+	} 
+	rc = launchAgent(options);
+	IBMRAS_DEBUG_1(debug,"< Agent_OnAttach. rc=%d", rc);
 	return rc;
 }
 
@@ -160,19 +160,16 @@ Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
 	IBMRAS_DEBUG(debug, "OnLoad");
 	jint rc = 0;
 	if (!agentStarted) {
-
-		agentStarted = true;
-
-		rc = agentStart(vm, options, reserved, 0);
+		rc = initialiseAgent(vm, options, reserved, 0);
+		agentStarted=true;
 	}
 
-
-	IBMRAS_DEBUG_1(debug, "< Agent_OnLoad. rc=%d", rc);
+	IBMRAS_DEBUG_1(debug, "< Agent_OnLoad. rc=%d",rc);
 	return rc;
 }
 
 /****************************/
-jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
+jint initialiseAgent(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	jvmtiCapabilities cap;
 	jvmtiEventCallbacks cb;
 
@@ -230,7 +227,6 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	tDPP.jvmtiTriggerVmDump = 0;
 	tDPP.getJ9method = 0;
 	tDPP.pti = pti;
-	IBMRAS_DEBUG(debug, "before launchagent 2");
 
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
@@ -265,31 +261,26 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 			tDPP.setVMLockMonitor = fi->func;
 		} else if (0 == strcmp(fi->id, COM_IBM_REGISTER_VERBOSEGC_SUBSCRIBER)) {
 			tDPP.verboseGCsubscribe = fi->func;
-		} else if (0
-				== strcmp(fi->id, COM_IBM_DEREGISTER_VERBOSEGC_SUBSCRIBER)) {
+		} else if (0 == strcmp(fi->id, COM_IBM_DEREGISTER_VERBOSEGC_SUBSCRIBER)) {
 			tDPP.verboseGCunsubscribe = fi->func;
 		} else if (0 == strcmp(fi->id, COM_IBM_TRIGGER_VM_DUMP)) {
 			tDPP.jvmtiTriggerVmDump = fi->func;
 		}
-
 #if defined(_ZOS)
 #pragma convert(pop)
 #endif
 
 		/* Cleanup */
-
 		pi = fi->params;
 
 		for (j = 0; j < fi->param_count; j++) {
 			pti->Deallocate((unsigned char*) pi->name);
-
 			pi++;
 		}
 		pti->Deallocate((unsigned char*) fi->id);
 		pti->Deallocate((unsigned char*) fi->short_description);
 		pti->Deallocate((unsigned char *) fi->params);
 		pti->Deallocate((unsigned char *) fi->errors);
-
 		fi++;
 	}
 	pti->Deallocate((unsigned char *) exfn);
@@ -332,7 +323,10 @@ jint agentStart(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
 	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
 
-	IBMRAS_DEBUG_1(debug, "< agentstart rc=%d", rc);
+	addPlugins();
+	agent->init();
+
+	IBMRAS_DEBUG_1(debug, "< initialiseAgent rc=%d", rc);
 	return rc;
 }
 
@@ -482,26 +476,12 @@ void getHCProperties(const std::string &options) {
 			}
 		}
 	}
-
 	agent->setProperties(theProps);
 }
 
-/**
- * launch agent code
- */
-void launchAgent(const std::string &options) {
-
+void addPlugins(){
 	agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->setAgentProperty("launch.options", options);
 
-	getHCProperties(options);
-	agent->setLogLevels();
-
-	std::string agentVersion = agent->getVersion();
-	IBMRAS_LOG_1(fine, "Health Center Agent %s", agentVersion.c_str());
-
-	// Add MQTT Connector plugin
-	// TODO load SSL or plain
 	std::string agentLibPath =
 			ibmras::common::util::LibraryUtils::getLibraryDir(
 					"healthcenter.dll", (void*) launchAgent);
@@ -509,21 +489,6 @@ void launchAgent(const std::string &options) {
 		agentLibPath = agent->getProperty("com.ibm.system.agent.path");
 	}
 	agent->addPlugin(agentLibPath, "hcmqtt");
-
-	// Set connector properties based on data.collection.level
-	std::string dataCollectionLevel = agent->getAgentProperty(
-			"data.collection.level");
-	if (ibmras::common::util::equalsIgnoreCase(dataCollectionLevel,
-			"headless")) {
-		agent->setAgentProperty("headless", "on");
-		agent->setAgentProperty("mqtt", "off");
-		agent->setAgentProperty("jmx", "off");
-	} else {
-		std::string jmx = agent->getAgentProperty("jmx");
-		if (jmx == "") {
-			agent->setAgentProperty("jmx", "on");
-		}
-	}
 
 	if (tDPP.pti == NULL) {
 		IBMRAS_DEBUG(debug, "tDPP.pti is null");
@@ -546,6 +511,7 @@ void launchAgent(const std::string &options) {
 			ibmras::monitoring::connector::jmx::JMXConnectorPlugin::getInstance(
 					theVM));
 
+
 	agent->addPlugin(
 			ibmras::monitoring::connector::headless::HLConnectorPlugin::getInstance(
 					theVM));
@@ -554,27 +520,65 @@ void launchAgent(const std::string &options) {
 			ibmras::monitoring::plugins::j9::classhistogram::ClassHistogramProvider::getInstance(
 					tDPP));
 
-	//The next call invoked the setJVM function on the JMX plugin
-	ibmras::monitoring::plugins::j9::jmx::setJVM(tDPP.theVM);
-	// We now register the plugin with the agent
-	agent->addPlugin(ibmras::monitoring::plugins::j9::jmx::getPlugin());
-
+	ibmras::monitoring::Plugin* environment = ibmras::monitoring::plugins::j9::environment::EnvironmentPlugin::getPlugin(&tDPP);
+	//ibmras::monitoring::Plugin* locking = ibmras::monitoring::plugins::j9::locking::LockingPlugin::getPlugin(&tDPP);
+	ibmras::monitoring::Plugin* locking = ibmras::monitoring::plugins::j9::jni::getPlugin();
+	ibmras::monitoring::Plugin* threads = ibmras::monitoring::plugins::j9::threads::ThreadsPlugin::getPlugin(&tDPP);
+	ibmras::monitoring::Plugin* memory = ibmras::monitoring::plugins::j9::memory::MemoryPlugin::getPlugin(&tDPP);
+	ibmras::monitoring::Plugin* memorycounters = ibmras::monitoring::plugins::j9::memorycounters::MemCountersPlugin::getPlugin(&tDPP);
+	ibmras::monitoring::Plugin* cpu = ibmras::monitoring::plugins::j9::cpu::CpuPlugin::getPlugin(&tDPP);
 	ibmras::monitoring::plugins::j9::jni::setTDPP(&tDPP);
-	//We now register the plugin with the agent
-	agent->addPlugin(ibmras::monitoring::plugins::j9::jni::getPlugin());
 
-	// Add the jni receiver
-	agent->addPlugin(
-			(ibmras::monitoring::Plugin*) new ibmras::monitoring::plugins::j9::jni::JNIReceiver());
 
-	agent->init();
+	agent->addPlugin(environment);
+	agent->addPlugin(locking);
+	agent->addPlugin(threads);
+	agent->addPlugin(memory);
+	agent->addPlugin(memorycounters);
+	agent->addPlugin(cpu);
+}
+
+
+/**
+ * launch agent code
+ */
+int launchAgent(const std::string &options) {
+
+	agent = ibmras::monitoring::agent::Agent::getInstance();
+	agent->setAgentProperty("launch.options", options);
+
+	if (agent->isHeadlessRunning()) {
+		return -2;
+	}
+
+	getHCProperties(options);
+	agent->setLogLevels();
+
+	std::string agentVersion = agent->getVersion();
+	IBMRAS_LOG_1(fine, "Health Center Agent %s", agentVersion.c_str());
+	// Set connector properties based on data.collection.level
+	std::string dataCollectionLevel = agent->getAgentProperty(
+			"data.collection.level");
+	if (ibmras::common::util::equalsIgnoreCase(dataCollectionLevel,
+			"headless")) {
+		agent->setAgentProperty("headless", "on");
+		agent->setAgentProperty("mqtt", "off");
+		agent->setAgentProperty("jmx", "off");
+	} else {
+		std::string jmx = agent->getAgentProperty("jmx");
+		if (jmx == "") {
+			agent->setAgentProperty("jmx", "on");
+		}
+	}
+
 	agent->start();
 
+	return 0;
 }
 
 JNIEXPORT void JNICALL
 Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_isLoaded(
-		JNIEnv *env, jclass clazz) {
-	IBMRAS_DEBUG(debug, "Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_isLoaded called");
+JNIEnv *env, jclass clazz) {
+IBMRAS_DEBUG(debug, "Java_com_ibm_java_diagnostics_healthcenter_agent_mbean_HealthCenter_isLoaded called");
 }
 

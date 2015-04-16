@@ -13,6 +13,8 @@
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/util/strUtils.h"
+#include "jni.h"
+#include "ibmras/common/MemoryManager.h"
 
 namespace ibmras {
 namespace monitoring {
@@ -137,6 +139,201 @@ std::string Util::queryVmDump(jvmtiExtensionFunction jvmtiQueryVmDump,
 	IBMRAS_DEBUG(debug, "< queryVmDump");
 	return options;
 }
+
+/***
+ * Returns the string that will be retrieved from the Java side using JNI
+ * @param env The JNI environment
+ * @param cname The name of the class containing the method we want to call
+ * @param mname The name of the method to be called.
+ * @param signature The signature of cname's mname.
+ */
+
+std::string getString(JNIEnv* env, const char* cname, const char* mname,
+		const char* signature) {
+
+	IBMRAS_DEBUG(debug, ">>>..j9::getString");
+
+	IBMRAS_DEBUG(debug, "Retrieving class");
+	jclass clazz = env->FindClass(cname);
+	if (!clazz) {
+		IBMRAS_DEBUG(warning, "<<<..j9::getString[Failed to find class]");
+		return "";
+	}
+
+	jmethodID method = env->GetStaticMethodID(clazz, mname, signature);
+	if (!method) {
+		IBMRAS_DEBUG(warning, "<<<..j9::getString[Failed to get method ID]");
+		return "";
+	}
+
+	jstring jobj = (jstring) env->CallStaticObjectMethod(clazz, method, NULL);
+
+	const char* value = env->GetStringUTFChars(jobj, NULL);
+	if (env->ExceptionOccurred()) {
+		env->ExceptionDescribe();
+	}
+
+	std::string sval(value);
+
+	env->ReleaseStringUTFChars(jobj, value);
+	env->DeleteLocalRef(jobj);
+
+	IBMRAS_DEBUG(debug, "<<<..j9::getString[OK]");
+	return sval;
+}
+
+unsigned char* hc_alloc(int size) {
+	return ibmras::common::memory::allocate(size);
+}
+
+void hc_dealloc(unsigned char** buffer) {
+	ibmras::common::memory::deallocate(buffer);
+}
+
+/***
+ * Returns 0 [OK] or -1 [ERR]
+ * @param env The JNI environment to be set up
+ * @param name The name of the plugin calling this method.
+ * @param jvm The virtual machine that we'll attach to.
+ */
+
+int setEnv(JNIEnv** env, std::string name, JavaVM* jvm) {
+if (!*env) {
+		JavaVMAttachArgs threadArgs;
+
+		memset(&threadArgs, 0, sizeof(threadArgs));
+		threadArgs.version = JNI_VERSION_1_4;
+		threadArgs.name = ibmras::common::util::createAsciiString(name.c_str());
+		threadArgs.group = NULL;
+		//IBMRAS_DEBUG_1(debug, "Attaching thread %s", name.c_str());
+		jint errcode = jvm->AttachCurrentThreadAsDaemon((void **) env, &threadArgs);
+		ibmras::common::memory::deallocate((unsigned char**)&threadArgs.name);
+		if (errcode != JNI_OK) {
+		//	IBMRAS_DEBUG_1(debug, "AttachCurrentThreadAsDaemon failed %d", errcode);
+		//	IBMRAS_DEBUG(debug, "<<<EnvironmentPlugin::pullInt[NULL]");
+			return -1;
+		}
+		//IBMRAS_DEBUG_1(debug, "Attached thread %s", name.c_str());
+	}
+	return 0;
+}
+
+/*------------------------------------------------------------------------
+ * JMXUtils
+ *------------------------------------------------------------------------*/
+
+jmethodID getMethod(JNIEnv* env, const char* cname, const char* mname,
+		const char* sig, jclass* jc) {
+	jclass clazz = env->FindClass(cname);
+	if (!clazz) {
+		IBMRAS_DEBUG_1(warning, "!Failed to find class %s", cname);
+		env->ExceptionClear();
+		return NULL;
+	}
+	jmethodID method =
+			jc ? env->GetStaticMethodID(clazz, mname, sig) : env->GetMethodID(
+							clazz, mname, sig);
+	if (!method) {
+		IBMRAS_DEBUG_2(warning, "!Failed to find method %s/%s", cname, mname);
+		env->ExceptionClear();
+		return NULL;
+	}
+	if (jc) {
+		*jc = clazz; /* pass back the class reference */
+	}
+	return method;
+}
+
+jdouble getDouble(JNIEnv* env, jobject* obj, const char* cname,
+		const char* mname, jclass* jc) {
+
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+	jmethodID method = getMethod(env, cname, mname, "()D", jc);
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+	if (method) {
+		IBMRAS_DEBUG(debug, "got Method");
+		return jc ?
+				env->CallStaticDoubleMethod(*jc, method, NULL) :
+				env->CallDoubleMethod(*obj, method, NULL);
+	}
+	return -1.0;
+}
+
+jlong getLong(JNIEnv* env, jobject* obj, const char* cname, const char* mname,
+		jclass* jc) {
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+	jmethodID method = getMethod(env, cname, mname, "()J", jc);
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+	if (method) {
+		return jc ?
+				env->CallStaticLongMethod(*jc, method, NULL) :
+				env->CallLongMethod(*obj, method, NULL);
+	}
+	return -1;
+}
+
+jlong getTimestamp(JNIEnv* env) {
+	jclass clazz = NULL;
+#if defined(_ZOS)
+#pragma convert("ISO8859-1")
+#endif
+	jmethodID method = getMethod(env, "java/lang/System", "currentTimeMillis",
+			"()J", &clazz);
+#if defined(_ZOS)
+#pragma convert(pop)
+#endif
+	if (method) {
+		return env->CallStaticLongMethod(clazz, method, NULL);
+	}
+	return -1;
+}
+
+jobject getMXBean(JNIEnv* env, jclass* mgtBean, const char* name) {
+	std::string get, signature;
+	get.append("get");
+	get.append(name);
+	get.append("MXBean");
+	signature.append("()Ljava/lang/management/");
+	signature.append(name);
+	signature.append("MXBean;");
+#if defined(_ZOS)
+	char* mxb = ibmras::common::util::createAsciiString(get.c_str());
+	char* sig = ibmras::common::util::createAsciiString(signature.c_str());
+#else
+	const char* mxb = get.c_str();
+	const char* sig = signature.c_str();
+#endif
+
+	jmethodID method = env->GetStaticMethodID(*mgtBean, mxb,
+			sig);
+#if defined(_ZOS)
+	ibmras::common::memory::deallocate((unsigned char**)&mxb);
+	ibmras::common::memory::deallocate((unsigned char**)&sig);
+#endif
+
+	if (!method) {
+		IBMRAS_DEBUG_1(warning, "!Failed to find MXBean %s", name);
+		env->ExceptionClear();
+		return NULL;
+	}
+	jobject mgt = env->CallStaticObjectMethod(*mgtBean, method, NULL);
+	if (!mgt) {
+		IBMRAS_DEBUG_1(warning, "!Failed to get MXBean %s", name);
+		env->ExceptionClear();
+		return NULL;
+	}
+	return mgt;
+}
+
+
 
 } /* namespace j9 */
 } /* namespace plugins */
