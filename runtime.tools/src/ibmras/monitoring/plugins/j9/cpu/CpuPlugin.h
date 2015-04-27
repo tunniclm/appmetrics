@@ -36,7 +36,7 @@ private:
 	static void publishConfig();
 	static bool isEnabled();
 	static void setState(const std::string &newState);
-	char* buildCpuDataLine(jdouble tstamp, jdouble processCPULoad, jdouble systemCPULoad);
+	char* buildCpuDataLine(jlong tstamp, jdouble processCPULoad, jdouble systemCPULoad);
 	JNIEnv* env;
 	jvmFunctions* jvmF;
 };

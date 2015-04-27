@@ -251,7 +251,7 @@ monitordata* CpuPlugin::pullInt() {
 	return data;
 }
 
-char* CpuPlugin::buildCpuDataLine(jdouble tstamp, jdouble processCPULoad, jdouble systemCPULoad) {
+char* CpuPlugin::buildCpuDataLine(jlong tstamp, jdouble processCPULoad, jdouble systemCPULoad) {
 	std::string sdata;
 	sdata.append("startCPU");
 	sdata.append(DELIMITER);

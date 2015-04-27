@@ -40,6 +40,12 @@ static bool running = false;
 
 IBMRAS_DEFINE_LOGGER("node");
 
+namespace funcs {
+	void (*pushData)(std::string&);
+	void (*sendControl)(std::string&, unsigned int, void*);
+	void (*registerListener)(void (*)(const std::string&, unsigned int, void*));
+}
+
 static std::string ToStdString(Local<String> s) {
 	char *buf = new char[s->Length() + 1];
 	s->WriteUtf8(buf); // (FLORINCR) not sure if this or just Write()
@@ -177,6 +183,50 @@ static ibmras::common::PropertiesFile* LoadProperties() {
 	return props;
 }
 
+#if defined(_WINDOWS)
+void* getApiFunc(std::string pluginPath, std::string funcName) {
+	std::string apiPlugin = fileJoin(pluginPath, "apiplugin.dll");
+	HMODULE handle = LoadLibrary(apiPlugin.c_str());
+	if (handle == NULL) { 
+		std::cerr << "API Connector Listener: failed to open apiplugin.dll \n";
+		return NULL;
+	}
+	FARPROC apiFunc = GetProcAddress(handle, const_cast<char *>(funcName.c_str()));
+	if (apiFunc == NULL) {
+		std::cerr << "API Connector Listener: cannot find symbol '" << funcName << " in apiplugin.dll \n";
+		return NULL;
+	}
+	return (void*) apiFunc;
+}
+#else
+void* getApiFunc(std::string pluginPath, std::string funcName) {
+	std::string apiPlugin = fileJoin(pluginPath, "libapiplugin.so");
+	void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
+    if (!handle) {
+    	std::cerr << "API Connector Listener: failed to open libapiplugin.so: " << dlerror() << "\n";
+    	return NULL;
+    }
+	void* apiFunc = dlsym(handle, funcName.c_str());
+    const char *dlsym_error = dlerror();
+    if (dlsym_error) {
+       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in libapiplugin.so: " << dlsym_error <<
+       		'\n';
+       	dlclose(handle);
+       	return NULL;
+    }
+	return apiFunc;
+}
+#endif
+
+static void initApiFuncs() {
+  	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
+  	std::string pluginPath = agent->getAgentProperty("plugin.path");
+  	
+	funcs::pushData = (void (*)(std::string&)) getApiFunc(pluginPath, std::string("pushData"));
+  	funcs::sendControl = (void (*)(std::string&, unsigned int, void*)) getApiFunc(pluginPath, std::string("sendControl"));
+	funcs::registerListener = (void (*)(void (*func)(const std::string&, unsigned int, void*))) getApiFunc(pluginPath, std::string("registerListener"));
+}
+
 NAN_METHOD(Start) {
 	NanScope();
 	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
@@ -190,6 +240,8 @@ NAN_METHOD(Start) {
 
 		agent->start();
 	}
+	initApiFuncs();
+	
 	NanReturnUndefined();
 }
 
@@ -229,7 +281,7 @@ struct MessageData {
 };
 
 struct Listener {
-    Persistent<Function> callback;
+    NanCallback *callback;
 };
 
 
@@ -243,7 +295,6 @@ static void cleanupData(uv_handle_t *handle) {
 }
 
 static void EmitMessage(uv_async_t *handle, int status) {
-    HandleScope scope;
 
     MessageData* payload = static_cast<MessageData*>(handle->data);
 
@@ -252,18 +303,11 @@ static void EmitMessage(uv_async_t *handle, int status) {
     Local<Value> argv[argc];
     const char * source = (*payload->source).c_str();
 
-    node::Buffer *message = node::Buffer::New(payload->size);
-    memcpy(node::Buffer::Data(message), payload->data, payload->size);
-
-    Local<Object> globalObj = Context::GetCurrent()->Global();
-    Local<Function> bufferConstructor = Local<Function>::Cast(globalObj->Get(String::New("Buffer")));
-    Handle<Value> constructorArgs[3] = { message->handle_, Integer::New(payload->size), Integer::New(0) };
-    Local<Object> buffer = bufferConstructor->NewInstance(3, constructorArgs);
-
-   	argv[0] = Local<Value>::New(String::New(source));
+	Local<Object> buffer = NanNewBufferHandle((char*)payload->data, payload->size);
+   	argv[0] = NanNew<String>(source);
     argv[1] = buffer;
 
-    listener->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    listener->callback->Call(argc, argv);
     if (try_catch.HasCaught()) {
        	node::FatalException(try_catch);
     }
@@ -273,7 +317,7 @@ static void EmitMessage(uv_async_t *handle, int status) {
 
 void SendData(const std::string &sourceId, unsigned int size, void *data) {
     uv_async_t *async = new uv_async_t;
-    uv_async_init(uv_default_loop(), async, EmitMessage);
+    uv_async_init(uv_default_loop(), async, (uv_async_cb)EmitMessage);
 
     MessageData* payload = new MessageData();
 	/* 
@@ -289,41 +333,6 @@ void SendData(const std::string &sourceId, unsigned int size, void *data) {
     uv_async_send(async);
 }
 
-#if defined(_WINDOWS)
-void* getApiFunc(std::string pluginPath, std::string funcName) {
-	std::string apiPlugin = fileJoin(pluginPath, "apiplugin.dll");
-	HMODULE handle = LoadLibrary(apiPlugin.c_str());
-	if (handle == NULL) { 
-		std::cerr << "API Connector Listener: failed to open apiplugin.dll \n";
-		return NULL;
-	}
-	FARPROC apiFunc = GetProcAddress(handle, const_cast<char *>(funcName.c_str()));
-	if (apiFunc == NULL) {
-		std::cerr << "API Connector Listener: cannot find symbol '" << funcName << " in apiplugin.dll \n";
-		return NULL;
-	}
-	return (void*) apiFunc;
-}
-#else
-void* getApiFunc(std::string pluginPath, std::string funcName) {
-	std::string apiPlugin = fileJoin(pluginPath, "libapiplugin.so");
-	void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
-    if (!handle) {
-    	std::cerr << "API Connector Listener: failed to open libapiplugin.so: " << dlerror() << "\n";
-    	return NULL;
-    }
-	void* apiFunc = dlsym(handle, funcName.c_str());
-    const char *dlsym_error = dlerror();
-    if (dlsym_error) {
-       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in libapiplugin.so: " << dlsym_error <<
-       		'\n';
-       	dlclose(handle);
-       	return NULL;
-    }
-	return apiFunc;
-}
-#endif
-
 NAN_METHOD(nativeEmit) {
 	NanScope();
 
@@ -336,8 +345,7 @@ NAN_METHOD(nativeEmit) {
 		/*
 		 *  Error handling as we don't have a valid parameter
 		 */
-		return ThrowException(Exception::TypeError(
-            String::New("First argument must a event name string")));
+		return NanThrowError("First argument must a event name string");
 	}
 	if (args[1]->IsString()) {
 		String::Utf8Value str(args[1]->ToString());
@@ -347,30 +355,17 @@ NAN_METHOD(nativeEmit) {
 		/*
 		 *  Error handling as we don't have a valid parameter
 		 */
-		return ThrowException(Exception::TypeError(
-            String::New("Second argument must be a JSON string or a comma separated list of key value pairs")));
+		return NanThrowError("Second argument must be a JSON string or a comma separated list of key value pairs");
 	}
   	contentss << '\n';
   	std::string content = contentss.str();
-  	/*
-  	 * Lookup of pushData call should be done in init and cached
-  	 */
-  	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-  	std::string pluginPath = agent->getAgentProperty("plugin.path");
-  	std::string funcName = std::string("pushData");
-  	void (*pushData)(std::string&) = (void (*)(std::string&)) getApiFunc(pluginPath, funcName);	
-  	pushData(content);
+
+  	funcs::pushData(content);
   	NanReturnUndefined();
 }
 
 NAN_METHOD(sendControlCommand) {
   	NanScope();
-
-  	/* lookup the sendControl function - should be done once in an init() function */
-  	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-  	std::string pluginPath = agent->getAgentProperty("plugin.path");
-  	std::string funcName = std::string("sendControl");
-  	void (*sendControl)(std::string&, unsigned int, void*) = (void (*)(std::string&, unsigned int, void*)) getApiFunc(pluginPath, funcName);
 
   	if (args[0]->IsString() && args[1]->IsString()) {
     	String::Utf8Value topicArg(args[0]->ToString());
@@ -378,10 +373,9 @@ NAN_METHOD(sendControlCommand) {
     	std::string topic = std::string(*topicArg);
     	std::string command = std::string(*commandArg); 
     	unsigned int length = command.length();
-   		sendControl(topic, length, (void*)command.c_str());
+   		funcs::sendControl(topic, length, (void*)command.c_str());
   	} else {
-    	return ThrowException(Exception::TypeError(
-        	String::New("Arguments must be strings containing the plugin name and control command")));
+    	return NanThrowError("Arguments must be strings containing the plugin name and control command");
   	}
 
   	NanReturnUndefined();
@@ -391,26 +385,16 @@ NAN_METHOD(sendControlCommand) {
 NAN_METHOD(localConnect) {
     NanScope();
     if (!args[0]->IsFunction()) {
-	    return ThrowException(Exception::TypeError(
-    		String::New("First argument must be a callback function")));
+	    return NanThrowError("First argument must be a callback function");
     }
-    Local<Function> callback = Local<Function>::Cast(args[0]);
+    NanCallback *callback = new NanCallback(args[0].As<Function>());
 
     listener = new Listener();
-    listener->callback = Persistent<Function>::New(callback);
-
-	ibmras::monitoring::agent::Agent* agent = ibmras::monitoring::agent::Agent::getInstance();
-	std::string pluginPath = agent->getAgentProperty("plugin.path");
-	std::string funcName = std::string("registerListener");
-	void (*registerListener)(void (*)(const std::string&, unsigned int, void*)) = (void (*)(void (*func)(const std::string&, unsigned int, void*))) getApiFunc(pluginPath, funcName);
-
-	if (registerListener == NULL) {
-		NanReturnUndefined();
-	}
+    listener->callback = callback;
 
     void (*func)(const std::string&, unsigned int, void*);
     func = &SendData;
-    registerListener(func);
+    funcs::registerListener(func);
 
     NanReturnUndefined();
 }
