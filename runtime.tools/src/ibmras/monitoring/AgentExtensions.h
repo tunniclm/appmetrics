@@ -18,6 +18,16 @@
 #define NULL 0
 #endif
 
+#ifndef PLUGIN_API_VERSION
+#define PLUGIN_API_VERSION "1.0"
+#endif
+
+#if defined(_WINDOWS)
+#define PLUGIN_API_DECL __declspec(dllexport)	/* required for DLLs to export the plugin functions */
+#else
+#define PLUGIN_API_DECL
+#endif
+
 #if defined(_WINDOWS)
 	#include <basetsd.h>
 	#include <limits.h>

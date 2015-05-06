@@ -47,7 +47,7 @@ function API(agent) {
     var formatCPU = function(message) {
     	// cpu : startCPU@#1412609879696@#0.000499877@#0.137468
         var values = message.trim().split('@#'); // needs to be trimmed because of leading \n character
-        var cpu = {time: values[1], process: values[2], system: values[3]};
+        var cpu = {time: parseInt(values[1]), process: parseFloat(values[2]), system: parseFloat(values[3])};
         that.emit('cpu', cpu);
     };
 
@@ -113,7 +113,7 @@ function API(agent) {
          */
         var values = message.split(/[,=]+/);
         var systemUsed = values[3] - values[11];
-        var memory = {time:values[1], physical_total:values[3], physical_used:systemUsed, private:values[7], virtual:values[9], physical_free:values[11]};
+        var memory = {time: parseInt(values[1]), physical_total: parseInt(values[3]), physical_used: parseInt(systemUsed), private: parseInt(values[7]), virtual: parseInt(values[9]), physical_free: parseInt(values[11])};
         that.emit('memory', memory);
     };
 
@@ -129,7 +129,7 @@ function API(agent) {
 		/* Split each line into the comma-separated values. */
 	    lines.forEach(function (line) {
         	var values = line.split(/[,]+/);
-            var gc = {time: values[1], type: values[2], size: values[3], used: values[4], duration: values[5]};
+            var gc = {time: parseInt(values[1]), type: values[2], size: parseInt(values[3]), used: parseInt(values[4]), duration: parseInt(values[5])};
             that.emit('gc', gc);
         });
     };
@@ -138,14 +138,14 @@ function API(agent) {
 		var lines = message.trim().split('\n');
 		var prof = {
 			date: 0,
-			methods: [],
+			functions: [],
 		};
 		lines.forEach(function (line) {
 			var values = line.split(',');
 			if (values[1] == 'Node') {
-				prof.methods.push({self: values[2], parent: values[3], file: values[3], name: values[4], line: values[5], count: values[6]});
+				prof.functions.push({self: parseInt(values[2]), parent: parseInt(values[3]), file: values[4], name: values[5], line: parseInt(values[6]), count: parseInt(values[7])});
 			} else if (values[1] == 'Start') {
-				prof.time = values[2];
+				prof.time = parseInt(values[2]);
 			}
 		});
 	 	that.emit('profiling', prof);	

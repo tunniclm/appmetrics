@@ -60,8 +60,8 @@ NODEGC_OBJS=${PLUGIN_OUT}/nodegcplugin.o
 NODEPROF_OBJS=${PLUGIN_OUT}/nodeprofplugin.o
 NODEENV_OBJS=${PLUGIN_OUT}/nodeenvplugin.o
 ENVPLUGIN_OBJS=${PLUGIN_OUT}/envplugin.o
-CPUPLUGIN_OBJS=${PLUGIN_OUT}/cputime.o ${PLUGIN_OUT}/cpuplugin.o
-MEMPLUGIN_OBJS=${PLUGIN_OUT}/memoryplugin.o
+CPUPLUGIN_OBJS=${PLUGIN_OUT}/cpuplugin.o
+MEMPLUGIN_OBJS=${PLUGIN_OUT}/MemoryPlugin.o
 TEST_OBJS=${TEST_OUT}/test.o
 
 #-------------------------------------------------------------------------------------------
@@ -397,14 +397,11 @@ ${PLUGIN_OUT}/nodeenvplugin.o: ${SRC}/monitoring/plugins/nodeenv/nodeenvplugin.c
 ${PLUGIN_OUT}/envplugin.o: ${SRC}/monitoring/plugins/common/environment/envplugin.cpp
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/environment/envplugin.cpp
 	
-${PLUGIN_OUT}/cputime.o: ${SRC}/monitoring/plugins/common/cpu/cputime.cpp
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/cpu/cputime.cpp
-	
 ${PLUGIN_OUT}/cpuplugin.o: ${SRC}/monitoring/plugins/common/cpu/cpuplugin.cpp
 	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/cpu/cpuplugin.cpp
 
-${PLUGIN_OUT}/memoryplugin.o: ${SRC}/monitoring/plugins/common/memory/memoryplugin.cpp
-	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/memory/memoryplugin.cpp	
+${PLUGIN_OUT}/MemoryPlugin.o: ${SRC}/monitoring/plugins/common/memory/MemoryPlugin.cpp
+	${CC} ${INCS} ${CFLAGS} -D${PLATFORM} ${OBJOPT} ${SRC}/monitoring/plugins/common/memory/MemoryPlugin.cpp	
 	
 #-------------------------------------------------------------------------------------------
 #JAVA vm files which make up various JAVA shim levels

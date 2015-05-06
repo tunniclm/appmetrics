@@ -12,8 +12,10 @@
 #define _XOPEN_SOURCE_EXTENDED 1 //This macro makes zOS' unistd.h expose gethostname().
 #endif
 
+#include "ibmras/monitoring/plugins/common/environment/envplugin.h"
 #include "ibmras/monitoring/AgentExtensions.h"
 #include "ibmras/common/types.h"
+#include <iostream>
 #include <cstring>
 #include <string>
 #include <sstream>
@@ -36,52 +38,66 @@
 #define HOST_NAME_MAX 256
 #endif
 
+namespace ibmras {
+namespace monitoring {
+namespace plugins {
+namespace common {
+namespace environment {
 
 
 #if defined (_LINUX) || defined (_AIX) || defined (_ZOS)
 extern "C" char **environ; // use GetEnvironmentStrings() on Windows (maybe getenv() on POSIX?)
 #endif
 
-#if defined(_WINDOWS)
-#define ENVPLUGIN_DECL __declspec(dllexport)	/* required for DLLs to export the plugin functions */
-#else
-#define ENVPLUGIN_DECL
-#endif
 
 template <class T>
 std::string itoa(T t);
 
-static void initStaticInfo();
-
 #define DEFAULT_BUCKET_CAPACITY 1024*10
 
-namespace envplugin {
-agentCoreFunctions aCF;
-}
+EnvPlugin* EnvPlugin::instance = NULL;
+agentCoreFunctions EnvPlugin::aCF;
 
-namespace plugin {
-	uint32 provid = 0;
-	std::string arch; 
-	std::string osName;
-	std::string osVersion;
-	std::string nprocs;
-	std::string pid;
-	std::string commandLine;
+	EnvPlugin::EnvPlugin(uint32 provID): 
+		provID(provID) {
+	}
+	
+	EnvPlugin::~EnvPlugin(){}
 
-	std::string agentVersion;
-	std::string agentNativeBuildDate;
+	
+	int EnvPlugin::start() {
+		aCF.logMessage(ibmras::common::logging::debug, ">>>EnvPlugin::start()");
+		EnvPlugin::initStaticInfo(); // See below for platform-specific implementation, protected by ifdefs
+		aCF.logMessage(ibmras::common::logging::debug, "<<<EnvPlugin::start()");
+		return 0;
+	}
 
-}
+	int EnvPlugin::stop() {
+			aCF.logMessage(ibmras::common::logging::debug, ">>>EnvPlugin::stop()");
+			aCF.logMessage(ibmras::common::logging::debug, "<<<EnvPlugin::stop()");
+			return 0;
+	}
 
-using namespace ibmras::common::logging;
+	pullsource* EnvPlugin::createSource(agentCoreFunctions aCF, uint32 provID) {
+		aCF.logMessage(ibmras::common::logging::fine, "[env_os] Registering pull source");
+		if(!instance) {
+			EnvPlugin::aCF = aCF;
+			instance = new EnvPlugin(provID);
+		}
+		return instance->createPullSource(0, "common_env");
+	}
 
-static char* NewCString(const std::string& s) {
-	char *result = new char[s.length() + 1];
-	std::strcpy(result, s.c_str());
-	return result;
-}
+	EnvPlugin* EnvPlugin::getInstance() {
+		return instance;
+	}
 
-void AppendEnvVars(std::stringstream &ss) {
+	char* EnvPlugin::NewCString(const std::string& s) {
+		char *result = new char[s.length() + 1];
+		std::strcpy(result, s.c_str());
+		return result;
+	}
+
+void EnvPlugin::AppendEnvVars(std::stringstream &ss) {
 	bool hostnameDefined = false;
 	int i = 0;
 	while (environ[i] != NULL) {
@@ -99,20 +115,21 @@ void AppendEnvVars(std::stringstream &ss) {
 	}
 }
 
-void AppendSystemInfo(std::stringstream &ss) {
-	ss << "os.arch="     << plugin::arch             << '\n'; // eg "amd64"
-	ss << "os.name="     << plugin::osName           << '\n'; // eg "Windows 7"
-	ss << "os.version="  << plugin::osVersion        << '\n'; // eg "6.1 build 7601 Service Pack 1"
-	ss << "pid="         << plugin::pid              << '\n'; // eg "12345"
-	ss << "native.library.date=" << plugin::agentNativeBuildDate << '\n'; // eg "Oct 10 2014 11:44:56"
-	ss << "jar.version=" << plugin::agentVersion     << '\n'; // eg "3.0.0.20141030"
-	ss << "number.of.processors=" << plugin::nprocs  << '\n'; // eg 8
-	ss << "command.line=" << plugin::commandLine     << '\n';
+void EnvPlugin::AppendSystemInfo(std::stringstream &ss) {
+	ss << "os.arch="     << EnvPlugin::getInstance()->arch             << '\n'; // eg "amd64"
+	ss << "os.name="     << EnvPlugin::getInstance()->osName           << '\n'; // eg "Windows 7"
+	ss << "os.version="  << EnvPlugin::getInstance()->osVersion        << '\n'; // eg "6.1 build 7601 Service Pack 1"
+	ss << "pid="         << EnvPlugin::getInstance()->pid              << '\n'; // eg "12345"
+	ss << "native.library.date=" << EnvPlugin::getInstance()->agentNativeBuildDate << '\n'; // eg "Oct 10 2014 11:44:56"
+	ss << "jar.version=" << EnvPlugin::getInstance()->agentVersion     << '\n'; // eg "3.0.0.20141030"
+	ss << "number.of.processors=" << EnvPlugin::getInstance()->nprocs  << '\n'; // eg 8
+	ss << "command.line=" << EnvPlugin::getInstance()->commandLine     << '\n';
 }
 
-monitordata* OnRequestData() {
+monitordata* EnvPlugin::OnRequestData() {
+	aCF.logMessage(ibmras::common::logging::debug, ">>>EnvPlugin::OnRequestData");
 	monitordata *data = new monitordata;
-	data->provID = plugin::provid;
+	data->provID = provID;
 	data->sourceID = 0;
 	
 	std::stringstream contentss;
@@ -124,11 +141,11 @@ monitordata* OnRequestData() {
 	data->size = static_cast<uint32>(content.length()); // should data->size be a size_t?
 	data->data = NewCString(content);
 	data->persistent = false;
-
+	aCF.logMessage(ibmras::common::logging::debug, "<<<EnvPlugin::OnRequestData");
 	return data;
 }
 
-void OnComplete(monitordata* data) {
+void EnvPlugin::OnComplete(monitordata* data) {
 	if (data != NULL) {
 		if (data->data != NULL) {
 			delete[] data->data;
@@ -137,7 +154,7 @@ void OnComplete(monitordata* data) {
 	}
 }
 
-pullsource* createPullSource(uint32 srcid, const char* name) {
+pullsource* EnvPlugin::createPullSource(uint32 srcid, const char* name) {
 	pullsource *src = new pullsource();
 	src->header.name = name;
 	std::string desc("Description for ");
@@ -146,50 +163,62 @@ pullsource* createPullSource(uint32 srcid, const char* name) {
 	src->header.sourceID = srcid;
 	src->next = NULL;
 	src->header.capacity = DEFAULT_BUCKET_CAPACITY;
-	src->callback = OnRequestData;
-	src->complete = OnComplete;
+	src->callback = pullWrapper;
+	src->complete = pullCompleteWrapper;
 	src->pullInterval = 20*60;
 	return src;
 }
 
+	/*****************************************************************************
+	 * CALLBACK WRAPPERS
+	 *****************************************************************************/
+
+	extern "C" monitordata* pullWrapper() {
+		return EnvPlugin::getInstance()->OnRequestData();
+	}
+
+	extern "C" void pullCompleteWrapper(monitordata* data) {
+		EnvPlugin::getInstance()->OnComplete(data);
+	}
+
+	/*****************************************************************************
+	 * FUNCTIONS EXPORTED BY THE LIBRARY
+	 *****************************************************************************/
+
 extern "C" {
-ENVPLUGIN_DECL pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
-	envplugin::aCF = aCF;
+	pullsource* ibmras_monitoring_registerPullSource(agentCoreFunctions aCF, uint32 provID) {
+		aCF.logMessage(ibmras::common::logging::fine, ">>>ibmras_monitoring_registerPullSource");
+		pullsource *source = EnvPlugin::createSource(aCF, provID);
+		EnvPlugin::getInstance()->agentVersion = std::string(aCF.getProperty("agent.version"));
+		EnvPlugin::getInstance()->agentNativeBuildDate = std::string(aCF.getProperty("agent.native.build.date"));
+		aCF.logMessage(ibmras::common::logging::fine, "<<<ibmras_monitoring_registerPullSource");
+		return source;
+	}
 
-	plugin::agentVersion = std::string(envplugin::aCF.getProperty("agent.version"));
-	plugin::agentNativeBuildDate = std::string(envplugin::aCF.getProperty("agent.native.build.date"));
+	int ibmras_monitoring_plugin_init(const char* properties) {
+		return 0;
+	}
 
-	envplugin::aCF.logMessage(debug, "[environment_os] Registering pull source");
-	pullsource *head = createPullSource(0, "environment_os");
-	plugin::provid = provID;
-	return head;
-}
+	int ibmras_monitoring_plugin_start() {
+		EnvPlugin::aCF.logMessage(ibmras::common::logging::fine, "[environment_os] Starting");
+		return EnvPlugin::getInstance()->start();
+	}
 
-ENVPLUGIN_DECL int ibmras_monitoring_plugin_init(const char* properties) {	
-	return 0;
-}
+	int ibmras_monitoring_plugin_stop() {
+		EnvPlugin::aCF.logMessage(ibmras::common::logging::fine, "[environment_os] Stopping");
+		return EnvPlugin::getInstance()->stop();
+	}
 
-ENVPLUGIN_DECL int ibmras_monitoring_plugin_start() {
-	envplugin::aCF.logMessage(fine, "[environment_os] Starting");
-	initStaticInfo(); // See below for platform-specific implementation, protected by ifdefs
-	return 0;
-}
-
-ENVPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
-	envplugin::aCF.logMessage(fine, "[environment_os] Stopping");
-	return 0;
-}
-
-ENVPLUGIN_DECL const char* ibmras_monitoring_getVersion() {
-	return "1.0";
-}
+	const char* ibmras_monitoring_getVersion() {
+	return PLUGIN_API_VERSION;
+	}
 }
 
 /* 
  * Linux
  */
 #if defined (_LINUX)
-static std::string GetCommandLine() {
+std::string EnvPlugin::GetCommandLine() {
 	std::stringstream filenamess;
 	filenamess << "/proc/" << getpid() << "/cmdline";
 	std::string filename = filenamess.str();
@@ -216,22 +245,22 @@ static std::string GetCommandLine() {
 	return cmdline;	
 }
 
-static void initStaticInfo() {
+void EnvPlugin::initStaticInfo() {
 	struct utsname sysinfo;
 	int rc = uname(&sysinfo);
 	if (rc >= 0) {
-		plugin::arch = std::string(sysinfo.machine);
-		plugin::osName = std::string(sysinfo.sysname);
-		plugin::osVersion = std::string(sysinfo.release) + std::string(sysinfo.version);
+		EnvPlugin::getInstance()->arch = std::string(sysinfo.machine);
+		EnvPlugin::getInstance()->osName = std::string(sysinfo.sysname);
+		EnvPlugin::getInstance()->osVersion = std::string(sysinfo.release) + std::string(sysinfo.version);
 	} else {
-		plugin::arch = "unknown"; // could fallback to compile-time information
-		plugin::osName = "Linux";
-		plugin::osVersion = "";
+		EnvPlugin::getInstance()->arch = "unknown"; // could fallback to compile-time information
+		EnvPlugin::getInstance()->osName = "Linux";
+		EnvPlugin::getInstance()->osVersion = "";
 	}
 
-	plugin::nprocs = itoa(get_nprocs());
-	plugin::pid = itoa(getpid());
-	plugin::commandLine = GetCommandLine();	
+	EnvPlugin::getInstance()->nprocs = itoa(get_nprocs());
+	EnvPlugin::getInstance()->pid = itoa(getpid());
+	EnvPlugin::getInstance()->commandLine = GetCommandLine();
 }
 
 #endif
@@ -241,7 +270,7 @@ static void initStaticInfo() {
  */
 #if defined (_AIX)
 
-static std::string GetCommandLine() {
+std::string EnvPlugin::GetCommandLine() {
 	struct procsinfo proc;
 	char procargs[512]; // Is this a decent length? Should we heap allocate and expand?
 	
@@ -253,7 +282,7 @@ static std::string GetCommandLine() {
 
 		std::stringstream envss;
 		envss << "Failed to get command line " << errno;
-		envplugin::aCF.logMessage(debug, envss.str().c_str());
+		aCF.logMessage(debug, envss.str().c_str());
 
 		return std::string();
 	}
@@ -268,7 +297,7 @@ static std::string GetCommandLine() {
 	return cmdliness.str();
 }
 
-static void initStaticInfo() {
+void EnvPlugin::initStaticInfo() {
 	struct utsname sysinfo;
 	int rc = uname(&sysinfo);
 	if (rc >= 0) {
@@ -278,23 +307,23 @@ static void initStaticInfo() {
 		std::string bits = (width == 32) ? "32" : 
 		                   (width == 64) ? "64" : 
 		                   "";
-		plugin::arch = (architecture == POWER_PC) ? "ppc" : "";
-		if (plugin::arch != "") {
-			plugin::arch += bits;
+		EnvPlugin::getInstance()->arch = (architecture == POWER_PC) ? "ppc" : "";
+		if (EnvPlugin::getInstance()->arch != "") {
+			EnvPlugin::getInstance()->arch += bits;
 		} else {
-			plugin::arch = std::string(sysinfo.machine);
+			EnvPlugin::getInstance()->arch = std::string(sysinfo.machine);
 		}
-		plugin::osName = std::string(sysinfo.sysname);
-		plugin::osVersion = std::string(sysinfo.release) + std::string(sysinfo.version);
+		EnvPlugin::getInstance()->osName = std::string(sysinfo.sysname);
+		EnvPlugin::getInstance()->osVersion = std::string(sysinfo.release) + std::string(sysinfo.version);
 	} else {
-		plugin::arch = "unknown"; // could fallback to compile-time information
-		plugin::osName = "AIX";
-		plugin::osVersion = "";
+		EnvPlugin::getInstance()->arch = "unknown"; // could fallback to compile-time information
+		EnvPlugin::getInstance()->osName = "AIX";
+		EnvPlugin::getInstance()->osVersion = "";
 	}
 	// might be _SC_NPROCESSORS_ONLN -https://www.ibm.com/developerworks/community/forums/html/topic?id=77777777-0000-0000-0000-000014250083
-	plugin::nprocs = itoa(sysconf(_SC_NPROCESSORS_CONF));
-	plugin::pid = itoa(getpid());
-	plugin::commandLine = GetCommandLine();	
+	EnvPlugin::getInstance()->nprocs = itoa(sysconf(_SC_NPROCESSORS_CONF));
+	EnvPlugin::getInstance()->pid = itoa(getpid());
+	EnvPlugin::getInstance()->commandLine = GetCommandLine();
 }
 
 #endif
@@ -303,7 +332,7 @@ static void initStaticInfo() {
  * Windows
  */
 #ifdef _WINDOWS
-static const std::string GetWindowsMajorVersion() {
+const std::string EnvPlugin::GetWindowsMajorVersion() {
 	OSVERSIONINFOEX versionInfo;
 	versionInfo.dwOSVersionInfoSize = sizeof(versionInfo);
 	
@@ -370,7 +399,7 @@ static const std::string GetWindowsMajorVersion() {
 	}
 }
 
-static const std::string GetWindowsBuild() {
+const std::string EnvPlugin::GetWindowsBuild() {
 	OSVERSIONINFOW versionInfo;
 	int len = sizeof("0123456789.0123456789 build 0123456789 ") + 1;
 	char *buffer;
@@ -406,23 +435,23 @@ static const std::string GetWindowsBuild() {
 	return version;
 }
 
-static void initStaticInfo() {
+void EnvPlugin::initStaticInfo() {
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	switch (sysinfo.wProcessorArchitecture) {
-	case PROCESSOR_ARCHITECTURE_AMD64: plugin::arch = "x86_64"; break;
-	case PROCESSOR_ARCHITECTURE_ARM: plugin::arch = "arm"; break;
-	case PROCESSOR_ARCHITECTURE_IA64: plugin::arch = "itanium"; break;
-	case PROCESSOR_ARCHITECTURE_INTEL: plugin::arch = "x86"; break;
+	case PROCESSOR_ARCHITECTURE_AMD64: EnvPlugin::getInstance()->arch = "x86_64"; break;
+	case PROCESSOR_ARCHITECTURE_ARM: EnvPlugin::getInstance()->arch = "arm"; break;
+	case PROCESSOR_ARCHITECTURE_IA64: EnvPlugin::getInstance()->arch = "itanium"; break;
+	case PROCESSOR_ARCHITECTURE_INTEL: EnvPlugin::getInstance()->arch = "x86"; break;
 	default: 
-		plugin::arch = "unknown"; // could fallback to compile-time information 
+		EnvPlugin::getInstance()->arch = "unknown"; // could fallback to compile-time information
 		break;
 	}
-	plugin::osName = GetWindowsMajorVersion();
-	plugin::osVersion = GetWindowsBuild();
-	plugin::nprocs = itoa(sysinfo.dwNumberOfProcessors);
-	plugin::pid = itoa(GetCurrentProcessId());
-	plugin::commandLine = std::string(GetCommandLine());	
+	EnvPlugin::getInstance()->osName = GetWindowsMajorVersion();
+	EnvPlugin::getInstance()->osVersion = GetWindowsBuild();
+	EnvPlugin::getInstance()->nprocs = itoa(sysinfo.dwNumberOfProcessors);
+	EnvPlugin::getInstance()->pid = itoa(GetCurrentProcessId());
+	EnvPlugin::getInstance()->commandLine = std::string(GetCommandLine());
 }
 #endif
 
@@ -432,3 +461,10 @@ std::string itoa(T t) {
 	s << t;
 	return s.str();
 }
+
+}//environment
+}//common
+}//plugins
+}//monitoring
+}//ibmras
+

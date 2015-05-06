@@ -33,6 +33,8 @@ module.exports.emit = function (topic, data) {
 
 // Export monitor() API for consuming data in-process
 module.exports.monitor = function() {
-	api = hcAPI.getAPI(agent);
-	return api;
-}
+	if (typeof(this.api) == 'undefined') {
+		this.api = hcAPI.getAPI(agent);
+	}
+	return this.api;
+};
