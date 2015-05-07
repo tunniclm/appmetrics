@@ -282,7 +282,7 @@ std::string EnvPlugin::GetCommandLine() {
 
 		std::stringstream envss;
 		envss << "Failed to get command line " << errno;
-		aCF.logMessage(debug, envss.str().c_str());
+		aCF.logMessage(ibmras::common::logging::debug, envss.str().c_str());
 
 		return std::string();
 	}

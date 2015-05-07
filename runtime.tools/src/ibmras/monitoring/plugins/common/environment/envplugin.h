@@ -41,15 +41,6 @@ private:
 	uint32 provID;
 	static EnvPlugin* instance;
 
-	std::string arch; 
-	std::string osName;
-	std::string osVersion;
-	std::string nprocs;
-	std::string pid;
-	std::string commandLine;
-	std::string agentVersion;
-	std::string agentNativeBuildDate;
-
 	EnvPlugin(uint32 provID);
 	static char* NewCString(const std::string& s);
     void AppendEnvVars(std::stringstream &ss);
