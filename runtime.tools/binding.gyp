@@ -178,7 +178,6 @@
       "type": "shared_library",
       "sources": [
         "<(srcdir)/monitoring/plugins/common/cpu/cpuplugin.cpp",
-        "<(srcdir)/monitoring/plugins/common/cpu/cputime.cpp",
       ],
       "conditions": [
         ['OS=="win"', {
@@ -193,7 +192,7 @@
       "target_name": "memoryplugin",
       "type": "shared_library",
       "sources": [
-        "<(srcdir)/monitoring/plugins/common/memory/memoryplugin.cpp",
+        "<(srcdir)/monitoring/plugins/common/memory/MemoryPlugin.cpp",
       ],
       "conditions": [
         ['OS=="win"', {
