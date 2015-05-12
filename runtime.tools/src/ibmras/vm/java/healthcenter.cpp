@@ -479,16 +479,27 @@ void getHCProperties(const std::string &options) {
 	agent->setProperties(theProps);
 }
 
-void addPlugins(){
-	agent = ibmras::monitoring::agent::Agent::getInstance();
+void addMQTTPlugin() {
 
-	std::string agentLibPath =
+    agent = ibmras::monitoring::agent::Agent::getInstance();
+
+    std::string agentLibPath =
 			ibmras::common::util::LibraryUtils::getLibraryDir(
 					"healthcenter.dll", (void*) launchAgent);
 	if (agentLibPath.length() == 0) {
 		agentLibPath = agent->getProperty("com.ibm.system.agent.path");
 	}
 	agent->addPlugin(agentLibPath, "hcmqtt");
+}
+
+void addPlugins(){
+	agent = ibmras::monitoring::agent::Agent::getInstance();
+// AIX can't load the MQTT plugin here, as it needs the Java system properties
+// from an initialised VM, so needs to wait until cbVMInit has been called.
+#if defined(_AIX)
+#else
+	addMQTTPlugin();
+#endif
 
 	if (tDPP.pti == NULL) {
 		IBMRAS_DEBUG(debug, "tDPP.pti is null");
@@ -553,6 +564,11 @@ int launchAgent(const std::string &options) {
 
 	getHCProperties(options);
 	agent->setLogLevels();
+
+// now we have the system properties, AIX can load the MQTT plugin.
+#if defined(_AIX)
+    addMQTTPlugin();
+#endif
 
 	std::string agentVersion = agent->getVersion();
 	IBMRAS_LOG_1(fine, "Health Center Agent %s", agentVersion.c_str());

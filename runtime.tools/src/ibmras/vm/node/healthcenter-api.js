@@ -22,18 +22,18 @@ function API(agent) {
     var that = this;
 
     var raiseEvent = function (topic, message) {
-        if (topic === 'cpu_os' || topic === 'cpu') {
+        if (topic === 'common_cpu' || topic === 'cpu') {
                 formatCPU(message);
-        } else if (topic === 'environment_os') {
+        } else if (topic === 'common_env') {
                 formatOSEnv(message);
         } else if (topic === 'environment_node') {
                 formatRuntimeEnv(message);
-        } else if (topic === 'memory_os' || topic === 'memory') {
+        } else if (topic === 'common_memory' || topic === 'memory') {
                 formatMemory(message);
         } else if (topic === 'gc_node') {
                 formatGC(message);
         } else if (topic === 'profiling_node') {
-		formatProfiling(message);
+        		formatProfiling(message);
         } else if (topic === 'api') {
                 formatApi(message);
         } else {
