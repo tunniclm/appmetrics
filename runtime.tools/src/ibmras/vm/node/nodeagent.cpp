@@ -399,10 +399,98 @@ NAN_METHOD(localConnect) {
     NanReturnUndefined();
 }
 
+// Unfortunately native modules don't get a reference
+// to require.cache as this happens in Module._compile()
+// and native modules aren't compiled, they are loaded
+// directly by NativeModule.require() (in Module._load())
+// So we need to get it from Module._cache instead (by
+// executing require('module')._cache)
+static Local<Object> GetRequireCache(Local<Object> module) {
+	NanEscapableScope();
+	Handle<Value> args[] = { NanNew<String>("module") };
+	Local<Value> m = module->Get(NanNew<String>("require"))->ToObject()->CallAsFunction(NanNull(), 1, args);
+	Local<Object> cache = m->ToObject()->Get(NanNew<String>("_cache"))->ToObject();
+	return NanEscapeScope(cache);
+}
+
+// Check whether the filepath given looks like it's a file in the
+// healthcenter npm module directory. Here we are checking it ends
+// with healthcenter/somefile, but perhaps node_modules/healthcenter/somefile
+// would be more accurate?
+static bool IsHealthCenterFile(std::string expected, std::string potentialMatch) {
+	std::string endsWithPosix = "healthcenter/" + expected;
+	std::string endsWithWindows = "healthcenter\\" + expected;
+
+	int startAt = potentialMatch.length() - endsWithPosix.length();
+	if (startAt >= 0 && potentialMatch.compare(startAt, endsWithPosix.length(), endsWithPosix) == 0) {
+		return true;
+	}
+
+	startAt = potentialMatch.length() - endsWithWindows.length();
+	if (startAt >= 0 && potentialMatch.compare(startAt, endsWithWindows.length(), endsWithWindows) == 0) {
+		return true;
+	}
+	
+	return false;
+}
+
+// Check if this healthcenter agent native module is loaded via the node-hc command.
+// This is actually checking if this module has healthcenter/launcher.js as it's grandparent.
+// For reference:
+// A locally loaded module would have ancestry like:
+//   ...
+//   ^-- some_module_that_does_require('healthcenter') (grandparent)
+//       ^--- .../node_modules/healthcenter/index.js (parent)
+//            ^-- .../node_modules/healthcenter/healthcenter.node (this)
+//
+// A globally loaded module would have ancestry like:
+//   .../node_modules/healthcenter/launcher.js (grandparent)
+//   ^--- .../node_modules/healthcenter/index.js (parent)
+//        ^-- .../node_modules/healthcenter/healthcenter.node (this)
+//
+static bool IsGlobalAgent(Local<Object> module) {
+	NanScope();
+	Local<Value> parent = module->Get(NanNew<String>("parent"));
+	if (parent->IsObject()) {
+		Local<Value> filename = parent->ToObject()->Get(NanNew<String>("filename"));
+		if (filename->IsString() && IsHealthCenterFile("index.js", ToStdString(filename->ToString()))) {
+			Local<Value> grandparent = parent->ToObject()->Get(NanNew<String>("parent"));
+			Local<Value> gpfilename = grandparent->ToObject()->Get(NanNew<String>("filename"));
+			if (gpfilename->IsString() && IsHealthCenterFile("launcher.js", ToStdString(gpfilename->ToString()))) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+// Check if a global healthcenter agent module is already loaded.
+// This is actually searching the module cache for a module with filepath 
+// ending .../healthcenter/launcher.js
+static bool IsGlobalAgentAlreadyLoaded(Local<Object> module) {
+	NanScope();
+	Local<Object> cache = GetRequireCache(module);
+	Local<Array> props = cache->GetOwnPropertyNames();
+	if (props->Length() > 0) {
+		for (int i=0; i<props->Length(); i++) {
+			Local<Value> entry = props->Get(i);
+			if (entry->IsString() && IsHealthCenterFile("launcher.js", ToStdString(entry->ToString()))) {
+				return true;
+			}
+		}
+	}
+	
+	return false;	
+}
 
 void Init(Handle<Object> exports, Handle<Object> module) {
 //	monitoring::NodePlugin<pullsource>::Init(exports);
 //	monitoring::NodePlugin<pushsource>::Init(exports);
+
+	if (!IsGlobalAgent(module) && IsGlobalAgentAlreadyLoaded(module)) {
+		NanThrowError("Conflicting healthcenter module was already loaded by node-hc. Try running with node instead.");
+		return;
+	}
 
 	exports->Set(NanNew<String>("start"), NanNew<FunctionTemplate>(Start)->GetFunction());
 	exports->Set(NanNew<String>("spath"), NanNew<FunctionTemplate>(spath)->GetFunction());

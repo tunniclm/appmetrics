@@ -126,12 +126,17 @@ static const char* io[] =
 				"j9scar.140", "" };
 static const char* DUMP_POINTS[] = { "j9dmp.4", "j9dmp.7", "j9dmp.9",
 		"j9dmp.10", "" };
+static const char* network[] = { "IO.0", "IO.1", "IO.2", "IO.3", "IO.4", "IO.5",
+		"IO.6", "IO.7", "IO.16", "IO.17", "IO.18", "IO.19", "IO.20", "IO.22",
+		"IO.23", "IO.33", "IO.34", "IO.47", "IO.48", "IO.49", "IO.109", "IO.110",
+		"IO.111", "IO.112", "IO.113", "IO.119", "IO.120", "" };
 
 std::string getConfigString() {
 	std::stringstream str;
 	for (std::map<std::string, std::string>::iterator propsiter =
 			config.begin(); propsiter != config.end(); ++propsiter) {
 		str << propsiter->first << "=" << propsiter->second << '\n';
+		IBMRAS_DEBUG_2(fine, "config: %s=%s", propsiter->first.c_str(), propsiter->second.c_str());
 	}
 	return str.str();
 }
@@ -306,6 +311,16 @@ bool JavaTracePointsAvailableInVM() {
 	return true;
 }
 
+bool NetworkTracePointsAvailableInVM() {
+	/*
+	 * network tracepoints aren't available before Java 8
+	 */
+	if (Util::getJavaLevel() < 8) {
+		return false;
+	}
+	return true;
+}
+
 bool isOkConsideringRealtime(int tp) {
 	bool answer = false;
 	if (Util::isRealTimeVM()) {
@@ -369,6 +384,19 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 	bool javaTracePointsOK = !isJavaTracePoint
 			|| JavaTracePointsAvailableInVM();
 
+	bool isNetworkTracePoint = ((component == "IO")
+				&& (number == "0" || number == "1" || number == "2"
+						|| number == "3" || number == "4" || number == "5"
+						|| number == "6" || number == "7" || number == "16"
+						|| number == "17" || number == "18" || number == "19"
+						|| number == "20" || number == "22" || number == "23"
+						|| number == "33" || number == "34" || number == "47"
+						|| number == "48" || number == "49" || number == "109"
+						|| number == "110" || number == "111" || number == "112"
+						|| number == "113" || number == "119" || number == "120"));
+
+	bool networkOK = !isNetworkTracePoint || NetworkTracePointsAvailableInVM();
+
 	bool gcOK = true;
 	bool realtimeOK = true;
 
@@ -397,7 +425,7 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 
 	bool tracePointExists = realtimeOK && profilingOK && loaOK
 			&& !methodDictionaryAvailable && gcOK && isDumpTracePointOK
-			&& javaTracePointsOK && jitOK && isj9ShrOK;
+			&& javaTracePointsOK && jitOK && isj9ShrOK && networkOK;
 
 	return tracePointExists;
 }
@@ -525,6 +553,7 @@ int Tracestart() {
 
 	/* now enable HC specific trace */
 	initializeSubsystem("io");
+	initializeSubsystem("network");
 	initializeSubsystem("gc");
 	initializeSubsystem("profiling");
 	initializeSubsystem("jit");
@@ -631,6 +660,8 @@ void controlSubsystem(const std::string &command,
 		controlSubsystem(command, jit);
 	} else if (subsystem == "io") {
 		controlSubsystem(command, io);
+	} else if (subsystem == "network") {
+		controlSubsystem(command, network);
 	} else {
 		return;
 	}
@@ -1042,8 +1073,8 @@ void publishConfig() {
 	ibmras::monitoring::connector::ConnectorManager *conMan =
 			agent->getConnectionManager();
 
+	IBMRAS_DEBUG(fine, "publishing config");
 	std::string msg = getConfigString();
-	IBMRAS_DEBUG_1(fine, "publishing config: %s", msg.c_str());
 
 	conMan->sendMessage("configuration/trace", msg.length(),
 			(void*) msg.c_str());
@@ -1109,6 +1140,7 @@ int registerVerboseGCSubscriber(std::string fileName) {
 		if (err != JVMTI_ERROR_NONE) {
 			IBMRAS_LOG_1(warning, "verboseGCsubscribe failed: %i", err);
 			fclose(vgcFile);
+			vgcFile = NULL;
 			IBMRAS_DEBUG(debug, "< registerVerboseGCSubscriber");
 			return -1;
 		} else {
@@ -1150,34 +1182,18 @@ int deregisterVerboseGCSubscriber() {
 
 std::string getWriteableDirectory() {
 
-	JavaVMAttachArgs threadArgs;
 	std::string dir = "";
 
-	memset(&threadArgs, 0, sizeof(threadArgs));
-#if defined(_ZOS)
-#pragma convert("ISO8859-1")
-#endif
-	threadArgs.version = JNI_VERSION_1_4;
-	threadArgs.name = (char *) "Health Center (vgc)";
-	threadArgs.group = NULL;
-#if defined(_ZOS)
-#pragma convert(pop)
-#endif
+	JNIEnv* env = NULL;
 
-	JNIEnv* env;
+	jint rc = vmData.theVM->GetEnv((void **) &env, JNI_VERSION_1_4);
+	if (rc < 0 || NULL == env) {
+		IBMRAS_DEBUG(warning, "getEnv failed");
+		return dir;
+	}
 
 	std::vector<std::string> directories;
-
-	IBMRAS_DEBUG(debug, "Attaching to thread");
-	jint result =
-			vmData.theVM ?
-					vmData.theVM->AttachCurrentThread((void**) &env,
-							(void*) &threadArgs) :
-					-1;
-	if (JNI_OK != result) {
-		IBMRAS_DEBUG(warning, "Cannot set environment");IBMRAS_DEBUG(debug, "<< Trace [NOATTACH]");
-		return dir;
-	}IBMRAS_DEBUG(info, "Environment set");
+IBMRAS_DEBUG(info, "Environment set");
 
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
@@ -1208,7 +1224,6 @@ std::string getWriteableDirectory() {
 
 	env->DeleteLocalRef(dirJava);
 
-	vmData.theVM->DetachCurrentThread();
 	return dir;
 }
 
@@ -1228,7 +1243,7 @@ std::string getString(JNIEnv* env, const std::string& cname,
 	jmethodID method = env->GetStaticMethodID(clazz, mname.c_str(),
 			signature.c_str());
 	if (!method) {
-		IBMRAS_DEBUG(warning, "Failed to get %s method ID");
+		IBMRAS_DEBUG_1(warning, "Failed to get %s method ID", mname.c_str());
 		return "";
 	}
 

@@ -376,41 +376,47 @@ int HLConnector::stop() {
 		collect=false;
 	}
 
-	if (collect) {
-		IBMRAS_DEBUG(debug, "Packing files at stop");
-		lockAndPackFiles();
-	} else {
-		IBMRAS_DEBUG(debug, "collect is false");
-	}
+	// Take lock before packing then clearing the files
+	if (!lock->acquire()) {
+		if (!lock->isDestroyed()) {
 
-	for (std::map<std::string, std::fstream*>::iterator it =
-			createdFiles.begin(); it != createdFiles.end(); ++it) {
+			if (collect) {
+				IBMRAS_DEBUG(debug, "Packing files at stop");
+				packFiles();
+			} else {
+				IBMRAS_DEBUG(debug, "collect is false");
+			}
 
-		std::string fileName = it->first;
-		std::fstream* currentSource = it->second;
+			for (std::map<std::string, std::fstream*>::iterator it =
+					createdFiles.begin(); it != createdFiles.end(); ++it) {
 
-		if (currentSource->is_open()) {
-			currentSource->close();
-		}
+				std::string fileName = it->first;
+				std::fstream* currentSource = it->second;
 
-		if (remove(fileName.c_str())) {
-			delete currentSource;
-		}
+				if (currentSource->is_open()) {
+					currentSource->close();
+				}
 
-	}
+				if (remove(fileName.c_str())) {
+					delete currentSource;
+				}
+
+			}
 #if defined(WINDOWS)
-	if(_rmdir(tmpPath.c_str())) {
-	}
+			if(_rmdir(tmpPath.c_str())) {
+			}
 #else
-	if (remove(tmpPath.c_str())) {
-		IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
-	}
+			if (remove(tmpPath.c_str())) {
+				IBMRAS_DEBUG_1(debug, "Deletion failed: %s\n", strerror(errno));
+			}
 #endif
 
-	IBMRAS_DEBUG(debug, "<<<HLConnector::stop()");
-	// clean createdFiles
-	createdFiles.clear();
-
+			IBMRAS_DEBUG(debug, "<<<HLConnector::stop()");
+			// clean createdFiles
+			createdFiles.clear();
+		}
+		lock->release();
+	}
 
 	return 0;
 }
@@ -418,7 +424,7 @@ int HLConnector::stop() {
 int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 		void* data) {
 
-	if (!collect || !enabled) {
+	if (!running || !collect || !enabled) {
 		IBMRAS_DEBUG(debug, "<<<HLConnector::sendMessage()[NOT COLLECTING DATA]");
 		return 0;
 	}IBMRAS_DEBUG_1(debug, ">>>HLConnector::sendMessage() %s", sourceId.c_str());
@@ -430,13 +436,20 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 		return -1;
 	}
 
-	std::string currentKey = it->second;
-	std::fstream* currentSource = createdFiles[currentKey];
-
-	const char* cdata = reinterpret_cast<const char*>(data);
-
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
+
+			// Ensure we are still running after acquiring the lock
+			if (!running || !collect || !enabled ) {
+				lock->release();
+				return 0;
+			}
+
+			std::string currentKey = it->second;
+			std::fstream* currentSource = createdFiles[currentKey];
+
+			const char* cdata = reinterpret_cast<const char*>(data);
+
 			if (!filesInitialized) {
 				// Send initialize notification to providers
 				ibmras::monitoring::agent::Agent* agent =
@@ -474,7 +487,7 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 
 						IBMRAS_DEBUG_2(debug, "getting persistent data for %s id %d", sourceId.c_str(), id);
 						id = bucket->getNextPersistentData(id,
-								persistentDataSize, (void**)&persistentData);
+								persistentDataSize, (void**) &persistentData);
 						if (persistentData != NULL && size > 0) {
 							currentSource->write(persistentData,
 									persistentDataSize);
@@ -499,7 +512,9 @@ int HLConnector::sendMessage(const std::string &sourceId, uint32 size,
 void HLConnector::lockAndPackFiles() {
 	if (!lock->acquire()) {
 		if (!lock->isDestroyed()) {
-			packFiles();
+			if (running) {
+				packFiles();
+			}
 		}
 		lock->release();
 	}

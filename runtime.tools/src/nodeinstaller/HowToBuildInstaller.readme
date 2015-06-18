@@ -1,0 +1,5 @@
+To build the healthcenter-installer.tgz file, you need to compress the package directory structure into a tgz file.
+You can do this on windows using 7zip in a 2 stage process 
+
+http://www.ehow.com/how_6104990_create-_tgz-file-windows.html
+
