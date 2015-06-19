@@ -53,8 +53,7 @@ const char* tdppversion = "1.0";
 
 uint32 provID;
 PUSH_CALLBACK sendDataToAgent;
-IBMRAS_DEFINE_LOGGER("TraceDataProvider")
-;
+IBMRAS_DEFINE_LOGGER("TraceDataProvider");
 jvmFunctions vmData;
 char *traceMetadata = NULL;
 int headerSize = 0;
@@ -128,15 +127,15 @@ static const char* DUMP_POINTS[] = { "j9dmp.4", "j9dmp.7", "j9dmp.9",
 		"j9dmp.10", "" };
 static const char* network[] = { "IO.0", "IO.1", "IO.2", "IO.3", "IO.4", "IO.5",
 		"IO.6", "IO.7", "IO.16", "IO.17", "IO.18", "IO.19", "IO.20", "IO.22",
-		"IO.23", "IO.33", "IO.34", "IO.47", "IO.48", "IO.49", "IO.109", "IO.110",
-		"IO.111", "IO.112", "IO.113", "IO.119", "IO.120", "" };
+		"IO.23", "IO.33", "IO.34", "IO.47", "IO.48", "IO.49", "IO.109",
+		"IO.110", "IO.111", "IO.112", "IO.113", "IO.119", "IO.120", "" };
 
 std::string getConfigString() {
 	std::stringstream str;
 	for (std::map<std::string, std::string>::iterator propsiter =
 			config.begin(); propsiter != config.end(); ++propsiter) {
 		str << propsiter->first << "=" << propsiter->second << '\n';
-		IBMRAS_DEBUG_2(fine, "config: %s=%s", propsiter->first.c_str(), propsiter->second.c_str());
+		IBMRAS_DEBUG_2(finest, "config: %s=%s", propsiter->first.c_str(), propsiter->second.c_str());
 	}
 	return str.str();
 }
@@ -171,8 +170,7 @@ uint32 getBucketCapacity() {
  * that this happens as it may not scale.  but we just use the callback as given anyway
  */
 
-pushsource* registerPushSource(agentCoreFunctions aCF,
-		uint32 provID) {
+pushsource* registerPushSource(agentCoreFunctions aCF, uint32 provID) {
 	pushsource *src = new pushsource();
 	src->header.name = "trace";
 	src->header.description = "Data provided by jvmti trace engine";
@@ -260,7 +258,8 @@ bool profilingTracepointAvailableInThisVM(const std::string &tpNumber) {
 	/*
 	 * T81694 - the following profiling tracepoints are only available in Java 8 (and presumably upwards)
 	 */
-	if (Util::getJavaLevel() < 8 && (tpNumber == "39" || tpNumber == "40" || tpNumber == "41")) {
+	if (Util::getJavaLevel() < 8
+			&& (tpNumber == "39" || tpNumber == "40" || tpNumber == "41")) {
 		return false;
 	}
 	// TODO should it check for SR6? Or maybe for Java 6 return codes work?
@@ -321,6 +320,22 @@ bool NetworkTracePointsAvailableInVM() {
 	return true;
 }
 
+/*
+ * only want to turn on read write tracepoint if the property is set
+ */
+bool NetworkReadWriteEnabledTracePoint(std::string number) {
+	ibmras::monitoring::agent::Agent* agent =
+			ibmras::monitoring::agent::Agent::getInstance();
+	std::string socketrw = agent->getAgentProperty("socket.readwrite");
+	if (number == "120" || number == "119" || number == "34"
+			|| number == "23") {
+		if (!ibmras::common::util::equalsIgnoreCase(socketrw, "on")) {
+			return false;
+		}
+	}
+	return true;
+}
+
 bool isOkConsideringRealtime(int tp) {
 	bool answer = false;
 	if (Util::isRealTimeVM()) {
@@ -348,7 +363,7 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 	std::string component = tracePoint[0];
 	std::string number = tracePoint[1];
 
-	// Do some extra checks
+// Do some extra checks
 
 	bool isJITTracePoint = ((component == "j9jit")
 			&& (number == "1" || number == "20" || number == "21"
@@ -362,9 +377,9 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 	bool isj9ShrOK = !isj9ShrTracePoint || j9ShrTracePointAvailableInThisVM();
 
 	bool isProfilingTracePoint = ((component == "j9jit")
-			&& (number == "15" || number == "16" || number == "17" ||
-				number == "18" || number == "39" || number == "40" ||
-				number == "41"));
+			&& (number == "15" || number == "16" || number == "17"
+					|| number == "18" || number == "39" || number == "40"
+					|| number == "41"));
 
 	bool isLOATracePoint = (tp == "j9mm.231" || tp == "j9mm.234");
 
@@ -385,17 +400,19 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 			|| JavaTracePointsAvailableInVM();
 
 	bool isNetworkTracePoint = ((component == "IO")
-				&& (number == "0" || number == "1" || number == "2"
-						|| number == "3" || number == "4" || number == "5"
-						|| number == "6" || number == "7" || number == "16"
-						|| number == "17" || number == "18" || number == "19"
-						|| number == "20" || number == "22" || number == "23"
-						|| number == "33" || number == "34" || number == "47"
-						|| number == "48" || number == "49" || number == "109"
-						|| number == "110" || number == "111" || number == "112"
-						|| number == "113" || number == "119" || number == "120"));
+			&& (number == "0" || number == "1" || number == "2" || number == "3"
+					|| number == "4" || number == "5" || number == "6"
+					|| number == "7" || number == "16" || number == "17"
+					|| number == "18" || number == "19" || number == "20"
+					|| number == "22" || number == "23" || number == "33"
+					|| number == "34" || number == "47" || number == "48"
+					|| number == "49" || number == "109" || number == "110"
+					|| number == "111" || number == "112" || number == "113"
+					|| number == "119" || number == "120"));
 
-	bool networkOK = !isNetworkTracePoint || NetworkTracePointsAvailableInVM();
+	bool networkOK = !isNetworkTracePoint
+			|| (NetworkTracePointsAvailableInVM()
+					&& NetworkReadWriteEnabledTracePoint(number));
 
 	bool gcOK = true;
 	bool realtimeOK = true;
@@ -409,7 +426,7 @@ bool tracePointExistsInThisVM(const std::string &tp) {
 		gcOK = gcTracepointAvailableInThisVM(tpNumber);
 	}
 
-	// Also don't turn on j9vm.333 if the method dictionary is available
+// Also don't turn on j9vm.333 if the method dictionary is available
 	bool methodDictionaryAvailable = false;
 	if (tp == "j9vm.333") {
 		ibmras::monitoring::agent::Agent* agent =
@@ -466,8 +483,7 @@ void setNoDynamicProperties() {
 	}
 }
 
-void controlSubsystem(const std::string &command,
-		const std::string& subsystem);
+void controlSubsystem(const std::string &command, const std::string& subsystem);
 
 void initializeSubsystem(const std::string &subsystem) {
 	ibmras::monitoring::agent::Agent* agent =
@@ -519,7 +535,7 @@ int Tracestart() {
 	jlong traceHeaderLength = (jlong) tempHeaderSize;
 	traceHeaderLength = htonjl(traceHeaderLength);
 
-	// the size of the trace buffer is at position 17 in the array
+// the size of the trace buffer is at position 17 in the array
 	bufferSize = *((int*) &tempMeta[16]);
 
 	headerSize = sizeof(METADATA_EYE_CATCHER) + sizeof(traceHeaderLength)
@@ -561,7 +577,7 @@ int Tracestart() {
 
 	enableTracePoints(DUMP_POINTS);
 
-	// Publish the initial configuration
+// Publish the initial configuration
 	publishConfig();
 	IBMRAS_DEBUG(debug, "Tracestart exit");
 	return 0;
@@ -666,7 +682,7 @@ void controlSubsystem(const std::string &command,
 		return;
 	}
 
-	//update the config info
+//update the config info
 	config[subsystem + SUBSYSTEM] = command;
 
 	ibmras::monitoring::agent::Agent* agent =
@@ -700,6 +716,8 @@ int setDumpOption(const std::string &dummpCommand) {
 
 	int rc = vmData.jvmtiSetVmDump(vmData.pti, cmd);
 
+	IBMRAS_DEBUG_2(debug, "jvmtiSetVmDump %s rc=%d",cmd, rc);
+
 #if defined(_ZOS)
 	ibmras::common::memory::deallocate((unsigned char**)&cmd);
 #endif
@@ -709,6 +727,9 @@ int setDumpOption(const std::string &dummpCommand) {
 
 int setAllocationThresholds(const std::string &thresholds, bool force) {
 	std::string currentThresholds = getAllocationThresholds();
+	IBMRAS_DEBUG_1(debug, "Current thresholds: %s", currentThresholds.c_str());
+	IBMRAS_DEBUG_1(debug, "new thresholds: %s", thresholds.c_str());
+
 	if (!force && currentThresholds.length() > 0
 			&& currentThresholds == thresholds) {
 		return 0;
@@ -825,22 +846,31 @@ void handleSetCommand(const std::vector<std::string> &parameters) {
 	std::string lowAllocationThreshold;
 	std::string highAllocationThreshold;
 
+	bool setThresholds = false;
+
 	for (std::vector<std::string>::const_iterator it = parameters.begin();
 			it != parameters.end(); ++it) {
 		IBMRAS_DEBUG_1(debug, "processing: set %s", (*it).c_str());
 		const std::vector<std::string> items = ibmras::common::util::split(*it,
 				'=');
 		if (items.size() != 2) {
+			if (items.size() == 1 && ibmras::common::util::equalsIgnoreCase(items[0],
+				LOW_ALLOCATION_THRESHOLD)) {
+
+				setThresholds = true;
+			}
 			continue;
 		}
 
 		IBMRAS_DEBUG_2(debug, "processing: set %s=%s", items[0].c_str(), items[1].c_str());
+
 
 		if (ibmras::common::util::equalsIgnoreCase(items[0], STACKTRACEDEPTH)) {
 			setStackDepth(items[1]);
 
 		} else if (ibmras::common::util::equalsIgnoreCase(items[0],
 				LOW_ALLOCATION_THRESHOLD)) {
+			setThresholds = true;
 			lowAllocationThreshold = items[1];
 
 		} else if (ibmras::common::util::equalsIgnoreCase(items[0],
@@ -867,7 +897,7 @@ void handleSetCommand(const std::vector<std::string> &parameters) {
 		}
 	}
 
-	if (lowAllocationThreshold.length() > 0) {
+	if (setThresholds) {
 		setAllocationThresholds(lowAllocationThreshold,
 				highAllocationThreshold);
 	}
@@ -1193,7 +1223,7 @@ std::string getWriteableDirectory() {
 	}
 
 	std::vector<std::string> directories;
-IBMRAS_DEBUG(info, "Environment set");
+	IBMRAS_DEBUG(info, "Environment set");
 
 	ibmras::monitoring::agent::Agent* agent =
 			ibmras::monitoring::agent::Agent::getInstance();
@@ -1205,7 +1235,6 @@ IBMRAS_DEBUG(info, "Environment set");
 #else
 	const char* uDir = userDir.c_str();
 #endif
-
 
 #if defined(_ZOS)
 #pragma convert("ISO8859-1")
@@ -1257,13 +1286,13 @@ std::string getString(JNIEnv* env, const std::string& cname,
 	if (jobj) {
 		const char* value = env->GetStringUTFChars(jobj, NULL);
 #if defined(_ZOS)
-	char* nativeStr = ibmras::common::util::createNativeString(value);
+		char* nativeStr = ibmras::common::util::createNativeString(value);
 #else
-	const char* nativeStr = value;
+		const char* nativeStr = value;
 #endif
 		std::string sval(nativeStr);
 #if defined(_ZOS)
-	ibmras::common::memory::deallocate((unsigned char**)&nativeStr);
+		ibmras::common::memory::deallocate((unsigned char**)&nativeStr);
 #endif
 		env->ReleaseStringUTFChars(jobj, value);
 		env->DeleteLocalRef(jobj);

@@ -1,6 +1,6 @@
 {
   "name": "healthcenter",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "IBM Monitoring and Diagnostic Tools - Health Center agent",  
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
