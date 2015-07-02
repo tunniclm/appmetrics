@@ -405,10 +405,10 @@ NAN_METHOD(localConnect) {
 // directly by NativeModule.require() (in Module._load())
 // So we need to get it from Module._cache instead (by
 // executing require('module')._cache)
-static Local<Object> GetRequireCache(Local<Object> module) {
+static Local<Object> GetRequireCache(Handle<Object> module) {
 	NanEscapableScope();
 	Handle<Value> args[] = { NanNew<String>("module") };
-	Local<Value> m = module->Get(NanNew<String>("require"))->ToObject()->CallAsFunction(NanNull(), 1, args);
+	Local<Value> m = module->Get(NanNew<String>("require"))->ToObject()->CallAsFunction(NanGetCurrentContext()->Global(), 1, args);
 	Local<Object> cache = m->ToObject()->Get(NanNew<String>("_cache"))->ToObject();
 	return NanEscapeScope(cache);
 }
@@ -448,7 +448,7 @@ static bool IsHealthCenterFile(std::string expected, std::string potentialMatch)
 //   ^--- .../node_modules/healthcenter/index.js (parent)
 //        ^-- .../node_modules/healthcenter/healthcenter.node (this)
 //
-static bool IsGlobalAgent(Local<Object> module) {
+static bool IsGlobalAgent(Handle<Object> module) {
 	NanScope();
 	Local<Value> parent = module->Get(NanNew<String>("parent"));
 	if (parent->IsObject()) {
@@ -467,12 +467,12 @@ static bool IsGlobalAgent(Local<Object> module) {
 // Check if a global healthcenter agent module is already loaded.
 // This is actually searching the module cache for a module with filepath 
 // ending .../healthcenter/launcher.js
-static bool IsGlobalAgentAlreadyLoaded(Local<Object> module) {
+static bool IsGlobalAgentAlreadyLoaded(Handle<Object> module) {
 	NanScope();
 	Local<Object> cache = GetRequireCache(module);
 	Local<Array> props = cache->GetOwnPropertyNames();
 	if (props->Length() > 0) {
-		for (int i=0; i<props->Length(); i++) {
+		for (uint32_t i=0; i<props->Length(); i++) {
 			Local<Value> entry = props->Get(i);
 			if (entry->IsString() && IsHealthCenterFile("launcher.js", ToStdString(entry->ToString()))) {
 				return true;
