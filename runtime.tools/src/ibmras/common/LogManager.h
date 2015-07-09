@@ -15,6 +15,7 @@
 #include <iostream>
 #include <string>
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/common/Logger.h"
 #include "ibmras/common/port/Lock.h"
 

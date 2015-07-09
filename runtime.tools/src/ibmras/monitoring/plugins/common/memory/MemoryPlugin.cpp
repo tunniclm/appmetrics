@@ -6,6 +6,7 @@
  */
 
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/plugins/common/memory/MemoryPlugin.h"
 #include <cstring>
 #include <string>

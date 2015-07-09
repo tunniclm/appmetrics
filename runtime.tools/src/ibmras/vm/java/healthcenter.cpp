@@ -19,6 +19,7 @@
 #include "ibmras/common/logging.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/plugins/j9/methods/MethodLookupProvider.h"
 #include "ibmras/monitoring/plugins/j9/DumpHandler.h"

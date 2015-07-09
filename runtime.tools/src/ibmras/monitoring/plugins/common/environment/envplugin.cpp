@@ -14,7 +14,7 @@
 
 #include "ibmras/monitoring/plugins/common/environment/envplugin.h"
 #include "ibmras/monitoring/AgentExtensions.h"
-#include "ibmras/common/types.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include <iostream>
 #include <cstring>
 #include <string>

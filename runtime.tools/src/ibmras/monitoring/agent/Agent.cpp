@@ -23,6 +23,7 @@
 #include "ibmras/common/PropertiesFile.h"
 #include "ibmras/common/LogManager.h"
 #include "ibmras/monitoring/agent/SystemReceiver.h"
+#include "ibmras/monitoring/AgentExtensionReceiver.h"
 #include "ibmras/common/util/strUtils.h"
 
 //#define AGENT(func) ibmras::monitoring::agent::Agent::getInstance()->func();
@@ -532,6 +533,14 @@ void Agent::startReceivers() {
 						reinterpret_cast<ibmras::monitoring::connector::Receiver*>(instance);
 				if (receiver) {
 					IBMRAS_DEBUG_1(info, "Add receiver %s to connector manager",
+							(*i)->name.c_str());
+					connectionManager.addReceiver(receiver);
+				}
+			} else if ((*i)->receiveMessage) {
+				ibmras::monitoring::connector::Receiver* receiver = 
+						new ibmras::monitoring::AgentExtensionReceiver((*i)->receiveMessage);
+				if (receiver) {
+					IBMRAS_DEBUG_1(info, "Add extension receiver %s to connector manager",
 							(*i)->name.c_str());
 					connectionManager.addReceiver(receiver);
 				}

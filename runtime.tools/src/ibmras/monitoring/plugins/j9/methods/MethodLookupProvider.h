@@ -13,6 +13,7 @@
 #define ibmras_monitoring_plugins_j9_methods
 
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/common/port/Lock.h"

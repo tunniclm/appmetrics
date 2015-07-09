@@ -14,10 +14,6 @@
 
 #include <string>
 
-#ifndef NULL
-#define NULL 0
-#endif
-
 #ifndef PLUGIN_API_VERSION
 #define PLUGIN_API_VERSION "1.0"
 #endif
@@ -28,57 +24,7 @@
 #define PLUGIN_API_DECL
 #endif
 
-#if defined(_WINDOWS)
-	#include <basetsd.h>
-	#include <limits.h>
-#else
-	#include <stdint.h>
-	#include <limits.h>
-	#include <inttypes.h>
-#endif
 
-typedef signed int          INT;
-typedef unsigned int        UINT;
-typedef signed int          INT32;
-#ifndef UINT32
-   typedef unsigned int    UINT32;
-#endif
-typedef unsigned int        uint;
-typedef signed int          int32;
-typedef unsigned int        uint32;
-typedef signed int          int_t;
-typedef unsigned int        uint_t;
-
-#if defined(_WINDOWS)
-	typedef signed int          int32_t;
-	typedef unsigned int        uint32_t;
-
-	typedef signed __int64      INT64;
-	typedef unsigned __int64    UINT64;
-
-	typedef signed __int64      int64;
-	typedef unsigned __int64    uint64;
-
-	typedef signed __int64      int64_t;
-	typedef unsigned __int64    uint64_t;
-
-	#define _P64        "I64"
-#else
-    #if (__WORDSIZE == 64)
-       #define _P64         "l"
-    #else
-       #define _P64         "ll"
-    #endif
-
-    typedef int64_t             INT64;
-	#ifndef UINT64
-    	typedef uint64_t            UINT64;
-	#endif
-
-    typedef int64_t             int64;
-    typedef uint64_t            uint64;
-
-#endif
 
 
 /*
@@ -125,7 +71,7 @@ typedef struct pullsource{
 typedef void* (*CONNECTOR_FACTORY)(const char* properties);	/* short cut for the function pointer to invoke in the connector library */
 
 /* definition for receivers */
-typedef void* (*RECEIVER_FACTORY)();	/* short cut for the function pointer to invoke in the receiver library */
+typedef void (*RECEIVE_MESSAGE)(const char* id, unsigned int size, void *data);	/* short cut for the function pointer to invoke in the receiver library */
 
 
 #if defined(_WINDOWS)

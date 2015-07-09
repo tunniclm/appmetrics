@@ -15,6 +15,7 @@
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/common/port/Semaphore.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/agent/threads/WorkerThread.h"
 
 namespace ibmras {

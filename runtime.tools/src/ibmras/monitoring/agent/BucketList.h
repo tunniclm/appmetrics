@@ -15,6 +15,7 @@
 #include "ibmras/common/port/Lock.h"
 #include "ibmras/monitoring/connector/Connector.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/agent/Bucket.h"
 
 namespace ibmras {

@@ -15,7 +15,7 @@
  * Memory management functionality
  */
 
-#include "ibmras/common/types.h"
+#include "ibmras/monitoring/Typesdef.h"
 
 namespace ibmras {
 namespace common {

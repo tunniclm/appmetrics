@@ -27,6 +27,7 @@
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/monitoring/agent/DataSource.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 
 using namespace v8;
 

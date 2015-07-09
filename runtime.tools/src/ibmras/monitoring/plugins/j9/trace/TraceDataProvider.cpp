@@ -10,6 +10,7 @@
 
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/plugins/j9/Util.h"
 #include "ibmras/common/port/Process.h"

@@ -1,5 +1,6 @@
 #include <Python.h>
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include <cstring>
 #include <fstream>
 #include <iostream>

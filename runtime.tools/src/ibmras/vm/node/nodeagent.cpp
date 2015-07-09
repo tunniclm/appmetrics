@@ -16,6 +16,7 @@
 #include "nan.h"
 #include "uv.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/Logger.h"
 #include "ibmras/monitoring/agent/Agent.h"
@@ -200,20 +201,23 @@ void* getApiFunc(std::string pluginPath, std::string funcName) {
 }
 #else
 void* getApiFunc(std::string pluginPath, std::string funcName) {
-	std::string apiPlugin = fileJoin(pluginPath, "libapiplugin.so");
+#if defined(_AIX)
+	std::string libname = "libapiplugin.a";
+#else
+	std::string libname = "libapiplugin.so";
+#endif
+	std::string apiPlugin = fileJoin(pluginPath, libname);
 	void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
     if (!handle) {
-    	std::cerr << "API Connector Listener: failed to open libapiplugin.so: " << dlerror() << "\n";
+		std::cerr << "API Connector Listener: failed to open " << libname << ": " << dlerror() << "\n";
     	return NULL;
     }
 	void* apiFunc = dlsym(handle, funcName.c_str());
-    const char *dlsym_error = dlerror();
-    if (dlsym_error) {
-       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in libapiplugin.so: " << dlsym_error <<
-       		'\n';
+	if (!apiFunc) {
+       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in " << libname << ": " << dlerror() << "\n";
        	dlclose(handle);
        	return NULL;
-    }
+	}
 	return apiFunc;
 }
 #endif

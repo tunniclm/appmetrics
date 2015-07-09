@@ -9,6 +9,7 @@
 #define CPUPLUGIN_H_
 
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 
 namespace ibmras {
 namespace monitoring {
