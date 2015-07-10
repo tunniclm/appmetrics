@@ -200,16 +200,21 @@ void* getApiFunc(std::string pluginPath, std::string funcName) {
 }
 #else
 void* getApiFunc(std::string pluginPath, std::string funcName) {
-	std::string apiPlugin = fileJoin(pluginPath, "libapiplugin.so");
-	void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
+#if defined(_AIX)
+    std::string libname = fileJoin(pluginPath, "libapiplugin.a");
+#else
+    std::string libname = fileJoin(pluginPath, "libapiplugin.so");
+#endif
+    std::string apiPlugin = fileJoin(pluginPath, libname);
+    void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
     if (!handle) {
-    	std::cerr << "API Connector Listener: failed to open libapiplugin.so: " << dlerror() << "\n";
+    	std::cerr << "API Connector Listener: failed to open " << libname << ": " << dlerror() << "\n";
     	return NULL;
     }
 	void* apiFunc = dlsym(handle, funcName.c_str());
     const char *dlsym_error = dlerror();
     if (dlsym_error) {
-       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in libapiplugin.so: " << dlsym_error <<
+       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in " << libname << ": " << dlsym_error <<
        		'\n';
        	dlclose(handle);
        	return NULL;
