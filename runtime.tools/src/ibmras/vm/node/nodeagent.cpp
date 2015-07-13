@@ -201,9 +201,9 @@ void* getApiFunc(std::string pluginPath, std::string funcName) {
 #else
 void* getApiFunc(std::string pluginPath, std::string funcName) {
 #if defined(_AIX)
-    std::string libname = fileJoin(pluginPath, "libapiplugin.a");
+    std::string libname = "libapiplugin.a";
 #else
-    std::string libname = fileJoin(pluginPath, "libapiplugin.so");
+    std::string libname = "libapiplugin.so";
 #endif
     std::string apiPlugin = fileJoin(pluginPath, libname);
     void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
