@@ -41,6 +41,8 @@ static bool running = false;
 
 IBMRAS_DEFINE_LOGGER("node");
 
+#define PROPERTIES_FILE "healthcenter.properties"
+
 namespace funcs {
 	void (*pushData)(std::string&);
 	void (*sendControl)(std::string&, unsigned int, void*);
@@ -163,7 +165,7 @@ static ibmras::common::PropertiesFile* LoadProperties() {
 	
 	// Load from application directory, if possible
 	if (appDir != NULL) {
-		std::string propFilename(fileJoin(*appDir, std::string("healthcenter.properties")));
+		std::string propFilename(fileJoin(*appDir, std::string(PROPERTIES_FILE)));
 		props = LoadPropertiesFile(propFilename, "application directory");
 	} else {
 		IBMRAS_LOG(debug, "Cannot load properties from application directory, main module not defined");
@@ -171,13 +173,13 @@ static ibmras::common::PropertiesFile* LoadProperties() {
 		
 	// Load from current working directory, if possible
 	if (props == NULL) {
-		std::string propFilename("healthcenter.properties");
+		std::string propFilename(PROPERTIES_FILE);
 		props = LoadPropertiesFile(propFilename, "current working directory");
 	}
 	
 	// Load from module directory
 	if (props == NULL && hcDir != NULL) {
-		std::string propFilename(fileJoin(*hcDir, std::string("healthcenter.properties")));
+		std::string propFilename(fileJoin(*hcDir, std::string(PROPERTIES_FILE)));
 		props = LoadPropertiesFile(propFilename, "healthcenter directory");
 	}
 

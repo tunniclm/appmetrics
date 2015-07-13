@@ -1,0 +1,16 @@
+{
+  "name": "healthcenter",
+  "version": "3.0.5",
+  "description": "IBM Monitoring and Diagnostic Tools - Health Center agent",  
+  "bin": { "node-hc": "bin/appmetrics-cli.js" },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "node download_all_binaries.js"
+  },
+  "directories" : {
+    "licenses": "licenses"
+  },
+  "author": "",
+  "license": "proprietary"
+}
+

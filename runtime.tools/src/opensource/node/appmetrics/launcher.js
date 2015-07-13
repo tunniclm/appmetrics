@@ -32,6 +32,7 @@ process.argv.splice(1, 1)
 delete process.mainModule
 
 // Check early for unsupported mode of invocation, so we don't start
+// appmetrics
 var tty = require('tty');
 if (process.argv.length <= 1 && !(process.forceRepl || tty.isatty(0))) {
     var err = new Error("node-hc does not support reading a script from stdin") 

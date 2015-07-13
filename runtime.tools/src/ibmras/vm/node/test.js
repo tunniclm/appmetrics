@@ -1,4 +1,5 @@
-var agent = require('healthcenter').start();
+var agent = require('healthcenter');
+agent.start();
 
 var duration_secs = process.argv[2];
 
