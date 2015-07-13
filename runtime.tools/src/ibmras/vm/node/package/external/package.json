@@ -1,6 +1,6 @@
 {
   "name": "healthcenter",
-  "version": "3.0.5",
+  "version": "3.0.4",
   "description": "IBM Monitoring and Diagnostic Tools - Health Center agent",  
   "bin": { "node-hc": "bin/appmetrics-cli.js" },
   "scripts": {
