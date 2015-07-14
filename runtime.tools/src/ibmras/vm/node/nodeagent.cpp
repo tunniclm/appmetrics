@@ -212,9 +212,8 @@ void* getApiFunc(std::string pluginPath, std::string funcName) {
     	return NULL;
     }
 	void* apiFunc = dlsym(handle, funcName.c_str());
-    const char *dlsym_error = dlerror();
-    if (dlsym_error) {
-       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in " << libname << ": " << dlsym_error <<
+    if (!apiFunc) {
+       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in " << libname << ": " << dlerror() <<
        		'\n';
        	dlclose(handle);
        	return NULL;
