@@ -1,4 +1,4 @@
-var agent = require('healthcenter');
+var agent = require('appmetrics');
 agent.start();
 
 var duration_secs = process.argv[2];

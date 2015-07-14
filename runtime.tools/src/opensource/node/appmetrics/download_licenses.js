@@ -20,8 +20,7 @@ var http = require('http');
 var url = require('url');
 var path = require('path');
 
-var ROOT_FOLDER = process.cwd().substring(0, process.cwd().indexOf('node_modules'));
-var INSTALL_DIR = path.join(ROOT_FOLDER, 'node_modules', 'appmetrics');
+var INSTALL_DIR = process.cwd();
 var LICENSES_DIR = path.join(INSTALL_DIR, 'licenses');
 var BASE_DOWNLOAD_URL = 'http://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/runtimes/tools/healthcenter/agents/nodejs/licenses';
 var LICENSE_FILES = [ 'LA_cs',
@@ -62,6 +61,8 @@ var LICENSE_FILES = [ 'LA_cs',
                       'LI_zh_TW',
                       'notices' ];
 
+var LOG_FILE = path.join(LICENSES_DIR, 'licenses.log');
+
 var downloadLicense = function(filename, sourcePathURL, destDir) {
 	var downloadURL = [sourcePathURL, filename].join('/');
 
@@ -94,6 +95,13 @@ var downloadLicense = function(filename, sourcePathURL, destDir) {
  */
 fs.mkdir(LICENSES_DIR, function(err) { 
 	// ignore err creating directory (eg if it already exists)
+	var logFileStream = fs.createWriteStream(LOG_FILE, {flags : 'a'});
+	console.log = function(info) { //
+		logFileStream.write(util.format(info) + '\n');
+		process.stdout.write(util.format(info) + '\n');
+	};
+
+	console.log(new Date().toUTCString());
 	for (var i=0; i < LICENSE_FILES.length; i++) {
 		downloadLicense(LICENSE_FILES[i], 
 		                BASE_DOWNLOAD_URL,

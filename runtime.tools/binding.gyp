@@ -5,11 +5,13 @@
     "licensesdir": "./src/ibmras/vm/node/package/external/licenses",
     "pahodir%": "../Paho/org.eclipse.paho.mqtt.c",
     "pahosrcdir%": "../Paho/org.eclipse.paho.mqtt.c/src",
-    "internaldeploydir%": "<(PRODUCT_DIR)/deploy/internal/healthcenter",
-    "externaldeploydir%": "<(PRODUCT_DIR)/deploy/external/healthcenter",
+    "internaldeploydir%": "<(PRODUCT_DIR)/deploy/internal/appmetrics",
+    "externaldeploydir%": "<(PRODUCT_DIR)/deploy/external/appmetrics",
     "externalbinariesdir%": "<(PRODUCT_DIR)/deploy/external/binaries",
     'build_id%': '<!(["python", "./src/ibmras/vm/node/generate_build_id.py"])',
-    'version%': '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/ibmras/vm/node/package.json", "version"])',
+    'opensourceversion%': '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/opensource/node/appmetrics/package.json", "version"])',
+    'internalversion%':  '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/ibmras/vm/node/package/internal/package.json", "version"])',
+    'externalversion%':  '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/ibmras/vm/node/package/external/package.json", "version"])',
   },
   "conditions": [
     ['OS=="aix"', {
@@ -70,7 +72,7 @@
 
   "targets": [
     {
-      "target_name": "healthcenter",
+      "target_name": "appmetrics",
       "include_dirs": [ "<(srcdir)/vm/node" ],
       "sources": [ 
         "<(srcdir)/common/Logger.cpp",
@@ -98,7 +100,7 @@
         "<(srcdir)/vm/node/nodeagent.cpp"
       ],
       'variables': {
-        'agentversion%':'<(version).<(build_id)'
+        'agentversion%':'<(internalversion).<(build_id)'
       },
       'actions': [{
         'action_name': 'Set version',
@@ -223,7 +225,7 @@
       "target_name": "internal",
       "type": "none",
       "dependencies": [
-        "healthcenter",
+        "appmetrics",
         "hcmqtt",
         "cpuplugin",
         "envplugin",
@@ -236,11 +238,11 @@
           "destination": "<(internaldeploydir)",
           "files": [
             "<(opensourcedir)/appmetrics-api.js",
-            "<(opensourcedir)/healthcenter.properties",
+            "<(opensourcedir)/appmetrics.properties",
             "<(opensourcedir)/index.js",
             "<(opensourcedir)/launcher.js",
             "<(srcdir)/vm/node/package/internal/package.json",
-            "<(PRODUCT_DIR)/healthcenter.node",
+            "<(PRODUCT_DIR)/appmetrics.node",
           ],
         },
         {
@@ -269,7 +271,7 @@
       "target_name": "external",
       "type": "none",
       "dependencies": [
-        "healthcenter",
+        "appmetrics",
         "hcmqtt",
         "cpuplugin",
         "envplugin",
@@ -282,7 +284,7 @@
           "destination": "<(externaldeploydir)",
           "files": [
             "<(opensourcedir)/appmetrics-api.js",
-            "<(opensourcedir)/healthcenter.properties",
+            "<(opensourcedir)/appmetrics.properties",
             "<(opensourcedir)/index.js",
             "<(opensourcedir)/launcher.js",
             "<(srcdir)/vm/node/package/external/package.json",
@@ -340,7 +342,7 @@
         {
           "destination": "<(externalbinariesdir)",
           "files": [
-            "<(PRODUCT_DIR)/healthcenter.node",
+            "<(PRODUCT_DIR)/appmetrics.node",
           ],
         },
         {

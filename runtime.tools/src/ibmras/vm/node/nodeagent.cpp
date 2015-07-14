@@ -41,7 +41,7 @@ static bool running = false;
 
 IBMRAS_DEFINE_LOGGER("node");
 
-#define PROPERTIES_FILE "healthcenter.properties"
+#define PROPERTIES_FILE "appmetrics.properties"
 
 namespace funcs {
 	void (*pushData)(std::string&);
@@ -180,7 +180,7 @@ static ibmras::common::PropertiesFile* LoadProperties() {
 	// Load from module directory
 	if (props == NULL && hcDir != NULL) {
 		std::string propFilename(fileJoin(*hcDir, std::string(PROPERTIES_FILE)));
-		props = LoadPropertiesFile(propFilename, "healthcenter directory");
+		props = LoadPropertiesFile(propFilename, "appmetrics directory");
 	}
 
 	return props;
@@ -420,12 +420,12 @@ static Local<Object> GetRequireCache(Handle<Object> module) {
 }
 
 // Check whether the filepath given looks like it's a file in the
-// healthcenter npm module directory. Here we are checking it ends
-// with healthcenter/somefile, but perhaps node_modules/healthcenter/somefile
+// appmetrics npm module directory. Here we are checking it ends
+// with appmetrics/somefile, but perhaps node_modules/appmetrics/somefile
 // would be more accurate?
-static bool IsHealthCenterFile(std::string expected, std::string potentialMatch) {
-	std::string endsWithPosix = "healthcenter/" + expected;
-	std::string endsWithWindows = "healthcenter\\" + expected;
+static bool IsAppMetricsFile(std::string expected, std::string potentialMatch) {
+	std::string endsWithPosix = "appmetrics/" + expected;
+	std::string endsWithWindows = "appmetrics\\" + expected;
 
 	int startAt = potentialMatch.length() - endsWithPosix.length();
 	if (startAt >= 0 && potentialMatch.compare(startAt, endsWithPosix.length(), endsWithPosix) == 0) {
@@ -440,29 +440,29 @@ static bool IsHealthCenterFile(std::string expected, std::string potentialMatch)
 	return false;
 }
 
-// Check if this healthcenter agent native module is loaded via the node-hc command.
-// This is actually checking if this module has healthcenter/launcher.js as it's grandparent.
+// Check if this appmetrics agent native module is loaded via the node-hc command.
+// This is actually checking if this module has appmetrics/launcher.js as it's grandparent.
 // For reference:
 // A locally loaded module would have ancestry like:
 //   ...
-//   ^-- some_module_that_does_require('healthcenter') (grandparent)
-//       ^--- .../node_modules/healthcenter/index.js (parent)
-//            ^-- .../node_modules/healthcenter/healthcenter.node (this)
+//   ^-- some_module_that_does_require('appmetrics') (grandparent)
+//       ^--- .../node_modules/appmetrics/index.js (parent)
+//            ^-- .../node_modules/appmetrics/appmetrics.node (this)
 //
 // A globally loaded module would have ancestry like:
-//   .../node_modules/healthcenter/launcher.js (grandparent)
-//   ^--- .../node_modules/healthcenter/index.js (parent)
-//        ^-- .../node_modules/healthcenter/healthcenter.node (this)
+//   .../node_modules/appmetrics/launcher.js (grandparent)
+//   ^--- .../node_modules/appmetrics/index.js (parent)
+//        ^-- .../node_modules/appmetrics/appmetrics.node (this)
 //
 static bool IsGlobalAgent(Handle<Object> module) {
 	NanScope();
 	Local<Value> parent = module->Get(NanNew<String>("parent"));
 	if (parent->IsObject()) {
 		Local<Value> filename = parent->ToObject()->Get(NanNew<String>("filename"));
-		if (filename->IsString() && IsHealthCenterFile("index.js", ToStdString(filename->ToString()))) {
+		if (filename->IsString() && IsAppMetricsFile("index.js", ToStdString(filename->ToString()))) {
 			Local<Value> grandparent = parent->ToObject()->Get(NanNew<String>("parent"));
 			Local<Value> gpfilename = grandparent->ToObject()->Get(NanNew<String>("filename"));
-			if (gpfilename->IsString() && IsHealthCenterFile("launcher.js", ToStdString(gpfilename->ToString()))) {
+			if (gpfilename->IsString() && IsAppMetricsFile("launcher.js", ToStdString(gpfilename->ToString()))) {
 				return true;
 			}
 		}
@@ -470,9 +470,9 @@ static bool IsGlobalAgent(Handle<Object> module) {
 	return false;
 }
 
-// Check if a global healthcenter agent module is already loaded.
+// Check if a global appmetrics agent module is already loaded.
 // This is actually searching the module cache for a module with filepath 
-// ending .../healthcenter/launcher.js
+// ending .../appmetrics/launcher.js
 static bool IsGlobalAgentAlreadyLoaded(Handle<Object> module) {
 	NanScope();
 	Local<Object> cache = GetRequireCache(module);
@@ -480,7 +480,7 @@ static bool IsGlobalAgentAlreadyLoaded(Handle<Object> module) {
 	if (props->Length() > 0) {
 		for (uint32_t i=0; i<props->Length(); i++) {
 			Local<Value> entry = props->Get(i);
-			if (entry->IsString() && IsHealthCenterFile("launcher.js", ToStdString(entry->ToString()))) {
+			if (entry->IsString() && IsAppMetricsFile("launcher.js", ToStdString(entry->ToString()))) {
 				return true;
 			}
 		}
@@ -494,7 +494,7 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 //	monitoring::NodePlugin<pushsource>::Init(exports);
 
 	if (!IsGlobalAgent(module) && IsGlobalAgentAlreadyLoaded(module)) {
-		NanThrowError("Conflicting healthcenter module was already loaded by node-hc. Try running with node instead.");
+		NanThrowError("Conflicting appmetrics module was already loaded by node-hc. Try running with node instead.");
 		return;
 	}
 
@@ -525,7 +525,7 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	agent->setProperty("agent.native.build.date", agent->getBuildDate());
 	agent->setLogLevels();
 
-	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
+	IBMRAS_LOG_1(info, "Node Application Metrics %s", agent->getVersion().c_str());
 }
 
-NODE_MODULE(healthcenter, Init)
+NODE_MODULE(appmetrics, Init)

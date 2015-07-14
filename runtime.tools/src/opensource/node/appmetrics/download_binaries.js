@@ -23,12 +23,11 @@ var path = require('path');
 var OS = process.platform; // e.g. linux
 var ARCH = process.arch; // e.g. ia32
 var ENDIANNESS = process.config.variables.node_byteorder; // e.g. 'little'
-var ROOT_FOLDER = process.cwd().substring(0, process.cwd().indexOf('node_modules'));
-var INSTALL_DIR = path.join(ROOT_FOLDER, 'node_modules', 'appmetrics');
+var INSTALL_DIR = process.cwd();
 var PLUGINS_DIR = path.join(INSTALL_DIR, 'plugins');
 var BASE_DOWNLOAD_URL = 'http://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/runtimes/tools/healthcenter/agents/nodejs/binaries';
 var HC_VERSION = "3.0.4";
-var BINARY_FILE = 'healthcenter.node';
+var BINARY_FILE = 'appmetrics.node';
 var PLUGIN_NAMES = [ 'apiplugin',
                      'cpuplugin',
                      'envplugin',
@@ -45,14 +44,15 @@ console.log = function(info) { //
 
 var showLegalWarning = function() {
 	/* Legal warning */
+	console.log(new Date().toUTCString());
 	console.log('********************************************************************************');
-	console.log('You are installing the Health Center monitoring and profiling module.');
+	console.log('You are installing the Node Application Metrics monitoring and profiling module.');
 	console.log('This package includes the IBM Monitoring and Diagnostic Tools - Health Center ');
 	console.log('monitoring agent for Node.js, which is automatically downloaded as the module is');
 	console.log('installed on your system/device. This is released under a proprietary IBM');
 	console.log('licence. The license agreement for IBM Monitoring and Diagnostic Tools - Health');
 	console.log('Center is available in the following location:');
-	console.log('node_modules/healthcenter/licenses');
+	console.log('node_modules/appmetrics/licenses');
 	console.log('Your use of the components of the package and dependencies constitutes your ');
 	console.log('acceptance of this license agreement. If you do not accept the terms of the ');
 	console.log('license agreement(s), delete the relevant component(s) immediately from your ');
