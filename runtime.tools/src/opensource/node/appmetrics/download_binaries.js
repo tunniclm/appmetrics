@@ -26,7 +26,7 @@ var ENDIANNESS = process.config.variables.node_byteorder; // e.g. 'little'
 var INSTALL_DIR = process.cwd();
 var PLUGINS_DIR = path.join(INSTALL_DIR, 'plugins');
 var BASE_DOWNLOAD_URL = 'http://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/runtimes/tools/healthcenter/agents/nodejs/binaries';
-var HC_VERSION = "3.0.4";
+var HC_VERSION = "1.0.0";
 var BINARY_FILE = 'appmetrics.node';
 var PLUGIN_NAMES = [ 'apiplugin',
                      'cpuplugin',

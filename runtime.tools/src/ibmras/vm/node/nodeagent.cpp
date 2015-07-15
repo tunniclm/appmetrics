@@ -42,6 +42,7 @@ static bool running = false;
 IBMRAS_DEFINE_LOGGER("node");
 
 #define PROPERTIES_FILE "appmetrics.properties"
+#define APPMETRICS_VERSION "99.99.99.29991231"
 
 namespace funcs {
 	void (*pushData)(std::string&);
@@ -525,7 +526,7 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	agent->setProperty("agent.native.build.date", agent->getBuildDate());
 	agent->setLogLevels();
 
-	IBMRAS_LOG_1(info, "Node Application Metrics %s", agent->getVersion().c_str());
+	IBMRAS_LOG_2(info, "Node Application Metrics %s (Agent Core %s)", APPMETRICS_VERSION, agent->getVersion().c_str());
 }
 
 NODE_MODULE(appmetrics, Init)

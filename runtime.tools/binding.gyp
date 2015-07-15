@@ -8,7 +8,9 @@
     "internaldeploydir%": "<(PRODUCT_DIR)/deploy/internal/appmetrics",
     "externaldeploydir%": "<(PRODUCT_DIR)/deploy/external/appmetrics",
     "externalbinariesdir%": "<(PRODUCT_DIR)/deploy/external/binaries",
+    "externallicensesdir%": "<(PRODUCT_DIR)/deploy/external/licenses",
     'build_id%': '<!(["python", "./src/ibmras/vm/node/generate_build_id.py"])',
+    'coreversion%': '3.0.4',
     'opensourceversion%': '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/opensource/node/appmetrics/package.json", "version"])',
     'internalversion%':  '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/ibmras/vm/node/package/internal/package.json", "version"])',
     'externalversion%':  '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/ibmras/vm/node/package/external/package.json", "version"])',
@@ -97,13 +99,14 @@
         "<(srcdir)/monitoring/agent/BucketList.cpp",
         "<(srcdir)/monitoring/Plugin.cpp",
         "<(srcdir)/monitoring/connector/configuration/ConfigurationConnector.cpp",
-        "<(srcdir)/vm/node/nodeagent.cpp"
+        "<(INTERMEDIATE_DIR)/vm/node/nodeagent.cpp",
       ],
       'variables': {
-        'agentversion%':'<(internalversion).<(build_id)'
+      	'corelevel%':'<(coreversion).<(build_id)',
+        'appmetricslevel%':'<(internalversion).<(build_id)',
       },
       'actions': [{
-        'action_name': 'Set version',
+        'action_name': 'Set core reported version/build level',
         'inputs': [ "<(srcdir)/monitoring/agent/Agent.cpp" ],
         'outputs': [ "<(INTERMEDIATE_DIR)/monitoring/agent/Agent.cpp" ],
         'action': [
@@ -112,7 +115,21 @@
           '<(srcdir)/monitoring/agent/Agent.cpp',
           '<(INTERMEDIATE_DIR)/monitoring/agent/Agent.cpp',
           '--from="99\.99\.99\.29991231"',
-          '--to="<(agentversion)"',
+          '--to="<(corelevel)"',
+          '-v'
+         ],
+      },
+      {
+        'action_name': 'Set appmetrics reported version/build level',
+        'inputs': [ "<(srcdir)/vm/node/nodeagent.cpp" ],
+        'outputs': [ "<(INTERMEDIATE_DIR)/vm/node/nodeagent.cpp" ],
+        'action': [
+          'python',
+          '<(srcdir)/vm/node/replace_in_file.py',
+          '<(srcdir)/vm/node/nodeagent.cpp',
+          '<(INTERMEDIATE_DIR)/vm/node/nodeagent.cpp',
+          '--from="99\.99\.99\.29991231"',
+          '--to="<(appmetricslevel)"',
           '-v'
          ],
       }],
@@ -359,7 +376,7 @@
           ],
         },
         {
-          "destination": "<(externalbinariesdir)/licenses",
+          "destination": "<(externallicensesdir)",
           "files": [
             "<(licensesdir)/LA_cs",
             "<(licensesdir)/LA_de",
