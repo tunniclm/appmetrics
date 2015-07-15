@@ -9,7 +9,7 @@
     "externaldeploydir%": "<(PRODUCT_DIR)/deploy/external/appmetrics",
     "externalbinariesdir%": "<(PRODUCT_DIR)/deploy/external/binaries",
     "externallicensesdir%": "<(PRODUCT_DIR)/deploy/external/licenses",
-    'build_id%': '<!(["python", "./src/ibmras/vm/node/generate_build_id.py"])',
+    'build_id%': '.<!(["python", "./src/ibmras/vm/node/generate_build_id.py"])',
     'coreversion%': '3.0.4',
     'opensourceversion%': '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/opensource/node/appmetrics/package.json", "version"])',
     'internalversion%':  '<!(["python", "./src/ibmras/vm/node/get_from_json.py", "./src/ibmras/vm/node/package/internal/package.json", "version"])',
@@ -102,8 +102,8 @@
         "<(INTERMEDIATE_DIR)/vm/node/nodeagent.cpp",
       ],
       'variables': {
-      	'corelevel%':'<(coreversion).<(build_id)',
-        'appmetricslevel%':'<(internalversion).<(build_id)',
+      	'corelevel%':'<(coreversion)<(build_id)',
+        'appmetricslevel%':'<(internalversion)<(build_id)',
       },
       'actions': [{
         'action_name': 'Set core reported version/build level',
