@@ -10,6 +10,7 @@
 
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include <string>
 #include <iostream>
 #include "ibmras/common/logging.h"

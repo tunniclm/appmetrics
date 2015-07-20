@@ -9,6 +9,7 @@
 #define ibmras_monitoring_plugins_j9_environment_memoryplugin_h
 
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/vm/java/healthcenter.h"

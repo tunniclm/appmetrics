@@ -13,6 +13,7 @@
 
 #include "ibmras/monitoring/connector/Connector.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 
 #include <cstring>
 

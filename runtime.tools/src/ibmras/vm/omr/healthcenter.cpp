@@ -14,6 +14,7 @@
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/plugins/omr/TraceDataProvider.h"
 #include "ibmras/monitoring/plugins/omr/MemoryCountersDataProvider.h"
 #include "ibmras/monitoring/plugins/omr/CpuDataProvider.h"

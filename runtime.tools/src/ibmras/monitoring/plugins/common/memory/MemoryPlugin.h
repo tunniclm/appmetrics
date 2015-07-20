@@ -6,6 +6,7 @@
  */
 
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 
 namespace ibmras {
 namespace monitoring {

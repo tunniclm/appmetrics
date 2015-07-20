@@ -10,6 +10,7 @@
 
 
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include <cstring>
 #include <string>
 #include <sstream>

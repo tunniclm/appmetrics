@@ -15,6 +15,7 @@
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 
 
 namespace ibmras {

@@ -13,11 +13,13 @@
 #define ibmras_monitoring_plugin_h
 
 #include "ibmras/monitoring/AgentExtensions.h"
-#include "ibmras/common/types.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include <vector>
 #include <string>
 
 #include "ibmras/common/util/LibraryUtils.h"
+
+typedef void* (*RECEIVER_FACTORY)();	/* short cut for the function pointer for the factory used to create a Receiver object for the plugin */
 
 namespace ibmras {
 namespace monitoring {
@@ -53,6 +55,7 @@ public:
 	const char* (*getVersion)(void);								/* returns plugin version, used to enforce versioning */
 	CONNECTOR_FACTORY confactory;							/* Connector factory */
 	RECEIVER_FACTORY recvfactory;                           /* Receiver factory */
+	RECEIVE_MESSAGE receiveMessage;							/* receiveMessage function to be wrapped by an AgentExtensionReceiver */
 	ibmras::common::util::LibraryUtils::Handle handle;	/* handle to be used when closing the dynamically loaded plugin */
 	int type;
 

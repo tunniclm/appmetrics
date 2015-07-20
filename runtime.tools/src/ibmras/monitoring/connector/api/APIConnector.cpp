@@ -10,7 +10,7 @@
 
 #include "ibmras/monitoring/connector/api/APIConnector.h"
 
-#define DEFAULT_CAPACITY 10240  /* default bucket capacity = 1MB */
+#define DEFAULT_CAPACITY 1024000  /* default bucket capacity = 1MB */
 
 #if defined(_WINDOWS)
 #define APICONNECTORPLUGIN_DECL __declspec(dllexport)   /* required for DLLs to export the plugin functions */

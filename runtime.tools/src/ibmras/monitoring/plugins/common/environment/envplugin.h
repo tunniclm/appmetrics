@@ -9,6 +9,7 @@
 #define ibmras_monitoring_plugins_common_environment_envplugin_h
 
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 
 namespace ibmras {
 namespace monitoring {

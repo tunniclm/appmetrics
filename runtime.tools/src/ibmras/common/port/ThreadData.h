@@ -14,7 +14,7 @@
 
 #include <vector>
 #include <string>
-#include "ibmras/common/types.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/export.h"
 
 

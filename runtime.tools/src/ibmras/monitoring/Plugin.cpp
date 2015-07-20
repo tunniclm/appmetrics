@@ -42,11 +42,12 @@ const char* SYM_STOP = "ibmras_monitoring_plugin_stop";
 const char* SYM_START = "ibmras_monitoring_plugin_start";
 const char* SYM_CONNECTOR_FACTORY = "ibmras_monitoring_getConnector";
 const char* SYM_RECEIVER_FACTORY = "ibmras_monitoring_getReceiver";
+const char* SYM_RECEIVE_MESSAGE = "ibmras_monitoring_receiveMessage";
 const char* SYM_VERSION = "ibmras_monitoring_getVersion";
 
 Plugin::Plugin() :
 		name(""), init(NULL), push(NULL), pull(NULL), start(NULL), stop(NULL), confactory(
-				NULL), recvfactory(NULL), type(0), version(0), getVersion(NULL) {
+				NULL), recvfactory(NULL), receiveMessage(NULL), type(0), version(0), getVersion(NULL) {
 }
 
 std::vector<Plugin*> Plugin::scan(const std::string& dir) {
@@ -165,6 +166,8 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 				handle, SYM_CONNECTOR_FACTORY);
 		void* receiverFactory = ibmras::common::util::LibraryUtils::getSymbol(
 				handle, SYM_RECEIVER_FACTORY);
+		void* receiveMessage = ibmras::common::util::LibraryUtils::getSymbol(
+				handle, SYM_RECEIVE_MESSAGE);
 
 		IBMRAS_DEBUG_4(fine, "Library %s: start=%p stop=%p getVersion=%p", filePath.c_str(), start, stop, getVersion);
 
@@ -191,6 +194,13 @@ Plugin* Plugin::processLibrary(const std::string &filePath) {
 			plugin->confactory = reinterpret_cast<CONNECTOR_FACTORY>(connectorFactory);
 
 			plugin->recvfactory = reinterpret_cast<RECEIVER_FACTORY>(receiverFactory);
+
+			plugin->receiveMessage = reinterpret_cast<RECEIVE_MESSAGE>(receiveMessage);
+			
+			if (plugin->recvfactory && plugin->receiveMessage) {
+				IBMRAS_DEBUG_4(warning, "Library %s: Both %s and %s are defined. Ignoring %s.", filePath.c_str(), SYM_RECEIVER_FACTORY, SYM_RECEIVE_MESSAGE, SYM_RECEIVER_FACTORY);
+				plugin->receiveMessage = NULL;
+			}
 
 			plugin->setType();
 		} else {
@@ -221,7 +231,7 @@ void Plugin::setType() {
 	if (confactory) {
 		type = type | plugin::connector;
 	}
-	if (recvfactory) {
+	if (recvfactory || receiveMessage) {
 		type = type | plugin::receiver;
 	}
 }

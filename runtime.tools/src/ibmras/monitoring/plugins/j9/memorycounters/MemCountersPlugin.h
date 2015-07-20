@@ -11,6 +11,7 @@
 #include "ibmras/common/util/memUtils.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/connector/Receiver.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/vm/java/healthcenter.h"

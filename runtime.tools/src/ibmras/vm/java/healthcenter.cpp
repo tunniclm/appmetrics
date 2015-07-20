@@ -19,6 +19,7 @@
 #include "ibmras/common/logging.h"
 #include "ibmras/monitoring/agent/Agent.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/plugins/j9/trace/TraceDataProvider.h"
 #include "ibmras/monitoring/plugins/j9/methods/MethodLookupProvider.h"
 #include "ibmras/monitoring/plugins/j9/DumpHandler.h"
@@ -53,7 +54,8 @@ struct __jdata;
 static const char* HEALTHCENTER_PROPERTIES_PREFIX =
 		"com.ibm.java.diagnostics.healthcenter.";
 
-int launchAgent(const std::string &options);
+int launchAgent();
+void initialiseProperties(const std::string &options);
 void addPlugins();
 std::string agentOptions;
 ibmras::common::Properties hcprops;
@@ -124,7 +126,9 @@ ibmras::monitoring::agent::Agent* agent;
 /******************************/
 extern "C" JNIEXPORT void JNICALL
 cbVMInit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread) {
-	launchAgent(agentOptions);
+	initialiseProperties(agentOptions);
+	agent->init();
+	launchAgent();
 }
 /******************************/
 extern "C" JNIEXPORT void JNICALL
@@ -147,9 +151,13 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
 	IBMRAS_DEBUG(debug, "> Agent_OnAttach");
 	if (!agentStarted) {
 		rc = initialiseAgent(vm, options, reserved, 1);
+		initialiseProperties(agentOptions);
+		agent->init();
 		agentStarted=true;
-	} 
-	rc = launchAgent(options);
+	} else {
+		initialiseProperties(agentOptions);
+	}
+	rc = launchAgent();
 	IBMRAS_DEBUG_1(debug,"< Agent_OnAttach. rc=%d", rc);
 	return rc;
 }
@@ -324,7 +332,7 @@ jint initialiseAgent(JavaVM *vm, char *options, void *reserved, int onAttach) {
 	pti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
 
 	addPlugins();
-	agent->init();
+
 
 	IBMRAS_DEBUG_1(debug, "< initialiseAgent rc=%d", rc);
 	return rc;
@@ -549,20 +557,22 @@ void addPlugins(){
 	agent->addPlugin(cpu);
 }
 
-
+void initialiseProperties(const std::string &options){
+	agent = ibmras::monitoring::agent::Agent::getInstance();
+	agent->setAgentProperty("launch.options", options);
+	getHCProperties(options);
+}
 /**
  * launch agent code
  */
-int launchAgent(const std::string &options) {
+int launchAgent() {
 
 	agent = ibmras::monitoring::agent::Agent::getInstance();
-	agent->setAgentProperty("launch.options", options);
 
 	if (agent->isHeadlessRunning()) {
 		return -2;
 	}
 
-	getHCProperties(options);
 	agent->setLogLevels();
 
 // now we have the system properties, AIX can load the MQTT plugin.

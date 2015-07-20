@@ -14,6 +14,7 @@
 
 #include "ibmras/export.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 
 #include <string>
 

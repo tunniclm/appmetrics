@@ -8,6 +8,7 @@
  * been deposited with the U.S. Copyright Office.
  */
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/plugins/common/cpu/CpuPlugin.h"
 #include <cstdio>
 #include <iostream>

@@ -17,6 +17,7 @@
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/plugins/j9/jmx/JMX.h"
 #include "ibmras/common/logging.h"
 #include <cstdio>

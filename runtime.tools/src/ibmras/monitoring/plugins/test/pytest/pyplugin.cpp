@@ -11,6 +11,7 @@
 #include "Python.h"//When extending or using Python API this ALWAYS has to be the first include
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include <string>
 #include <iostream>
 #include <cstring>

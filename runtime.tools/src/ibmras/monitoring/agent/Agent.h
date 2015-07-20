@@ -13,6 +13,7 @@
 #define ibmras_monitoring_agent_agent_h
 
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/agent/DataSource.h"
 #include "ibmras/monitoring/agent/DataSourceList.h"
 #include "ibmras/monitoring/connector/Connector.h"

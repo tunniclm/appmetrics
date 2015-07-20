@@ -1,0 +1,14 @@
+{
+  "name": "healthcenter",
+  "version": "3.0.4",
+  "description": "IBM Monitoring and Diagnostic Tools - Health Center agent",  
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install" : "node installer.js"
+  },
+  "directories" : {
+    "licenses" : "licenses"
+  },
+  "author": "",
+  "license": "proprietary"
+}

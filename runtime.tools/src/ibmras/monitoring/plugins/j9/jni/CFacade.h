@@ -16,6 +16,7 @@
 #include "ibmras/common/port/ThreadData.h"
 #include "ibmras/monitoring/Plugin.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/monitoring/plugins/j9/jni/Facade.h"
 #include "ibmras/vm/java/healthcenter.h"
 #include "ibmras/common/util/memUtils.h"

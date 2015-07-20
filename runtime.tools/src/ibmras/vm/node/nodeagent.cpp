@@ -16,6 +16,7 @@
 #include "nan.h"
 #include "uv.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/common/logging.h"
 #include "ibmras/common/Logger.h"
 #include "ibmras/monitoring/agent/Agent.h"
@@ -39,6 +40,9 @@ static std::string* hcDir;
 static bool running = false;
 
 IBMRAS_DEFINE_LOGGER("node");
+
+#define PROPERTIES_FILE "appmetrics.properties"
+#define APPMETRICS_VERSION "99.99.99.29991231"
 
 namespace funcs {
 	void (*pushData)(std::string&);
@@ -66,7 +70,7 @@ static std::string ToStdString(Local<String> s) {
 //	std::cout << "Test a/b/: " << port_dirname("a/b/") << std::endl;
 static std::string port_dirname(const std::string& filename) {
 	if (filename.length() == 0) return std::string(".");
-	
+
 	// Check for and ignore trailing slashes
 	size_t lastpos = filename.length() - 1;
 	while (lastpos > 0 && (filename[lastpos] == '/' || filename[lastpos] == '\\')) {
@@ -162,7 +166,7 @@ static ibmras::common::PropertiesFile* LoadProperties() {
 	
 	// Load from application directory, if possible
 	if (appDir != NULL) {
-		std::string propFilename(fileJoin(*appDir, std::string("healthcenter.properties")));
+		std::string propFilename(fileJoin(*appDir, std::string(PROPERTIES_FILE)));
 		props = LoadPropertiesFile(propFilename, "application directory");
 	} else {
 		IBMRAS_LOG(debug, "Cannot load properties from application directory, main module not defined");
@@ -170,14 +174,14 @@ static ibmras::common::PropertiesFile* LoadProperties() {
 		
 	// Load from current working directory, if possible
 	if (props == NULL) {
-		std::string propFilename("healthcenter.properties");
+		std::string propFilename(PROPERTIES_FILE);
 		props = LoadPropertiesFile(propFilename, "current working directory");
 	}
 	
 	// Load from module directory
 	if (props == NULL && hcDir != NULL) {
-		std::string propFilename(fileJoin(*hcDir, std::string("healthcenter.properties")));
-		props = LoadPropertiesFile(propFilename, "healthcenter directory");
+		std::string propFilename(fileJoin(*hcDir, std::string(PROPERTIES_FILE)));
+		props = LoadPropertiesFile(propFilename, "appmetrics directory");
 	}
 
 	return props;
@@ -201,23 +205,22 @@ void* getApiFunc(std::string pluginPath, std::string funcName) {
 #else
 void* getApiFunc(std::string pluginPath, std::string funcName) {
 #if defined(_AIX)
-    std::string libname = "libapiplugin.a";
+	std::string libname = "libapiplugin.a";
 #else
-    std::string libname = "libapiplugin.so";
+	std::string libname = "libapiplugin.so";
 #endif
-    std::string apiPlugin = fileJoin(pluginPath, libname);
-    void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
-    if (!handle) {
-    	std::cerr << "API Connector Listener: failed to open " << libname << ": " << dlerror() << "\n";
-    	return NULL;
-    }
+	std::string apiPlugin = fileJoin(pluginPath, libname);
+	void* handle = dlopen(apiPlugin.c_str(), RTLD_LAZY);
+	if (!handle) {
+		std::cerr << "API Connector Listener: failed to open " << libname << ": " << dlerror() << "\n";
+		return NULL;
+	}
 	void* apiFunc = dlsym(handle, funcName.c_str());
-    if (!apiFunc) {
-       	std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in " << libname << ": " << dlerror() <<
-       		'\n';
-       	dlclose(handle);
-       	return NULL;
-    }
+	if (!apiFunc) {
+		std::cerr << "API Connector Listener: cannot find symbol '" << funcName << "' in " << libname << ": " << dlerror() << "\n";
+		dlclose(handle);
+		return NULL;
+	}
 	return apiFunc;
 }
 #endif
@@ -279,62 +282,61 @@ NAN_METHOD(setLogLevel) {
 }
 
 struct MessageData {
-    const std::string* source;
-    void* data;
-    unsigned int size;
+	const std::string* source;
+	void* data;
+	unsigned int size;
 };
 
 struct Listener {
-    NanCallback *callback;
+	NanCallback *callback;
 };
 
 
 Listener* listener;
 
 static void cleanupData(uv_handle_t *handle) {
-    MessageData* payload = static_cast<MessageData*>(handle->data);
+	MessageData* payload = static_cast<MessageData*>(handle->data);
 	free(payload->data);
-    delete payload;
-    delete handle;
+	delete payload;
+	delete handle;
 }
 
 static void EmitMessage(uv_async_t *handle, int status) {
+	MessageData* payload = static_cast<MessageData*>(handle->data);
 
-    MessageData* payload = static_cast<MessageData*>(handle->data);
-
-    TryCatch try_catch;
-    const unsigned argc = 2;
-    Local<Value> argv[argc];
-    const char * source = (*payload->source).c_str();
+	TryCatch try_catch;
+	const unsigned argc = 2;
+	Local<Value> argv[argc];
+	const char * source = (*payload->source).c_str();
 
 	Local<Object> buffer = NanNewBufferHandle((char*)payload->data, payload->size);
-   	argv[0] = NanNew<String>(source);
-    argv[1] = buffer;
+	argv[0] = NanNew<String>(source);
+	argv[1] = buffer;
 
-    listener->callback->Call(argc, argv);
-    if (try_catch.HasCaught()) {
-       	node::FatalException(try_catch);
-    }
+	listener->callback->Call(argc, argv);
+	if (try_catch.HasCaught()) {
+		node::FatalException(try_catch);
+	}
 
-    uv_close((uv_handle_t*) handle, cleanupData);
+	uv_close((uv_handle_t*) handle, cleanupData);
 }
 
 void SendData(const std::string &sourceId, unsigned int size, void *data) {
-    uv_async_t *async = new uv_async_t;
-    uv_async_init(uv_default_loop(), async, (uv_async_cb)EmitMessage);
+	uv_async_t *async = new uv_async_t;
+	uv_async_init(uv_default_loop(), async, (uv_async_cb)EmitMessage);
 
-    MessageData* payload = new MessageData();
+	MessageData* payload = new MessageData();
 	/* 
 	 * Make a copies of data and source as they will be freed when this function returns 
 	 */
 	void* dataCopy = malloc(size);
-    memcpy(dataCopy, data, size);
+	memcpy(dataCopy, data, size);
 	payload->source = new std::string(sourceId);
-    payload->data = dataCopy;
+	payload->data = dataCopy;
 	payload->size = size;
 
-    async->data = payload;
-    uv_async_send(async);
+	async->data = payload;
+	uv_async_send(async);
 }
 
 NAN_METHOD(nativeEmit) {
@@ -342,9 +344,9 @@ NAN_METHOD(nativeEmit) {
 
 	std::stringstream contentss;
 	if (args[0]->IsString()) {
- 		String::Utf8Value str(args[0]->ToString());
-    	char *c_arg = *str;
-    	contentss << c_arg << ":";
+		String::Utf8Value str(args[0]->ToString());
+		char *c_arg = *str;
+		contentss << c_arg << ":";
 	} else {
 		/*
 		 *  Error handling as we don't have a valid parameter
@@ -353,66 +355,154 @@ NAN_METHOD(nativeEmit) {
 	}
 	if (args[1]->IsString()) {
 		String::Utf8Value str(args[1]->ToString());
-                char *c_arg = *str;
-                contentss << c_arg;
+		char *c_arg = *str;
+		contentss << c_arg;
 	} else {
 		/*
 		 *  Error handling as we don't have a valid parameter
 		 */
 		return NanThrowError("Second argument must be a JSON string or a comma separated list of key value pairs");
 	}
-  	contentss << '\n';
-  	std::string content = contentss.str();
+	contentss << '\n';
+	std::string content = contentss.str();
 
-  	funcs::pushData(content);
-  	NanReturnUndefined();
+	funcs::pushData(content);
+	NanReturnUndefined();
 }
 
 NAN_METHOD(sendControlCommand) {
-  	NanScope();
+	NanScope();
 
-  	if (args[0]->IsString() && args[1]->IsString()) {
-    	String::Utf8Value topicArg(args[0]->ToString());
-    	String::Utf8Value commandArg(args[1]->ToString());
-    	std::string topic = std::string(*topicArg);
-    	std::string command = std::string(*commandArg); 
-    	unsigned int length = command.length();
-   		funcs::sendControl(topic, length, (void*)command.c_str());
+	if (args[0]->IsString() && args[1]->IsString()) {
+		String::Utf8Value topicArg(args[0]->ToString());
+		String::Utf8Value commandArg(args[1]->ToString());
+		std::string topic = std::string(*topicArg);
+		std::string command = std::string(*commandArg); 
+		unsigned int length = command.length();
+		funcs::sendControl(topic, length, (void*)command.c_str());
   	} else {
-    	return NanThrowError("Arguments must be strings containing the plugin name and control command");
+		return NanThrowError("Arguments must be strings containing the plugin name and control command");
   	}
 
-  	NanReturnUndefined();
+	NanReturnUndefined();
 }
 
 
 NAN_METHOD(localConnect) {
-    NanScope();
-    if (!args[0]->IsFunction()) {
-	    return NanThrowError("First argument must be a callback function");
-    }
-    NanCallback *callback = new NanCallback(args[0].As<Function>());
+	NanScope();
+	if (!args[0]->IsFunction()) {
+		return NanThrowError("First argument must be a callback function");
+	}
+	NanCallback *callback = new NanCallback(args[0].As<Function>());
 
-    listener = new Listener();
-    listener->callback = callback;
+	listener = new Listener();
+	listener->callback = callback;
 
-    void (*func)(const std::string&, unsigned int, void*);
-    func = &SendData;
-    funcs::registerListener(func);
+	void (*func)(const std::string&, unsigned int, void*);
+	func = &SendData;
+	funcs::registerListener(func);
 
-    NanReturnUndefined();
+	NanReturnUndefined();
 }
 
+// Unfortunately native modules don't get a reference
+// to require.cache as this happens in Module._compile()
+// and native modules aren't compiled, they are loaded
+// directly by NativeModule.require() (in Module._load())
+// So we need to get it from Module._cache instead (by
+// executing require('module')._cache)
+static Local<Object> GetRequireCache(Handle<Object> module) {
+	NanEscapableScope();
+	Handle<Value> args[] = { NanNew<String>("module") };
+	Local<Value> m = module->Get(NanNew<String>("require"))->ToObject()->CallAsFunction(NanGetCurrentContext()->Global(), 1, args);
+	Local<Object> cache = m->ToObject()->Get(NanNew<String>("_cache"))->ToObject();
+	return NanEscapeScope(cache);
+}
+
+// Check whether the filepath given looks like it's a file in the
+// appmetrics npm module directory. Here we are checking it ends
+// with appmetrics/somefile, but perhaps node_modules/appmetrics/somefile
+// would be more accurate?
+static bool IsAppMetricsFile(std::string expected, std::string potentialMatch) {
+	std::string endsWithPosix = "appmetrics/" + expected;
+	std::string endsWithWindows = "appmetrics\\" + expected;
+
+	int startAt = potentialMatch.length() - endsWithPosix.length();
+	if (startAt >= 0 && potentialMatch.compare(startAt, endsWithPosix.length(), endsWithPosix) == 0) {
+		return true;
+	}
+
+	startAt = potentialMatch.length() - endsWithWindows.length();
+	if (startAt >= 0 && potentialMatch.compare(startAt, endsWithWindows.length(), endsWithWindows) == 0) {
+		return true;
+	}
+	
+	return false;
+}
+
+// Check if this appmetrics agent native module is loaded via the node-hc command.
+// This is actually checking if this module has appmetrics/launcher.js as it's grandparent.
+// For reference:
+// A locally loaded module would have ancestry like:
+//   ...
+//   ^-- some_module_that_does_require('appmetrics') (grandparent)
+//       ^--- .../node_modules/appmetrics/index.js (parent)
+//            ^-- .../node_modules/appmetrics/appmetrics.node (this)
+//
+// A globally loaded module would have ancestry like:
+//   .../node_modules/appmetrics/launcher.js (grandparent)
+//   ^--- .../node_modules/appmetrics/index.js (parent)
+//        ^-- .../node_modules/appmetrics/appmetrics.node (this)
+//
+static bool IsGlobalAgent(Handle<Object> module) {
+	NanScope();
+	Local<Value> parent = module->Get(NanNew<String>("parent"));
+	if (parent->IsObject()) {
+		Local<Value> filename = parent->ToObject()->Get(NanNew<String>("filename"));
+		if (filename->IsString() && IsAppMetricsFile("index.js", ToStdString(filename->ToString()))) {
+			Local<Value> grandparent = parent->ToObject()->Get(NanNew<String>("parent"));
+			Local<Value> gpfilename = grandparent->ToObject()->Get(NanNew<String>("filename"));
+			if (gpfilename->IsString() && IsAppMetricsFile("launcher.js", ToStdString(gpfilename->ToString()))) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+// Check if a global appmetrics agent module is already loaded.
+// This is actually searching the module cache for a module with filepath 
+// ending .../appmetrics/launcher.js
+static bool IsGlobalAgentAlreadyLoaded(Handle<Object> module) {
+	NanScope();
+	Local<Object> cache = GetRequireCache(module);
+	Local<Array> props = cache->GetOwnPropertyNames();
+	if (props->Length() > 0) {
+		for (uint32_t i=0; i<props->Length(); i++) {
+			Local<Value> entry = props->Get(i);
+			if (entry->IsString() && IsAppMetricsFile("launcher.js", ToStdString(entry->ToString()))) {
+				return true;
+			}
+		}
+	}
+	
+	return false;	
+}
 
 void Init(Handle<Object> exports, Handle<Object> module) {
 //	monitoring::NodePlugin<pullsource>::Init(exports);
 //	monitoring::NodePlugin<pushsource>::Init(exports);
 
+	if (!IsGlobalAgent(module) && IsGlobalAgentAlreadyLoaded(module)) {
+		NanThrowError("Conflicting appmetrics module was already loaded by node-hc. Try running with node instead.");
+		return;
+	}
+
 	exports->Set(NanNew<String>("start"), NanNew<FunctionTemplate>(Start)->GetFunction());
 	exports->Set(NanNew<String>("spath"), NanNew<FunctionTemplate>(spath)->GetFunction());
 	exports->Set(NanNew<String>("stop"), NanNew<FunctionTemplate>(Stop)->GetFunction());
 	exports->Set(NanNew<String>("setLogLevel"), NanNew<FunctionTemplate>(setLogLevel)->GetFunction());
-    exports->Set(NanNew<String>("localConnect"), NanNew<FunctionTemplate>(localConnect)->GetFunction());
+	exports->Set(NanNew<String>("localConnect"), NanNew<FunctionTemplate>(localConnect)->GetFunction());
 	exports->Set(NanNew<String>("nativeEmit"), NanNew<FunctionTemplate>(nativeEmit)->GetFunction());
 	exports->Set(NanNew<String>("sendControlCommand"), NanNew<FunctionTemplate>(sendControlCommand)->GetFunction());
 
@@ -435,7 +525,7 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	agent->setProperty("agent.native.build.date", agent->getBuildDate());
 	agent->setLogLevels();
 
-	IBMRAS_LOG_1(info, "Health Center %s", agent->getVersion().c_str());
+	IBMRAS_LOG_2(info, "Node Application Metrics %s (Agent Core %s)", APPMETRICS_VERSION, agent->getVersion().c_str());
 }
 
-NODE_MODULE(healthcenter, Init)
+NODE_MODULE(appmetrics, Init)

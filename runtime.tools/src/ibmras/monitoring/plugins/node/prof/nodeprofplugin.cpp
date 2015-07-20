@@ -14,6 +14,7 @@
 #include "nan.h"
 #include "node_version.h"
 #include "ibmras/monitoring/AgentExtensions.h"
+#include "ibmras/monitoring/Typesdef.h"
 #include "ibmras/common/util/sysUtils.h"
 #include "ibmras/monitoring/plugins/GenericEnablingReceiver.h"
 #include <cstring>
