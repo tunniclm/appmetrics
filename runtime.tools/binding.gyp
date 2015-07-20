@@ -304,7 +304,7 @@
             "<(opensourcedir)/appmetrics.properties",
             "<(opensourcedir)/index.js",
             "<(opensourcedir)/launcher.js",
-            "<(opensourcedir)/readme.md",
+            "<(opensourcedir)/README.md",
             "<(srcdir)/vm/node/package/external/package.json",
             "<(srcdir)/vm/node/package/external/download_all_binaries.js",
           ],
